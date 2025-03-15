@@ -1,12 +1,12 @@
 import './App.css'
+import HeroSection from './components/HeroSection' 
+import NavBar from './components/navbar'
 
 function App() {
-
   return (
     <>
-      <section>
-        <h1>My First React App on Vite</h1>
-      </section>
+      <NavBar />
+      <HeroSection />
     </>
   )
 }
