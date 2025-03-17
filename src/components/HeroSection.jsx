@@ -3,7 +3,7 @@ function HeroSection() {
 
     <div class="flex flex-col sm:flex-row sm:justify-evenly sm:items-center sm:gap-[60px] sm:px-[120px] sm:py-[60px] px-[16px] py-[40px]">
 
-      {/* กล่องซ้าย */}
+      
       <div class="sm:w-[347px] text-center sm:text-right mb-[40px] sm:mb-0">
         <h1 class="text-[#26231E] font-[600] text-[40px] sm:text-[52px] leading-[48px] sm:leading-[60px] mb-[16px] sm:mb-[24px] ">
           Stay <br className="hidden lg:block" /> Informed, <br />Stay Inspired
@@ -13,12 +13,12 @@ function HeroSection() {
         </b1>
       </div>
 
-      {/* กล่องกลาง */}
+      
       <div>
-        <img src="/src/images/16_9 img.jpg" alt="person with a cat" width="386px" height="529px object-cover" className="mb-[40px] sm:mb-0" />
+        <img src="https://res.cloudinary.com/dcbpjtd1r/image/upload/v1728449784/my-blog-post/xgfy0xnvyemkklcqodkg.jpg" alt="person with a cat" width="386px" className="h-[529px] object-cover rounded-[16px] mb-[40px] sm:mb-0" />
       </div>
 
-      {/* กล่องขวา */}
+      
       <div class="gap-[12px] w-[347px] ">
         <div class="mb-[12px]">
           <b3 class="text-[#75716B] font-[500] text-[12px] line-hight-[20px] ">-Author</b3>
