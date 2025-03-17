@@ -1,12 +1,15 @@
+import HamburgerMenu from "./ui/hamburgerMenu"
+
 function NavBar() {
     return (
 
-        <navbar class="flex justify-between items-center border-b-[1px] border-[#DAD6D1] md:{py-[12px] px-[24px]} py-[16px] px-[120px]">
+        <navbar class="flex justify-between items-center border-b-[1px] border-[#DAD6D1] sm:py-[16px] sm:px-[120px] py-[12px] px-[24px]">
             <a href="/">
                 <img src="/src/images/logo.jpg" alt="logo" width="44px" height="44px" />
             </a>
+            <HamburgerMenu />
 
-            <nav class="flex justify-between gap-[8px]">
+            <nav class="hidden sm:block sm:flex sm:justify-between sm:gap-[8px]">
                 <a href="/login" class="border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px]">
                     Log in
                 </a>
