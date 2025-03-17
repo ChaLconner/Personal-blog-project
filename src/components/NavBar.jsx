@@ -4,8 +4,8 @@ function NavBar() {
     return (
 
         <navbar class="flex justify-between items-center border-b-[1px] border-[#DAD6D1] sm:py-[16px] sm:px-[120px] py-[12px] px-[24px]">
-            <a href="/">
-                <img src="/src/images/logo.jpg" alt="logo" width="44px" height="44px" />
+            <a className="text-[44px] " href="/">
+                <h1>hh<span className="text-[green]">.</span></h1>
             </a>
             <HamburgerMenu />
 
