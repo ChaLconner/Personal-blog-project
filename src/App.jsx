@@ -1,12 +1,18 @@
 import './App.css'
-import HeroSection from './components/HeroSection' 
 import NavBar from './components/navbar'
+import HeroSection from './components/HeroSection'
+import Article from './components/ArticleSection'
+import Footer from './components/Footer'
 
 function App() {
   return (
     <>
-      <NavBar />
-      <HeroSection />
+      <div >
+        <NavBar />
+        <HeroSection />
+        <Article />
+         <Footer />
+      </div>
     </>
   )
 }
