@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input"
-
+import BlogCard from "./BlogCard";
+import { blogPosts } from "@/data/blogPosts";
 
 import {
     Select,
@@ -41,17 +42,26 @@ function ArticleSection() {
                             </Select>
                         </div>
                     </div>
-
-
-                </div>
-                <div className="md:hidden w-full">
-
                 </div>
 
                 {/* cards */}
-                <div>
-
+                <div className="px-[16px] pt-[24px] pb-[80px] grid grid-cols-1 gap-8 sm:grid-cols-2">
+                    {blogPosts.map((post) =>
+                    (<BlogCard
+                        key={post.id}
+                        image={post.image}
+                        category={post.category}
+                        title={post.title}
+                        description={post.description}
+                        author={post.author}
+                        date={post.date}
+                        likes={post.likes}
+                        content={post.content}
+                    />))}
                 </div>
+                <a href="/" class="underline hidden sm:block sm:text-center sm:mb-[120px]">
+                    View more
+                </a>
             </div>
         </section>
     );
