@@ -1,5 +1,5 @@
 import './App.css'
-import NavBar from './components/navbar'
+import NavBar from './components/NavBar'
 import HeroSection from './components/HeroSection'
 import Article from './components/ArticleSection'
 import Footer from './components/Footer'
@@ -11,7 +11,7 @@ function App() {
         <NavBar />
         <HeroSection />
         <Article />
-         <Footer />
+        <Footer />
       </div>
     </>
   )
