@@ -12,18 +12,26 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 
+const categories = ["Highlight", "Cat", "Inspiration", "General"];
+
 function ArticleSection() {
     return (
-        <section class="">
+        <section className="">
             {/* heading */}
-            <div class="gap-[32px] sm:px-[120px] sm:py-[60px]">
-                <h3 class="font-600 p-[16px] text-[24px] sm:mb-[32px]">Latest articles</h3>
+            <div className="gap-[32px] sm:px-[120px] sm:py-[60px]">
+                <h3 className="font-600 p-[16px] text-[24px] sm:mb-[32px]">Latest articles</h3>
                 <div className="flex sm:justify-between items-center bg-[#EFEEEB] p-[16px] sm:rounded-[16px] sm:px-[24px] sm:py-[16px]" >
                     <div className="hidden md:flex space-x-2">
-                        <button className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[#DAD6D1]">Highlight</button>
-                        <button className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]">Cat</button>
-                        <button className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]">Inspiration</button>
-                        <button className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]">General</button>
+                        {categories.slice(0).map((cat) => {
+                            return (
+                                <button
+                                    key={cat}
+                                    className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium hover:bg-muted"
+                                >
+                                    {cat}
+                                </button>
+                            );
+                        })}
                     </div>
                     <div className="gap-[16px] sm:border-[#DAD6D1] sm:border-[1px] sm:rounded-[8px]">
                         <Input />
@@ -34,10 +42,13 @@ function ArticleSection() {
                                     <SelectValue placeholder="Select category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="highlight">Highlight</SelectItem>
-                                    <SelectItem value="cat">Cat</SelectItem>
-                                    <SelectItem value="inspiration">Inspiration</SelectItem>
-                                    <SelectItem value="general">General</SelectItem>
+                                    {categories.map((cat) => {
+                                        return (
+                                            <SelectItem key={cat} value={cat}>
+                                                {cat}
+                                            </SelectItem>
+                                        );
+                                    })}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -59,7 +70,7 @@ function ArticleSection() {
                         content={post.content}
                     />))}
                 </div>
-                <a href="/" class="underline hidden sm:block sm:text-center sm:mb-[120px]">
+                <a href="/" className="underline hidden sm:block sm:text-center sm:mb-[120px]">
                     View more
                 </a>
             </div>
