@@ -2,7 +2,7 @@ import { Linkedin, Github, Mail } from "lucide-react";
 
 function Footer() {
     return (
-        <footer class="bg-[#EFEEEB] flex flex-col justify-between items-center px-[16px] py-[40px] gap-[24px] sm:flex sm:flex-row sm:px-[120px] sm:py-[60px] sm:gap-[24px]">
+        <footer className="bg-[#EFEEEB] flex flex-col justify-between items-center px-[16px] py-[40px] gap-[24px] sm:flex sm:flex-row sm:px-[120px] sm:py-[60px] sm:gap-[24px]">
             <div className="flex sm:flex-row gap-[24px]">
                 <span className="text-500 text-[16px]">
                     Get in touch
@@ -23,7 +23,7 @@ function Footer() {
                 </div>
             </div>
 
-            <a href="/" class="underline">
+            <a href="/" className="underline">
                 Home page
             </a>
         </footer>
