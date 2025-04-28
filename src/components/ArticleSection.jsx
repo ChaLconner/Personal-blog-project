@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import BlogCard from "./BlogCard";
 import {
     Select,
@@ -91,7 +92,16 @@ function ArticleSection() {
                             >
                                 {cat}
                             </button>
-                        ))}
+                        ))}                        
+                    </div>
+
+                    <div className="relative">
+                        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Input
+                            type="text"
+                            placeholder="Search"
+                            className="w-[343px] py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                        />
                     </div>
 
                     {/* Mobile Select */}
