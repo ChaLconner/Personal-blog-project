@@ -1,100 +1,163 @@
-import { useState } from "react";
-import { Input } from "@/components/ui/input"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Input } from "@/components/ui/input";
 import BlogCard from "./BlogCard";
-import { blogPosts } from "@/data/blogPosts";
 import {
     Select,
     SelectContent,
     SelectGroup,
     SelectItem,
-    SelectLabel,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
     const [category, setCategory] = useState("Highlight");
+    const [posts, setPosts] = useState([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCategoryChanging, setIsCategoryChanging] = useState(false);
+
+    useEffect(() => {
+        const fetchPosts = async () => {
+            if (page === 1 && !isCategoryChanging) {
+                setIsLoading(true);
+            }
+
+            try {
+                const categoryParam = category === "Highlight" ? "" : category;
+                const response = await axios.get("https://blog-post-project-api.vercel.app/posts", {
+                    params: {
+                        page,
+                        limit: 6,
+                        category: categoryParam,
+                    },
+                });
+
+                setPosts((prevPosts) => {
+                    if (page === 1) {
+                        return response.data.posts;
+                    } else {
+                        return [...prevPosts, ...response.data.posts];
+                    }
+                });
+
+                setHasMore(response.data.currentPage < response.data.totalPages);
+            } catch (error) {
+                console.error("Error fetching posts:", error);
+            } finally {
+                setIsLoading(false);
+                setIsCategoryChanging(false);
+            }
+        };
+
+        fetchPosts();
+    }, [page, category, isCategoryChanging]);
+
+    const handleCategoryChange = (newCategory) => {
+        if (newCategory !== category) {
+            setIsCategoryChanging(true);
+            setCategory(newCategory);
+            setPage(1);
+            setHasMore(true);
+            // **ไม่ setPosts([])** ทันที เพื่อให้ยังโชว์ posts เดิมไว้จนกว่าจะโหลดเสร็จ
+        }
+    };
+
+    const handleLoadMore = () => {
+        setPage((prevPage) => prevPage + 1);
+    };
+
     return (
         <section className="">
-            {/* heading */}
-            <div className="gap-[32px] sm:px-[120px] sm:py-[60px]">
-                <h3 className="font-600 p-[16px] text-[24px] sm:mb-[32px]">Latest articles</h3>
-                <div className="flex sm:justify-between items-center bg-[#EFEEEB] p-[16px] sm:rounded-[16px] sm:px-[24px] sm:py-[16px]" >
+            {/* Heading */}
+            <div className="gap-8 sm:px-32 sm:py-16">
+                <h3 className="font-semibold p-4 text-2xl sm:mb-8">Latest articles</h3>
+
+                {/* Category Selector */}
+                <div className="flex flex-col sm:flex-row sm:justify-between items-center bg-[#EFEEEB] p-4 sm:rounded-2xl sm:px-6 sm:py-4 gap-4">
+
+                    {/* Desktop Buttons */}
                     <div className="hidden md:flex space-x-2">
-                        {categories.slice(0).map((Highlight) => {
-                            return (
-                                <button
-                                    key={Highlight}
-                                    className={`px-4 py-2 rounded transition-colors text-sm font-medium ${
-                                        category === Highlight
-                                        ? "bg-gray-600 text-white" 
-                                            : "hover:bg-gray-300"
+                        {categories.map((cat) => (
+                            <button
+                                key={cat}
+                                onClick={() => handleCategoryChange(cat)}
+                                disabled={category === cat}
+                                className={`px-4 py-2 rounded text-sm font-medium transition-colors ${category === cat ? "bg-gray-600 text-white" : "hover:bg-gray-300"
                                     }`}
-                                    disabled={category === Highlight}
-                                    onClick={() => setCategory(Highlight)}
-                                >
-                                    {Highlight}
-                                </button>
-                            );
-                        })}
+                            >
+                                {cat}
+                            </button>
+                        ))}
                     </div>
-                    <div className="gap-[16px] sm:border-[#DAD6D1] sm:border-[1px] sm:rounded-[8px]">
-                        <Input />
-                        <div className="w-full sm:hidden">
-                            <h1 className="text-muted-foreground mb-[4px]">Category</h1>
-                            <Select value="category" onValueChange={(value) => setCategory(value)}>
-                                <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground">
-                                    <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map((cat) => {
-                                        return (
-                                            <SelectItem key={cat} value={cat}>
-                                                {cat}
-                                            </SelectItem>
-                                        );
-                                    })}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="hidden smd:flex space-x-2">
-                            {categories.map((cat) => (
-                                <button
-                                    key={cat}
-                                    onClick={() => setCategory(cat)}
-                                    className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${category === cat ? "bg-[#DAD6D1]" : "hover:bg-muted"
-                                        }`}
-                                >
-                                    {cat}
-                                </button>
 
-                            ))}
-                        </div>
+                    {/* Mobile Select */}
+                    <div className="w-full md:hidden">
+                        <h4 className="text-muted-foreground mb-1">Category</h4>
+                        <Select
+                            value={category}
+                            onValueChange={handleCategoryChange}
+                        >
+                            <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground">
+                                <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat} value={cat}>
+                                            {cat}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 
-                {/* cards */}
-                <div className="px-[16px] pt-[24px] pb-[80px] grid grid-cols-1 gap-8 sm:grid-cols-2">
-                    {blogPosts.map((post) =>
-                    (<BlogCard
-                        key={post.id}
-                        image={post.image}
-                        category={post.category}
-                        title={post.title}
-                        description={post.description}
-                        author={post.author}
-                        date={post.date}
-                        likes={post.likes}
-                        content={post.content}
-                    />))}
+                {/* Blog Cards */}
+                <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
+                    {posts.map((blog) => (
+                        <BlogCard
+                            key={blog.id || blog.title}
+                            image={blog.image}
+                            category={blog.category}
+                            title={blog.title}
+                            description={blog.description}
+                            author={blog.author}
+                            date={new Date(blog.date).toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                            })}
+                        />
+                    ))}
+
+                    {/* Optional Loader when category changing */}
+                    {isCategoryChanging && (
+                        <div className="col-span-full text-center text-muted-foreground">
+                            Loading new category...
+                        </div>
+                    )}
                 </div>
-                <a href="/" className="underline hidden sm:block sm:text-center sm:mb-[120px]">
-                    View more
-                </a>
+
+                {/* Load More */}
+                {hasMore && !isCategoryChanging && (
+                    <div className="text-center mt-8">
+                        <button
+                            onClick={handleLoadMore}
+                            disabled={isLoading}
+                            className="font-medium underline hover:text-muted-foreground"
+                        >
+                            {isLoading ? "Loading..." : "View more"}
+                        </button>
+                    </div>
+                )}
             </div>
         </section>
     );
 }
 
-export default ArticleSection
+export default ArticleSection;
