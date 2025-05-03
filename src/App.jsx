@@ -1,19 +1,17 @@
-import './App.css'
-import NavBar from './components/NavBar'
-import HeroSection from './components/HeroSection'
-import Article from './components/ArticleSection'
-import Footer from './components/Footer'
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import ViewPostPage from "./pages/ViewPostPage";
 
 function App() {
   return (
-    <>
-      <div >
-        <NavBar />
-        <HeroSection />
-        <Article />
-        <Footer />
-      </div>
-    </>
+    <div className="App">
+      <Router>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/post/:postId" element={<ViewPostPage />} />
+        </Routes>
+      </Router>
+    </div>
   )
 }
 

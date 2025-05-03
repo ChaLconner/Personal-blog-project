@@ -11,8 +11,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
-function ArticleSection() {
+export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
     const [category, setCategory] = useState("Highlight");
     const [posts, setPosts] = useState([]);
@@ -71,6 +72,8 @@ function ArticleSection() {
         setPage((prevPage) => prevPage + 1);
     };
 
+    const navigate = useNavigate();
+
     return (
         <section className="">
             {/* Heading */}
@@ -92,16 +95,12 @@ function ArticleSection() {
                             >
                                 {cat}
                             </button>
-                        ))}                        
+                        ))}
                     </div>
 
-                    <div className="relative">
+                    <div className="w-full relative">
                         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input
-                            type="text"
-                            placeholder="Search"
-                            className="w-[343px] py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
-                        />
+                        <Input/>
                     </div>
 
                     {/* Mobile Select */}
@@ -111,7 +110,7 @@ function ArticleSection() {
                             value={category}
                             onValueChange={handleCategoryChange}
                         >
-                            <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground">
+                            <SelectTrigger className="w-full py-3 text-muted-foreground">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -131,6 +130,7 @@ function ArticleSection() {
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
                     {posts.map((blog) => (
                         <BlogCard
+                            id={blog.id}
                             key={blog.id || blog.title}
                             image={blog.image}
                             category={blog.category}
@@ -142,6 +142,7 @@ function ArticleSection() {
                                 month: "long",
                                 year: "numeric",
                             })}
+                            onClick={() => blog.id && navigate(`/Post/${blog.id}`)}
                         />
                     ))}
 
@@ -170,4 +171,6 @@ function ArticleSection() {
     );
 }
 
-export default ArticleSection;
+
+
+
