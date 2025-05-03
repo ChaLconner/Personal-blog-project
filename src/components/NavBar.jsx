@@ -16,7 +16,7 @@ function NavBar() {
             </button>
 
             <div className="hidden sm:block sm:justify-between sm:gap-[8px]">
-                <button onClick={() => navigate("/login")} className="border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px]">
+                <button onClick={() => navigate("/login")} className="border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] mr-[8px]">
                     Log in
                 </button>
                 <button onClick={() => navigate("/signup")} className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px]">

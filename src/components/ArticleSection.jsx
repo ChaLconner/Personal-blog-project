@@ -12,6 +12,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+// import authorImage from "../assets/author.png";
 
 export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -21,6 +22,9 @@ export default function ArticleSection() {
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [isCategoryChanging, setIsCategoryChanging] = useState(false);
+    const [searchKeyword, setSearchKeyword] = useState("");
+    const [suggestions, setSuggestions] = useState([]);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -58,6 +62,28 @@ export default function ArticleSection() {
         fetchPosts();
     }, [page, category, isCategoryChanging]);
 
+    useEffect(() => {
+        if (searchKeyword.length > 0) {
+            setIsLoading(true);
+            const fetchSuggestions = async () => {
+                try {
+                    const response = await axios.get(
+                        `https://blog-post-project-api.vercel.app/posts?keyword=${searchKeyword}`
+                    );
+                    setSuggestions(response.data.posts); // Set search suggestions
+                    setIsLoading(false);
+                } catch (error) {
+                    console.log(error);
+                    setIsLoading(false);
+                }
+            };
+
+            fetchSuggestions();
+        } else {
+            setSuggestions([]); // Clear suggestions if keyword is empty
+        }
+    }, [searchKeyword]);
+
     const handleCategoryChange = (newCategory) => {
         if (newCategory !== category) {
             setIsCategoryChanging(true);
@@ -90,7 +116,7 @@ export default function ArticleSection() {
                                 key={cat}
                                 onClick={() => handleCategoryChange(cat)}
                                 disabled={category === cat}
-                                className={`px-4 py-2 rounded text-sm font-medium transition-colors ${category === cat ? "bg-gray-600 text-white" : "hover:bg-gray-300"
+                                className={`px-4 py-2 rounded text-sm font-medium transition-colors cursor-pointer ${category === cat ? "bg-gray-600 text-white" : "hover:bg-gray-300"
                                     }`}
                             >
                                 {cat}
@@ -98,9 +124,31 @@ export default function ArticleSection() {
                         ))}
                     </div>
 
-                    <div className="w-full relative">
+                    <div className="relative">
                         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input/>
+                        <Input onChange={(e) => setSearchKeyword(e.target.value)}
+                            onFocus={() => setShowDropdown(true)}
+                            onBlur={() => {
+                                setTimeout(() => {
+                                    setShowDropdown(false);
+                                }, 200);
+                            }} />
+                        {!isLoading &&
+                            showDropdown &&
+                            searchKeyword &&
+                            suggestions.length > 0 && (
+                            <div className="absolute right-3 top-1/2 z-10 w-full mt-2 bg-background rounded-sm shadow-lg p-1">
+                                    {suggestions.map((suggestion, index) => (
+                                        <button
+                                            key={index}
+                                            className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm cursor-pointer"
+                                            onClick={() => navigate(`/post/${suggestion.id}`)}
+                                        >
+                                            {suggestion.title}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                     </div>
 
                     {/* Mobile Select */}
