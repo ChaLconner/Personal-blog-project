@@ -10,8 +10,8 @@ function NavBar() {
     const navigate = useNavigate();
     return (
 
-        <nav className="flex justify-between items-center border-b-[1px] border-[#DAD6D1] sm:py-[16px] sm:px-[120px] py-[12px] px-[24px]">
-            <button onClick={() => navigate("/")} className="text-[44px] " >
+        <nav className="flex justify-between items-center border-b-[1px] border-[#DAD6D1] sm:py-[16px] sm:px-[120px] h-[48px] sm:h-[80px] py-[12px] px-[24px]">
+            <button onClick={() => navigate("/")} className="text-2xl sm:text-[44px] " >
                 <h1>hh<span className="text-[green]">.</span></h1>
             </button>
 
