@@ -27,28 +27,42 @@ export default function ArticleSection() {
 
     useEffect(() => {
         const fetchPosts = async () => {
-            if (page === 1 && !isCategoryChanging) {
+            if (page === 1) {
                 setIsLoading(true);
             }
 
             try {
-                const categoryParam = category === "Highlight" ? "all" : category.toLowerCase();
+                let categoryParam;
+                if (category === "Highlight") {
+                    categoryParam = null; // Show all posts for Highlight
+                } else {
+                    categoryParam = category; // Use exact category name
+                }
+
+                console.log('Current category:', category);
+                console.log('Fetching posts with category:', categoryParam);
+                console.log('API request params:', { category: categoryParam, limit: 6 });
+
                 const response = await blogApi.getPosts({
                     category: categoryParam,
                     limit: 6,
                 });
 
+                console.log('API Response:', response);
+                console.log('Posts received:', response.data?.length || 0);
+
                 setPosts((prevPosts) => {
                     if (page === 1) {
-                        return response.data;
+                        return response.data || [];
                     } else {
-                        return [...prevPosts, ...response.data];
+                        return [...prevPosts, ...(response.data || [])];
                     }
                 });
 
-                setHasMore(response.data.length === 6);
+                setHasMore((response.data || []).length === 6);
             } catch (error) {
                 console.error("Error fetching posts:", error);
+                setPosts([]);
             } finally {
                 setIsLoading(false);
                 setIsCategoryChanging(false);
@@ -56,7 +70,7 @@ export default function ArticleSection() {
         };
 
         fetchPosts();
-    }, [page, category, isCategoryChanging]);
+    }, [page, category]);
 
     useEffect(() => {
         if (searchKeyword.length > 0) {
@@ -87,7 +101,12 @@ export default function ArticleSection() {
             setCategory(newCategory);
             setPage(1);
             setHasMore(true);
-            // **ไม่ setPosts([])** ทันที เพื่อให้ยังโชว์ posts เดิมไว้จนกว่าจะโหลดเสร็จ
+            setPosts([]); // Clear posts immediately เพื่อป้องกัน confusion
+            
+            // Clear any relevant cache for immediate refresh
+            if (typeof blogApi.clearCache === 'function') {
+                blogApi.clearCache();
+            }
         }
     };
 
@@ -178,6 +197,15 @@ export default function ArticleSection() {
 
                 {/* Blog Cards */}
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
+                    {/* Show loading when category is changing and no posts */}
+                    {isCategoryChanging && posts.length === 0 && (
+                        <div className="col-span-full text-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                            <p className="text-muted-foreground">Loading {category} posts...</p>
+                        </div>
+                    )}
+                    
+                    {/* Show posts */}
                     {posts.map((blog) => (
                         <BlogCard
                             id={blog.id}
@@ -197,10 +225,10 @@ export default function ArticleSection() {
                         />
                     ))}
 
-                    {/* Optional Loader when category changing */}
-                    {isCategoryChanging && (
-                        <div className="col-span-full text-center text-muted-foreground">
-                            Loading new category...
+                    {/* Show "No posts found" when not loading and no posts */}
+                    {!isCategoryChanging && !isLoading && posts.length === 0 && (
+                        <div className="col-span-full text-center py-8">
+                            <p className="text-muted-foreground">No posts found for {category} category.</p>
                         </div>
                     )}
                 </div>
