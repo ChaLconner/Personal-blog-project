@@ -16,12 +16,11 @@ import {
     Loader2,
     X,
 } from "lucide-react";
-import { comments } from "@/data/comment";
 import { Textarea } from "@/components/ui/textarea";
 import authorImage from "../assets/react.svg";
-import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { blogApi } from "@/services/api";
 
 export default function ViewPost() {
     const [img, setImg] = useState("");
@@ -33,28 +32,38 @@ export default function ViewPost() {
     const [likes, setLikes] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [postComments, setPostComments] = useState([]);
 
     const param = useParams();
     const navigate = useNavigate();
 
     useEffect(() => {
         getPost();
+        getComments();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const getComments = async () => {
+        try {
+            const response = await blogApi.getComments({ postId: param.postId });
+            setPostComments(response.data);
+        } catch (error) {
+            console.log("Error fetching comments:", error);
+        }
+    };
 
     const getPost = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.get(
-                `https://blog-post-project-api.vercel.app/posts/${param.postId}`
-            );
-            setImg(response.data.image);
-            setTitle(response.data.title);
-            setDate(response.data.date);
-            setDescription(response.data.description);
-            setCategory(response.data.category);
-            setContent(response.data.content);
-            setLikes(response.data.likes);
+            const response = await blogApi.getPost(param.postId);
+            const post = response.data;
+            setImg(post.image);
+            setTitle(post.title);
+            setDate(post.date);
+            setDescription(post.description);
+            setCategory(post.category);
+            setContent(post.content);
+            setLikes(post.likes);
             setIsLoading(false);
         } catch (error) {
             console.log(error);
@@ -103,7 +112,7 @@ export default function ViewPost() {
                     </div>
 
                     <Share likesAmount={likes} setDialogState={setIsDialogOpen} />
-                    <Comment setDialogState={setIsDialogOpen} />
+                    <Comment setDialogState={setIsDialogOpen} postComments={postComments} />
                 </div>
 
                 <div className="hidden xl:block xl:w-1/4">
@@ -190,7 +199,7 @@ function Share({ likesAmount, setDialogState }) {
     );
 }
 
-function Comment({ setDialogState }) {
+function Comment({ setDialogState, postComments }) {
     const [comment, setComment] = useState("");
     const [isError, setIsError] = useState(false);
     const handleSendComment = (e) => {
@@ -234,7 +243,7 @@ function Comment({ setDialogState }) {
                 </form>
             </div>
             <div className="space-y-6 px-4">
-                {comments.map((comment, index) => (
+                {postComments.map((comment, index) => (
                     <div key={index} className="flex flex-col gap-2 mb-4">
                         <div className="flex space-x-4">
                             <div className="flex-shrink-0">
@@ -252,7 +261,7 @@ function Comment({ setDialogState }) {
                             </div>
                         </div>
                         <p className=" text-gray-600">{comment.comment}</p>
-                        {index < comments.length - 1 && (
+                        {index < postComments.length - 1 && (
                             <hr className="border-gray-300 my-4" />
                         )}
                     </div>

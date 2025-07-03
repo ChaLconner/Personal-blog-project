@@ -6,7 +6,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
     <div className="flex flex-col gap-4">
       <button
         onClick={() => navigate(`/post/${id}`)}
-        className="relative h-[212px] sm:h-[360px]"
+        className="relative h-[212px] sm:h-[360px] cursor-pointer"
       >
         <img
           className="w-full h-full object-cover rounded-md"
@@ -20,7 +20,10 @@ function BlogCard({ id, image, category, title, description, author, date }) {
             {category}
           </span>
         </div>
-        <button onClick={() => navigate(`/post/${id}`)}>
+        <button
+          onClick={() => navigate(`/post/${id}`)}
+          className="cursor-pointer"
+        >
           <h2 className="text-start font-bold text-xl mb-2 line-clamp-2 hover:underline">
             {title}
           </h2>

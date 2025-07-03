@@ -6,7 +6,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import SignUpPage from "./pages/SignUpPage";
 import SignUpSuccessPage from "./pages/SignUpSuccessPage";
 import LoginPage from "./pages/LoginPage";
-import ProfilePage from "./pages/ProfilePage";
+import ProfilePage from "./components/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 // import AdminArticleManagementPage from "./pages/admin/AdminArticleManagementPage";
 import AdminLogin from "./pages/admin/AdminLoginPage";

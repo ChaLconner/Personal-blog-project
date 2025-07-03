@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 import BlogCard from "./BlogCard";
@@ -12,7 +11,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-// import authorImage from "../assets/author.png";
+import { blogApi } from "@/services/api";
 
 export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -33,24 +32,21 @@ export default function ArticleSection() {
             }
 
             try {
-                const categoryParam = category === "Highlight" ? "" : category;
-                const response = await axios.get("https://blog-post-project-api.vercel.app/posts", {
-                    params: {
-                        page,
-                        limit: 6,
-                        category: categoryParam,
-                    },
+                const categoryParam = category === "Highlight" ? "all" : category.toLowerCase();
+                const response = await blogApi.getPosts({
+                    category: categoryParam,
+                    limit: 6,
                 });
 
                 setPosts((prevPosts) => {
                     if (page === 1) {
-                        return response.data.posts;
+                        return response.data;
                     } else {
-                        return [...prevPosts, ...response.data.posts];
+                        return [...prevPosts, ...response.data];
                     }
                 });
 
-                setHasMore(response.data.currentPage < response.data.totalPages);
+                setHasMore(response.data.length === 6);
             } catch (error) {
                 console.error("Error fetching posts:", error);
             } finally {
@@ -67,10 +63,11 @@ export default function ArticleSection() {
             setIsLoading(true);
             const fetchSuggestions = async () => {
                 try {
-                    const response = await axios.get(
-                        `https://blog-post-project-api.vercel.app/posts?keyword=${searchKeyword}`
-                    );
-                    setSuggestions(response.data.posts); // Set search suggestions
+                    const response = await blogApi.getPosts({
+                        search: searchKeyword,
+                        limit: 5
+                    });
+                    setSuggestions(response.data); // Set search suggestions
                     setIsLoading(false);
                 } catch (error) {
                     console.log(error);
@@ -125,14 +122,18 @@ export default function ArticleSection() {
                     </div>
 
                     <div className="relative">
-                        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <Input onChange={(e) => setSearchKeyword(e.target.value)}
+                        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <Input
+                            onChange={(e) => setSearchKeyword(e.target.value)}
                             onFocus={() => setShowDropdown(true)}
                             onBlur={() => {
                                 setTimeout(() => {
                                     setShowDropdown(false);
                                 }, 200);
-                            }} />
+                            }}
+                            className="cursor-text"
+                            style={{ cursor: "text" }}
+                        />
                         {!isLoading &&
                             showDropdown &&
                             searchKeyword &&
@@ -143,6 +144,7 @@ export default function ArticleSection() {
                                             key={index}
                                             className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm cursor-pointer"
                                             onClick={() => navigate(`/post/${suggestion.id}`)}
+                                            style={{ cursor: "pointer" }}
                                         >
                                             {suggestion.title}
                                         </button>
@@ -191,6 +193,7 @@ export default function ArticleSection() {
                                 year: "numeric",
                             })}
                             onClick={() => blog.id && navigate(`/Post/${blog.id}`)}
+                            style={{ cursor: "pointer" }}
                         />
                     ))}
 
@@ -209,6 +212,7 @@ export default function ArticleSection() {
                             onClick={handleLoadMore}
                             disabled={isLoading}
                             className="font-medium underline hover:text-muted-foreground"
+                            style={{ cursor: isLoading ? "not-allowed" : "pointer" }}
                         >
                             {isLoading ? "Loading..." : "View more"}
                         </button>
