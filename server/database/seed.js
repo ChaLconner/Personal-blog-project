@@ -1,52 +1,32 @@
-import { dbService } from '../config/database.js';
-import { blogPosts } from '../data/blogPosts.js';
-import { comments } from '../data/comments.js';
+import { supabase } from '../config/database.js';
 import process from 'process';
 
 async function seedDatabase() {
   try {
     console.log('Starting database seeding...');
+    console.log('Note: Please run the schema.sql file in your Supabase SQL Editor instead.');
+    console.log('The schema.sql file contains all necessary table creation and sample data.');
+    console.log('Location: server/database/schema.sql');
     
-    // Seed blog posts
-    console.log('Seeding blog posts...');
-    for (const post of blogPosts) {
-      try {
-        await dbService.createPost({
-          title: post.title,
-          description: post.description,
-          content: post.content,
-          image: post.image,
-          category: post.category,
-          author: post.author,
-          likes: post.likes,
-          date: post.date
-        });
-        console.log(`✓ Created post: ${post.title}`);
-      } catch (error) {
-        console.error(`✗ Error creating post "${post.title}":`, error.message);
-      }
+    // Check if tables exist
+    const { data: tables, error } = await supabase
+      .from('blog_posts')
+      .select('count', { count: 'exact', head: true });
+    
+    if (error) {
+      console.error('✗ Database tables not found. Please run schema.sql first.');
+      console.log('Steps:');
+      console.log('1. Go to your Supabase dashboard');
+      console.log('2. Navigate to SQL Editor');
+      console.log('3. Copy and paste the contents of server/database/schema.sql');
+      console.log('4. Execute the SQL');
+      process.exit(1);
     }
 
-    // Seed comments
-    console.log('Seeding comments...');
-    for (const comment of comments) {
-      try {
-        await dbService.createComment({
-          post_id: comment.postId,
-          name: comment.name,
-          comment: comment.comment,
-          image: comment.image,
-          date: comment.date
-        });
-        console.log(`✓ Created comment by: ${comment.name}`);
-      } catch (error) {
-        console.error(`✗ Error creating comment by "${comment.name}":`, error.message);
-      }
-    }
-
-    console.log('Database seeding completed!');
+    console.log(`✓ Database connected successfully. Found ${tables?.count || 0} posts.`);
+    console.log('Database is ready for use!');
   } catch (error) {
-    console.error('Error seeding database:', error);
+    console.error('Error checking database:', error);
     process.exit(1);
   }
 }
