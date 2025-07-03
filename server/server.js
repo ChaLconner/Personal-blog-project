@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import process from 'process';
 
-// Load environment variables first
+// Load environment variables first - ES module syntax
 dotenv.config();
 
 // Debug environment variables
@@ -14,11 +14,28 @@ console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? 'SET' : 
 import { dbService } from './config/database.js';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Request logging middleware (for development)
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
+}
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
 // Routes
 app.get('/', (req, res) => {
@@ -29,7 +46,25 @@ app.get('/', (req, res) => {
 app.get('/api/posts', async (req, res) => {
   try {
     const { category, limit, search } = req.query;
-    const filters = { category, limit, search };
+    
+    // Validate limit parameter
+    let validatedLimit = null;
+    if (limit) {
+      const limitNum = parseInt(limit);
+      if (isNaN(limitNum) || limitNum <= 0 || limitNum > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid limit: must be a positive number between 1 and 100'
+        });
+      }
+      validatedLimit = limitNum;
+    }
+    
+    const filters = { 
+      category: category || null, 
+      limit: validatedLimit, 
+      search: search ? search.trim() : null 
+    };
     
     const posts = await dbService.getAllPosts(filters);
 
@@ -43,7 +78,7 @@ app.get('/api/posts', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching blog posts',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -52,6 +87,15 @@ app.get('/api/posts', async (req, res) => {
 app.get('/api/posts/:id', async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
+    
+    // Validate post ID
+    if (isNaN(postId) || postId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID: must be a positive number'
+      });
+    }
+    
     const post = await dbService.getPostById(postId);
     
     res.json({
@@ -63,7 +107,7 @@ app.get('/api/posts/:id', async (req, res) => {
     res.status(404).json({
       success: false,
       message: 'Blog post not found',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Post not found'
     });
   }
 });
@@ -75,7 +119,14 @@ app.get('/api/comments', async (req, res) => {
     let comments;
 
     if (postId) {
-      comments = await dbService.getCommentsByPostId(parseInt(postId));
+      const postIdNum = parseInt(postId);
+      if (isNaN(postIdNum) || postIdNum <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid postId: must be a positive number'
+        });
+      }
+      comments = await dbService.getCommentsByPostId(postIdNum);
     } else {
       comments = await dbService.getAllComments();
     }
@@ -90,7 +141,7 @@ app.get('/api/comments', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching comments',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -100,6 +151,7 @@ app.post('/api/comments', async (req, res) => {
   try {
     const { post_id, name, comment, image } = req.body;
     
+    // Validate required fields
     if (!post_id || !name || !comment) {
       return res.status(400).json({
         success: false,
@@ -107,18 +159,46 @@ app.post('/api/comments', async (req, res) => {
       });
     }
 
+    // Validate post_id is a valid number
+    const postIdNum = parseInt(post_id);
+    if (isNaN(postIdNum) || postIdNum <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post_id: must be a positive number'
+      });
+    }
+
+    // Validate name and comment length
+    if (name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be between 1 and 100 characters'
+      });
+    }
+
+    if (comment.trim().length === 0 || comment.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment must be between 1 and 1000 characters'
+      });
+    }
+
+    // Check if post exists
+    try {
+      await dbService.getPostById(postIdNum);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
     const newComment = await dbService.createComment({
-      post_id: parseInt(post_id),
-      name,
-      comment,
+      post_id: postIdNum,
+      name: name.trim(),
+      comment: comment.trim(),
       image: image || 'https://via.placeholder.com/48x48?text=U',
-      date: new Date().toLocaleDateString('en-GB', { 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      created_at: new Date().toISOString()
     });
 
     res.status(201).json({
@@ -131,7 +211,7 @@ app.post('/api/comments', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating comment',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -149,7 +229,7 @@ app.get('/api/categories', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching categories',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -167,12 +247,22 @@ app.get('/api/stats', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching stats',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
 
 // Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -180,7 +270,19 @@ app.use((req, res) => {
   });
 });
 
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Shutting down gracefully...');
+  process.exit(0);
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`API URL: http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

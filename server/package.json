@@ -5,10 +5,10 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "seed": "node database/seed.js",
-    "check-db": "node database/seed.js",
+    "start": "node --env-file=.env server.js",
+    "dev": "nodemon --env-file=.env server.js",
+    "seed": "node --env-file=.env database/seed.js",
+    "check-db": "node --env-file=.env database/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
