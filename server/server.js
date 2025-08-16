@@ -59,7 +59,7 @@ app.use('/api/posts', postRouter);
 // Blog Posts Listing Routes (keep existing functionality)
 app.get('/api/blog/posts', async (req, res) => {
   try {
-    const { category, limit, search } = req.query;
+    const { category, limit, search, offset } = req.query;
     
     // Validate limit parameter
     let validatedLimit = null;
@@ -74,10 +74,24 @@ app.get('/api/blog/posts', async (req, res) => {
       validatedLimit = limitNum;
     }
     
+    // Validate offset parameter
+    let validatedOffset = null;
+    if (offset) {
+      const offsetNum = parseInt(offset);
+      if (isNaN(offsetNum) || offsetNum < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid offset: must be a non-negative number'
+        });
+      }
+      validatedOffset = offsetNum;
+    }
+    
     const filters = { 
       category: category || null, 
       limit: validatedLimit, 
-      search: search ? search.trim() : null 
+      search: search ? search.trim() : null,
+      offset: validatedOffset
     };
     
     const posts = await dbService.getAllPosts(filters);
@@ -105,47 +119,6 @@ app.get("/api/protected-route", protectUser, (req, res) => {
 // ตัวอย่างเส้นทางที่เฉพาะ Admin เท่านั้นที่เข้าถึงได้
 app.get("/api/admin-only", protectAdmin, (req, res) => {
   res.json({ message: "This is admin-only content", admin: req.user });
-});
-
-// Get single blog post
-app.get('/api/blog/posts', async (req, res) => {
-  try {
-    const { category, limit, search } = req.query;
-    
-    // Validate limit parameter
-    let validatedLimit = null;
-    if (limit) {
-      const limitNum = parseInt(limit);
-      if (isNaN(limitNum) || limitNum <= 0 || limitNum > 100) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid limit: must be a positive number between 1 and 100'
-        });
-      }
-      validatedLimit = limitNum;
-    }
-    
-    const filters = { 
-      category: category || null, 
-      limit: validatedLimit, 
-      search: search ? search.trim() : null 
-    };
-    
-    const posts = await dbService.getAllPosts(filters);
-
-    res.json({
-      success: true,
-      data: posts,
-      total: posts.length
-    });
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching blog posts',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
 });
 
 // Get single blog post

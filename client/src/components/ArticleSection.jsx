@@ -25,6 +25,27 @@ export default function ArticleSection() {
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
 
+    // Utility function to remove duplicate posts by ID, title, and content
+    const removeDuplicatePosts = (posts) => {
+        const seen = new Map(); // Use Map to track by multiple criteria
+        const uniquePosts = [];
+
+        for (const post of posts) {
+            // Create a unique key based on title and first 100 characters of content
+            const uniqueKey = `${post.title}_${(post.content || post.description || '').substring(0, 100)}`;
+
+            if (!seen.has(uniqueKey)) {
+                seen.set(uniqueKey, true);
+                uniquePosts.push(post);
+            } else {
+                console.log(`Duplicate content detected: "${post.title}" (ID: ${post.id})`);
+            }
+        }
+
+        console.log(`Filtered ${posts.length - uniquePosts.length} duplicate posts`);
+        return uniquePosts;
+    };
+
     useEffect(() => {
         const fetchPosts = async () => {
             if (page === 1) {
@@ -33,33 +54,81 @@ export default function ArticleSection() {
 
             try {
                 let categoryParam;
+                let requestLimit = 6; // Default limit
+
                 if (category === "Highlight") {
                     categoryParam = null; // Show all posts for Highlight
+                    requestLimit = 12; // Request more to ensure we get at least 6 unique after dedup
                 } else {
                     categoryParam = category; // Use exact category name
                 }
 
                 console.log('Current category:', category);
+                console.log('Current page:', page);
                 console.log('Fetching posts with category:', categoryParam);
-                console.log('API request params:', { category: categoryParam, limit: 6 });
+                console.log('API request params:', {
+                    category: categoryParam,
+                    limit: requestLimit,
+                    offset: (page - 1) * 6  // Keep offset based on 6 for consistent pagination
+                });
 
                 const response = await blogApi.getPosts({
                     category: categoryParam,
-                    limit: 6,
+                    limit: requestLimit,
+                    offset: (page - 1) * 6, // Keep offset calculation consistent
                 });
 
                 console.log('API Response:', response);
-                console.log('Posts received:', response.data?.length || 0);
+                console.log('Posts received from API:', response.data?.length || 0);
+                console.log('Raw post IDs:', response.data?.map(p => p.id) || []);
 
                 setPosts((prevPosts) => {
+                    console.log('=== STATE UPDATE ===');
+                    console.log('Previous posts count:', prevPosts.length);
+                    console.log('Previous post IDs:', prevPosts.map(p => p.id));
+
                     if (page === 1) {
-                        return response.data || [];
+                        // For new category, replace all posts and remove any duplicates
+                        let newPosts = removeDuplicatePosts(response.data || []);
+
+                        // For Highlight, ensure we show exactly 6 posts on first load
+                        if (category === "Highlight" && newPosts.length > 6) {
+                            newPosts = newPosts.slice(0, 6);
+                        }
+
+                        console.log('Page 1: After dedup and limit:', newPosts.length, 'posts');
+                        console.log('Final post IDs for page 1:', newPosts.map(p => p.id));
+                        return newPosts;
                     } else {
-                        return [...prevPosts, ...(response.data || [])];
+                        // For load more, combine and remove duplicates
+                        const allPosts = [...prevPosts, ...(response.data || [])];
+                        console.log('Combined posts before dedup:', allPosts.length);
+                        console.log('Combined post IDs:', allPosts.map(p => p.id));
+
+                        let uniquePosts = removeDuplicatePosts(allPosts);
+
+                        // For Highlight pagination, limit to 6 posts per page increment
+                        if (category === "Highlight") {
+                            const targetCount = page * 6;
+                            if (uniquePosts.length > targetCount) {
+                                uniquePosts = uniquePosts.slice(0, targetCount);
+                            }
+                        }
+
+                        console.log('Load more: After dedup and limit:', uniquePosts.length, 'posts');
+                        console.log('Final post IDs after load more:', uniquePosts.map(p => p.id));
+                        return uniquePosts;
                     }
                 });
 
-                setHasMore((response.data || []).length === 6);
+                // Determine if there are more posts available
+                if (category === "Highlight") {
+                    // For Highlight, check if we have more unique posts available
+                    const uniqueFromResponse = removeDuplicatePosts(response.data || []);
+                    setHasMore(uniqueFromResponse.length >= 6 || (response.data || []).length === requestLimit);
+                } else {
+                    setHasMore((response.data || []).length === 6);
+                }
             } catch (error) {
                 console.error("Error fetching posts:", error);
                 setPosts([]);
@@ -102,7 +171,7 @@ export default function ArticleSection() {
             setPage(1);
             setHasMore(true);
             setPosts([]); // Clear posts immediately เพื่อป้องกัน confusion
-            
+
             // Clear any relevant cache for immediate refresh
             if (typeof blogApi.clearCache === 'function') {
                 blogApi.clearCache();
@@ -140,9 +209,10 @@ export default function ArticleSection() {
                         ))}
                     </div>
 
-                    <div className="relative">
+                    <div className="relative w-full md:w-auto">
                         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
                         <Input
+                            className="w-full"
                             onChange={(e) => setSearchKeyword(e.target.value)}
                             onFocus={() => setShowDropdown(true)}
                             onBlur={() => {
@@ -150,20 +220,19 @@ export default function ArticleSection() {
                                     setShowDropdown(false);
                                 }, 200);
                             }}
-                            className="cursor-text"
                             style={{ cursor: "text" }}
                         />
                         {!isLoading &&
                             showDropdown &&
                             searchKeyword &&
                             suggestions.length > 0 && (
-                            <div className="absolute right-3 top-1/2 z-10 w-full mt-2 bg-background rounded-sm shadow-lg p-1">
+                                <div className="absolute left-0 top-full z-20 w-full mt-2 bg-background rounded-sm shadow-lg p-1 max-h-60 overflow-auto">
                                     {suggestions.map((suggestion, index) => (
                                         <button
                                             key={index}
-                                            className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm cursor-pointer"
-                                            onClick={() => navigate(`/post/${suggestion.id}`)}
-                                            style={{ cursor: "pointer" }}
+                                            className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm"
+                                            onMouseDown={() => navigate(`/post/${suggestion.id}`)}
+                                            type="button"
                                         >
                                             {suggestion.title}
                                         </button>
@@ -204,12 +273,12 @@ export default function ArticleSection() {
                             <p className="text-muted-foreground">Loading {category} posts...</p>
                         </div>
                     )}
-                    
+
                     {/* Show posts */}
-                    {posts.map((blog, index) => (
+                    {posts.map((blog) => (
                         <BlogCard
                             id={blog.id}
-                            key={`${blog.id}-${index}`}
+                            key={blog.id} // Use only ID as key since we ensure uniqueness
                             image={blog.image}
                             category={blog.category}
                             title={blog.title}

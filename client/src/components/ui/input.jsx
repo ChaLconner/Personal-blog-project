@@ -3,16 +3,16 @@ import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef(({ className, ...props }, ref) => {
     return (
-        (<input
-            type={"text"}
+        <input
+            type="text"
             placeholder="Search"
             className={cn(
-                "flex w-[343px] sm:w-[360px] sm:h-[48px] border border-[#DAD6D1] bg-white text-[#75716B] rounded-lg px-[16px] py-[12px] text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                "w-full lg:w-[360px] h-12 border border-[#DAD6D1] bg-white text-[#75716B] rounded-lg px-4 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 outline-none",
                 className
             )}
             ref={ref}
-            {...props} />
-        )
+            {...props}
+        />
     );
 })
 Input.displayName = "Input"

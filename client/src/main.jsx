@@ -8,7 +8,5 @@ import jwtInterceptor from './utils/jwtInterceptor'
 jwtInterceptor();
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>    
     <App />
-  </StrictMode>,
 )

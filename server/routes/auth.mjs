@@ -8,66 +8,147 @@ authRouter.post("/register", async (req, res) => {
   
   const { email, password, username, name } = req.body;
 
-  // Validate required fields
-  if (!email || !password || !username || !name) {
-    return res.status(400).json({ error: "All fields are required" });
+  // Validate required fields - support both old and new field requirements
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+  
+  // If username and name are provided, validate them too
+  if ((username || name) && (!username || !name)) {
+    return res.status(400).json({ error: "Both username and name are required when provided" });
   }
 
   try {
-    // ตรวจสอบว่า username มีในฐานข้อมูลหรือไม่
-    const { data: existingUser, error: usernameCheckError } = await supabase
+    // If username is provided, check if it already exists
+    if (username) {
+      const { data: existingUser, error: usernameCheckError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username);
+
+      console.log('🔍 Username check result:', { existingUser, usernameCheckError });
+
+      if (usernameCheckError) {
+        console.error('❌ Username check error:', usernameCheckError);
+        return res.status(500).json({ error: "Error checking username availability" });
+      }
+
+      if (existingUser.length > 0) {
+        return res.status(400).json({ error: "This username is already taken" });
+      }
+    }
+
+    // Check if email already exists
+    const { data: existingEmail, error: emailCheckError } = await supabase
       .from('users')
       .select('*')
-      .eq('username', username);
+      .eq('email', email);
 
-    console.log('🔍 Username check result:', { existingUser, usernameCheckError });
-
-    if (usernameCheckError) {
-      console.error('❌ Username check error:', usernameCheckError);
-      return res.status(500).json({ error: "Error checking username availability" });
+    if (emailCheckError) {
+      console.error('❌ Email check error:', emailCheckError);
+      return res.status(500).json({ error: "Error checking email availability" });
     }
 
-    if (existingUser.length > 0) {
-      return res.status(400).json({ error: "This username is already taken" });
+    if (existingEmail.length > 0) {
+      return res.status(409).json({ error: "User already exists" });
     }
 
-    // เพิ่มข้อมูลผู้ใช้ในฐานข้อมูล (แบบง่าย ไม่ใช้ Auth)
-    const { data: newUser, error: insertError } = await supabase
-      .from('users')
-      .insert([{
+    // Prepare user data for insertion
+    const userData = {
+      email: email,
+      password: password, // ในระบบจริงควร hash password
+      role: 'user',
+      created_at: new Date().toISOString() // Add timestamp
+    };
+
+    // Add optional fields if provided
+    if (username) userData.username = username;
+    if (name) userData.name = name;
+
+    // Try to use Supabase Auth first, then fallback to direct insert
+    let insertResult;
+    
+    try {
+      // Method 1: Use Supabase Auth (recommended)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email,
-        password: password, // ในระบบจริงควร hash password
-        username: username,
-        name: name,
-        role: 'user'
-      }])
-      .select()
-      .single();
+        password: password,
+        options: {
+          data: {
+            username: username,
+            name: name,
+            role: 'user'
+          }
+        }
+      });
 
-    console.log('💾 Insert result:', { newUser, insertError });
+      if (authError) {
+        console.log('Auth signup failed, trying direct insert...', authError.message);
+        
+        // Method 2: Direct insert with UUID generation
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .insert([{
+            id: crypto.randomUUID(), // Generate UUID for id
+            ...userData
+          }])
+          .select()
+          .single();
 
-    if (insertError) {
-      console.error('❌ Insert error:', insertError);
-      if (insertError.code === '23505') { // Unique constraint violation
-        return res.status(400).json({ error: "Username or email already exists" });
+        if (insertError) {
+          throw insertError;
+        }
+
+        console.log('💾 Direct insert result:', { newUser });
+        insertResult = { user: newUser, method: 'direct' };
+      } else {
+        console.log('💾 Auth signup result:', { authData });
+        insertResult = { user: authData.user, method: 'auth' };
       }
-      return res.status(500).json({ error: "Error creating user profile: " + insertError.message });
+      
+    } catch (directError) {
+      // Method 3: Try without explicit ID (let database handle it)
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([userData])
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      console.log('💾 Fallback insert result:', { newUser });
+      insertResult = { user: newUser, method: 'fallback' };
     }
+
+    const { user: newUser, method } = insertResult;
+
+    console.log('💾 Insert result:', { newUser, insertError: null, method });
 
     console.log('✅ User created successfully:', newUser.id);
+    
+    // Return user data based on what was provided
+    const responseUser = {
+      id: newUser.id,
+      email: newUser.email || email,
+      role: newUser.role || 'user'
+    };
+    
+    if (newUser.username || username) responseUser.username = newUser.username || username;
+    if (newUser.name || name) responseUser.name = newUser.name || name;
+
     res.status(201).json({
       message: "User created successfully",
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        username: newUser.username,
-        name: newUser.name,
-        role: newUser.role
-      },
+      user: responseUser,
+      method: method // For debugging
     });
   } catch (error) {
-    console.error('❌ Registration error:', error);
-    res.status(500).json({ error: "An error occurred during registration: " + error.message });
+    console.error('❌ Registration handler error:', error);
+    res.status(500).json({ 
+      error: "An error occurred during registration",
+      details: process.env.NODE_ENV === 'development' ? error.message : "Internal server error"
+    });
   }
 });
 

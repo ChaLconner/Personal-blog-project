@@ -303,13 +303,21 @@ function AuthorBio() {
 }
 
 function CreateAccountModal({ dialogState, setDialogState }) {
+    const navigate = useNavigate();
+
     return (
         <AlertDialog open={dialogState} onOpenChange={setDialogState}>
             <AlertDialogContent className="bg-white rounded-md pt-16 pb-6 max-w-[26rem] sm:max-w-lg flex flex-col items-center">
                 <AlertDialogTitle className="text-3xl font-semibold pb-2 text-center">
                     Create an account to continue
                 </AlertDialogTitle>
-                <button className="rounded-full text-white bg-black hover:bg-muted-foreground transition-colors py-4 text-lg w-52">
+                <button
+                    onClick={() => {
+                        setDialogState(false);
+                        navigate("/signup");
+                    }}
+                    className="rounded-full text-white bg-black hover:bg-muted-foreground transition-colors py-4 text-lg w-52"
+                >
                     Create account
                 </button>
                 <AlertDialogDescription className="flex flex-row gap-1 justify-center font-medium text-center pt-2   text-muted-foreground">

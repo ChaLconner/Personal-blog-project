@@ -47,92 +47,110 @@ const handleDatabaseError = (error, operation) => {
 };
 
 // Database service functions
-export const dbService = {
-  // Test function to check if users table exists
-  async testUsersTable() {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, email, username")
-        .limit(1);
-      
-      if (error) {
-        console.error('Users table test error:', error);
-        return { exists: false, error: error.message };
-      }
-      
-      return { exists: true, data };
-    } catch (error) {
-      console.error('Users table test exception:', error);
-      return { exists: false, error: error.message };
-    }
-  },
+let categoriesCache = null;
+let categoriesCacheTime = 0;
+const CATEGORIES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+export const dbService = {
   // Blog Posts
   async getAllPosts(filters = {}) {
     try {
+      console.log('🔍 Fetching posts from Supabase...', { filters });
+      
+      // Get categories with caching to improve performance
+      let categories = [];
+      const now = Date.now();
+      if (categoriesCache && (now - categoriesCacheTime) < CATEGORIES_CACHE_DURATION) {
+        categories = categoriesCache;
+        console.log('⚡ Using cached categories:', categories);
+      } else {
+        try {
+          const { data: categoriesData, error: categoriesError } = await supabase
+            .from("categories")
+            .select("id, name");
+          
+          if (!categoriesError) {
+            categories = categoriesData || [];
+            categoriesCache = categories;
+            categoriesCacheTime = now;
+            console.log('✅ Categories retrieved and cached:', categories);
+          }
+        } catch (catError) {
+          console.log('⚠️ Categories fetch failed:', catError);
+        }
+      }
+
       let query = supabase
         .from("posts")
-        .select(`
-          id,
-          image,
-          title,
-          description,
-          date,
-          content,
-          likes_count
-        `)
+        .select("id, title, description, image, date, content, likes_count, category_id, status_id")
         .order("date", { ascending: false });
 
-      // Apply filters
-      if (
-        filters.category &&
-        filters.category !== "all" &&
-        filters.category !== null
-      ) {
-        // Simple category filter by category_id (you'll need to implement category name to ID mapping)
-        // For now, skip category filtering until we verify the schema
-      }
-
-      if (filters.search && filters.search.trim().length > 0) {
-        const searchTerm = filters.search.trim();
-        query = query.or(
-          `title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`
+      // Apply category filter
+      if (filters.category && filters.category !== 'Highlight') {
+        // หา category ID จากชื่อ category
+        const categoryObj = categories.find(cat => 
+          cat.name.toLowerCase() === filters.category.toLowerCase()
         );
+        
+        if (categoryObj) {
+          console.log(`🎯 Filtering by category: ${filters.category} (ID: ${categoryObj.id})`);
+          query = query.eq('category_id', categoryObj.id);
+        } else {
+          console.log(`⚠️ Category '${filters.category}' not found, returning empty results`);
+          return [];
+        }
       }
 
-      if (filters.limit && filters.limit > 0) {
+      // Apply pagination offset to prevent duplicates
+      if (filters.offset && filters.offset > 0) {
+        console.log(`🔄 Applying pagination: offset=${filters.offset}, limit=${filters.limit || 6}`);
+        query = query.range(filters.offset, filters.offset + (filters.limit || 6) - 1);
+      } else if (filters.limit && filters.limit > 0) {
+        console.log(`📄 Applying limit: ${filters.limit}`);
         query = query.limit(filters.limit);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.log('Database query error:', error);
+        console.log('❌ Database query error:', error);
         handleDatabaseError(error, 'getAllPosts');
       }
 
-      // Transform data to match frontend expectations
-      const transformedData = (data || []).map(post => ({
-        id: post.id,
-        image: post.image,
-        category: 'General', // Default category until we implement proper category lookup
-        title: post.title,
-        description: post.description,
-        content: post.content,
-        date: post.date,
-        likes_count: post.likes_count || 0,
-        status: 'active', // Default status
-        author: {
-          id: 1,
-          name: 'Admin User',
-          image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
-          username: 'admin'
-        }
-      }));
+      console.log('✅ Posts retrieved:', data?.length || 0);
 
+      // Log actual post IDs for debugging duplicates
+      const postIds = (data || []).map(post => post.id);
+      console.log('📋 Post IDs retrieved:', postIds);
+
+      // Transform data to match frontend expectations (optimized)
+      const transformedData = (data || []).map(post => {
+        const category = categories.find(cat => cat.id === post.category_id);
+        
+        return {
+          id: post.id,
+          image: post.image || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60',
+          category: category?.name || 'General',
+          title: post.title || 'Untitled',
+          description: post.description || 'No description available',
+          content: post.content || 'No content available',
+          date: post.date || new Date().toISOString(),
+          likes_count: post.likes_count || 0,
+          status: 'active',
+          author: {
+            id: 1,
+            name: 'Admin User',
+            image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
+            username: 'admin'
+          }
+        };
+      });
+
+      console.log('✅ Posts transformed:', transformedData.length);
+      console.log('⚡ Processing completed in', Date.now() - performance.now(), 'ms');
       return transformedData;
     } catch (error) {
+      console.error('❌ Error in getAllPosts:', error);
       handleDatabaseError(error, 'getAllPosts');
     }
   },
@@ -145,15 +163,7 @@ export const dbService = {
 
       const { data, error } = await supabase
         .from("posts")
-        .select(`
-          id,
-          image,
-          title,
-          description,
-          date,
-          content,
-          likes_count
-        `)
+        .select("id, title, description, image, date, content, likes_count, category_id, status_id")
         .eq("id", id)
         .single();
 
@@ -164,17 +174,28 @@ export const dbService = {
         throw new Error(`Error fetching post: ${error.message}`);
       }
 
+      // Get categories separately
+      let categories = [];
+      try {
+        const { data: categoriesData } = await supabase.from("categories").select("id, name");
+        categories = categoriesData || [];
+      } catch (catError) {
+        console.log('⚠️ Categories fetch failed for single post:', catError);
+      }
+
       // Transform data to match frontend expectations
+      const category = categories.find(cat => cat.id === data.category_id);
+      
       const transformedData = {
         id: data.id,
-        image: data.image,
-        category: 'General', // Default category
-        title: data.title,
-        description: data.description,
-        content: data.content,
-        date: data.date,
+        image: data.image || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60',
+        category: category?.name || 'General',
+        title: data.title || 'Untitled',
+        description: data.description || 'No description available',
+        content: data.content || 'No content available',
+        date: data.date || new Date().toISOString(),
         likes_count: data.likes_count || 0,
-        status: 'active', // Default status
+        status: 'active',
         author: {
           id: 1,
           name: 'Admin User',
@@ -275,13 +296,7 @@ export const dbService = {
 
       const { data, error } = await supabase
         .from("comments")
-        .select(`
-          id,
-          post_id,
-          comment_text,
-          created_at,
-          user_id
-        `)
+        .select("id, post_id, comment_text, created_at, user_id")
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
 
@@ -311,13 +326,7 @@ export const dbService = {
     try {
       const { data, error } = await supabase
         .from("comments")
-        .select(`
-          id,
-          post_id,
-          comment_text,
-          created_at,
-          user_id
-        `)
+        .select("id, post_id, comment_text, created_at, user_id")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -359,13 +368,7 @@ export const dbService = {
       const { data, error } = await supabase
         .from("comments")
         .insert([commentToInsert])
-        .select(`
-          id,
-          post_id,
-          comment_text,
-          created_at,
-          user_id
-        `)
+        .select("id, post_id, comment_text, created_at, user_id")
         .single();
 
       if (error) {
