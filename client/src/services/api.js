@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base API URL - เปลี่ยนเป็น backend server ของคุณ
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Simple cache for storing API responses
 const cache = new Map();
@@ -145,6 +145,77 @@ const clearCache = () => {
 
 // API service functions
 export const blogApi = {
+  // Authentication functions
+  register: async (userData) => {
+    try {
+      const { name, username, email, password } = userData;
+      
+      if (!name || !username || !email || !password) {
+        throw new Error('All fields are required');
+      }
+
+      const response = await api.post('/auth/register', {
+        name: name.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        password
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error during registration:', error);
+      throw error;
+    }
+  },
+
+  login: async (credentials) => {
+    try {
+      const { email, password } = credentials;
+      
+      if (!email || !password) {
+        throw new Error('Email and password are required');
+      }
+
+      const response = await api.post('/auth/login', {
+        email: email.trim(),
+        password
+      });
+      
+      // Store the token
+      if (response.data.access_token) {
+        auth.setToken(response.data.access_token);
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error during login:', error);
+      throw error;
+    }
+  },
+
+  logout: async () => {
+    try {
+      auth.removeToken();
+      clearCache(); // Clear cache on logout
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      console.error('Error during logout:', error);
+      throw error;
+    }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/get-user');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      // Remove invalid token
+      auth.removeToken();
+      throw error;
+    }
+  },
+
   // Get all blog posts with optional filters (with caching)
   getPosts: async (params = {}) => {
     try {
@@ -154,13 +225,13 @@ export const blogApi = {
       );
       
       // Check cache first
-      const cacheKey = getCacheKey('/posts', cleanParams);
+      const cacheKey = getCacheKey('/blog/posts', cleanParams);
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
         return cachedData;
       }
       
-      const response = await api.get('/posts', { params: cleanParams });
+      const response = await api.get('/blog/posts', { params: cleanParams });
       
       // Cache the response
       setCachedData(cacheKey, response.data);
@@ -176,7 +247,7 @@ export const blogApi = {
   getPost: async (id) => {
     try {
       if (!id) throw new Error('Post ID is required');
-      const response = await api.get(`/posts/${id}`);
+      const response = await api.get(`/blog/posts/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching post:', error);
@@ -202,25 +273,27 @@ export const blogApi = {
   // Create new comment
   createComment: async (commentData) => {
     try {
-      // Validate required fields
-      if (!commentData.post_id || !commentData.name || !commentData.comment) {
-        throw new Error('Missing required fields: post_id, name, comment');
+      // Validate required fields - support both old and new field names
+      const commentText = commentData.comment_text || commentData.comment;
+      if (!commentData.post_id || !commentText) {
+        throw new Error('Missing required fields: post_id, comment');
       }
 
       // Validate data types
-      if (typeof commentData.name !== 'string' || commentData.name.trim().length === 0) {
-        throw new Error('Name must be a non-empty string');
-      }
-
-      if (typeof commentData.comment !== 'string' || commentData.comment.trim().length === 0) {
+      if (typeof commentText !== 'string' || commentText.trim().length === 0) {
         throw new Error('Comment must be a non-empty string');
       }
 
-      const response = await api.post('/comments', {
-        ...commentData,
-        name: commentData.name.trim(),
-        comment: commentData.comment.trim()
-      });
+      // Prepare data for backend - use comment_text field for new schema
+      const dataToSend = {
+        post_id: commentData.post_id,
+        comment_text: commentText.trim(),
+        user_id: commentData.user_id || null, // For authenticated users
+        name: commentData.name ? commentData.name.trim() : null, // For anonymous comments
+        image: commentData.image
+      };
+
+      const response = await api.post('/comments', dataToSend);
       return response.data;
     } catch (error) {
       console.error('Error creating comment:', error);
@@ -278,7 +351,7 @@ export const blogApi = {
         params.limit = limit;
       }
       
-      const response = await api.get('/posts', { params });
+      const response = await api.get('/blog/posts', { params });
       return response.data;
     } catch (error) {
       console.error('Error searching posts:', error);
@@ -301,6 +374,85 @@ export const blogApi = {
   clearCache: () => {
     clearCache();
   },
+
+  // Admin functions
+  admin: {
+    // Posts management
+    getAllPosts: async () => {
+      try {
+        const response = await api.get('/admin/posts');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching admin posts:', error);
+        throw error;
+      }
+    },
+
+    createPost: async (postData) => {
+      try {
+        const response = await api.post('/admin/posts', postData);
+        clearCache(); // Clear cache after creating post
+        return response.data;
+      } catch (error) {
+        console.error('Error creating post:', error);
+        throw error;
+      }
+    },
+
+    updatePost: async (id, postData) => {
+      try {
+        const response = await api.put(`/admin/posts/${id}`, postData);
+        clearCache(); // Clear cache after updating post
+        return response.data;
+      } catch (error) {
+        console.error('Error updating post:', error);
+        throw error;
+      }
+    },
+
+    deletePost: async (id) => {
+      try {
+        const response = await api.delete(`/admin/posts/${id}`);
+        clearCache(); // Clear cache after deleting post
+        return response.data;
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        throw error;
+      }
+    },
+
+    // Comments management
+    getAllComments: async () => {
+      try {
+        const response = await api.get('/admin/comments');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching admin comments:', error);
+        throw error;
+      }
+    },
+
+    deleteComment: async (id) => {
+      try {
+        const response = await api.delete(`/admin/comments/${id}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        throw error;
+      }
+    },
+
+    // Dashboard stats
+    getStats: async () => {
+      try {
+        const response = await api.get('/admin/stats');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching admin stats:', error);
+        throw error;
+      }
+    }
+  }
 };
 
 export { auth };

@@ -36,14 +36,11 @@ cp .env.example .env
 ```
 
 ### 4. Set Up Database
-**Recommended**: Run SQL directly in Supabase dashboard using `database/schema.sql`
-
-**Alternative**: Check database connection:
-```bash
-npm run check-db
-```
-
-Note: The `npm run seed` command now only checks database connectivity. All sample data is included in the `schema.sql` file.
+Create tables and sample data in your Supabase dashboard:
+1. Go to your Supabase project dashboard
+2. Navigate to SQL Editor
+3. Create the required tables (users, posts, comments, categories, statuses)
+4. Run the provided SQL schema from SUPABASE_SETUP.md
 
 ### 5. Start Development Server
 ```bash
@@ -106,9 +103,7 @@ The server will start on `http://localhost:5000`
 ## Available Scripts
 
 - `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon
-- `npm run check-db` - Check database connection and status
-- `npm run seed` - Alias for check-db (deprecated - use schema.sql instead)
+- `npm run dev` - Start development server with nodemon  
 - `npm test` - Run tests (not implemented yet)
 
 ## Environment Variables

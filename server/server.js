@@ -12,6 +12,11 @@ console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'NOT SET');
 console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? 'SET' : 'NOT SET');
 
 import { dbService } from './config/database.js';
+import authRouter from './routes/auth.mjs';
+import adminRouter from './routes/admin.mjs';
+import postRouter from './apps/postRoutes.mjs';
+import protectUser from './middlewares/protectUser.mjs';
+import protectAdmin from './middlewares/protectAdmin.mjs';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,8 +47,68 @@ app.get('/', (req, res) => {
   res.json({ message: 'Blog API Server is running!' });
 });
 
-// Blog Posts Routes
-app.get('/api/posts', async (req, res) => {
+// Auth Routes
+app.use('/api/auth', authRouter);
+
+// Admin Routes  
+app.use('/api/admin', adminRouter);
+
+// Post Routes (with file upload)
+app.use('/api/posts', postRouter);
+
+// Blog Posts Listing Routes (keep existing functionality)
+app.get('/api/blog/posts', async (req, res) => {
+  try {
+    const { category, limit, search } = req.query;
+    
+    // Validate limit parameter
+    let validatedLimit = null;
+    if (limit) {
+      const limitNum = parseInt(limit);
+      if (isNaN(limitNum) || limitNum <= 0 || limitNum > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid limit: must be a positive number between 1 and 100'
+        });
+      }
+      validatedLimit = limitNum;
+    }
+    
+    const filters = { 
+      category: category || null, 
+      limit: validatedLimit, 
+      search: search ? search.trim() : null 
+    };
+    
+    const posts = await dbService.getAllPosts(filters);
+
+    res.json({
+      success: true,
+      data: posts,
+      total: posts.length
+    });
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching blog posts',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// ตัวอย่างเส้นทางที่ผู้ใช้ทั่วไปที่ล็อกอินแล้วสามารถเข้าถึงได้
+app.get("/api/protected-route", protectUser, (req, res) => {
+  res.json({ message: "This is protected content", user: req.user });
+});
+
+// ตัวอย่างเส้นทางที่เฉพาะ Admin เท่านั้นที่เข้าถึงได้
+app.get("/api/admin-only", protectAdmin, (req, res) => {
+  res.json({ message: "This is admin-only content", admin: req.user });
+});
+
+// Get single blog post
+app.get('/api/blog/posts', async (req, res) => {
   try {
     const { category, limit, search } = req.query;
     
@@ -84,7 +149,7 @@ app.get('/api/posts', async (req, res) => {
 });
 
 // Get single blog post
-app.get('/api/posts/:id', async (req, res) => {
+app.get('/api/blog/posts/:id', async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     
@@ -149,13 +214,14 @@ app.get('/api/comments', async (req, res) => {
 // Create new comment
 app.post('/api/comments', async (req, res) => {
   try {
-    const { post_id, name, comment, image } = req.body;
+    const { post_id, name, comment, comment_text, image, user_id } = req.body;
     
-    // Validate required fields
-    if (!post_id || !name || !comment) {
+    // Validate required fields - support both old 'comment' and new 'comment_text' fields
+    const commentContent = comment_text || comment;
+    if (!post_id || !commentContent) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: post_id, name, comment'
+        message: 'Missing required fields: post_id, comment_text'
       });
     }
 
@@ -168,15 +234,8 @@ app.post('/api/comments', async (req, res) => {
       });
     }
 
-    // Validate name and comment length
-    if (name.trim().length === 0 || name.length > 100) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name must be between 1 and 100 characters'
-      });
-    }
-
-    if (comment.trim().length === 0 || comment.length > 1000) {
+    // Validate comment length
+    if (commentContent.trim().length === 0 || commentContent.length > 1000) {
       return res.status(400).json({
         success: false,
         message: 'Comment must be between 1 and 1000 characters'
@@ -195,8 +254,9 @@ app.post('/api/comments', async (req, res) => {
 
     const newComment = await dbService.createComment({
       post_id: postIdNum,
-      name: name.trim(),
-      comment: comment.trim(),
+      comment_text: commentContent.trim(),
+      user_id: user_id || null, // For authenticated users
+      name: name ? name.trim() : null, // For anonymous comments
       image: image || 'https://via.placeholder.com/48x48?text=U',
       created_at: new Date().toISOString()
     });

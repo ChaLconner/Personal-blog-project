@@ -48,13 +48,41 @@ const handleDatabaseError = (error, operation) => {
 
 // Database service functions
 export const dbService = {
+  // Test function to check if users table exists
+  async testUsersTable() {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, email, username")
+        .limit(1);
+      
+      if (error) {
+        console.error('Users table test error:', error);
+        return { exists: false, error: error.message };
+      }
+      
+      return { exists: true, data };
+    } catch (error) {
+      console.error('Users table test exception:', error);
+      return { exists: false, error: error.message };
+    }
+  },
+
   // Blog Posts
   async getAllPosts(filters = {}) {
     try {
       let query = supabase
-        .from("blog_posts")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from("posts")
+        .select(`
+          id,
+          image,
+          title,
+          description,
+          date,
+          content,
+          likes_count
+        `)
+        .order("date", { ascending: false });
 
       // Apply filters
       if (
@@ -62,7 +90,8 @@ export const dbService = {
         filters.category !== "all" &&
         filters.category !== null
       ) {
-        query = query.eq("category", filters.category);
+        // Simple category filter by category_id (you'll need to implement category name to ID mapping)
+        // For now, skip category filtering until we verify the schema
       }
 
       if (filters.search && filters.search.trim().length > 0) {
@@ -79,10 +108,30 @@ export const dbService = {
       const { data, error } = await query;
 
       if (error) {
+        console.log('Database query error:', error);
         handleDatabaseError(error, 'getAllPosts');
       }
 
-      return data || [];
+      // Transform data to match frontend expectations
+      const transformedData = (data || []).map(post => ({
+        id: post.id,
+        image: post.image,
+        category: 'General', // Default category until we implement proper category lookup
+        title: post.title,
+        description: post.description,
+        content: post.content,
+        date: post.date,
+        likes_count: post.likes_count || 0,
+        status: 'active', // Default status
+        author: {
+          id: 1,
+          name: 'Admin User',
+          image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
+          username: 'admin'
+        }
+      }));
+
+      return transformedData;
     } catch (error) {
       handleDatabaseError(error, 'getAllPosts');
     }
@@ -95,8 +144,16 @@ export const dbService = {
       }
 
       const { data, error } = await supabase
-        .from("blog_posts")
-        .select("*")
+        .from("posts")
+        .select(`
+          id,
+          image,
+          title,
+          description,
+          date,
+          content,
+          likes_count
+        `)
         .eq("id", id)
         .single();
 
@@ -107,7 +164,26 @@ export const dbService = {
         throw new Error(`Error fetching post: ${error.message}`);
       }
 
-      return data;
+      // Transform data to match frontend expectations
+      const transformedData = {
+        id: data.id,
+        image: data.image,
+        category: 'General', // Default category
+        title: data.title,
+        description: data.description,
+        content: data.content,
+        date: data.date,
+        likes_count: data.likes_count || 0,
+        status: 'active', // Default status
+        author: {
+          id: 1,
+          name: 'Admin User',
+          image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
+          username: 'admin'
+        }
+      };
+
+      return transformedData;
     } catch (error) {
       console.error("Database error in getPostById:", error);
       throw error;
@@ -122,7 +198,7 @@ export const dbService = {
       }
 
       const { data, error } = await supabase
-        .from("blog_posts")
+        .from("posts")
         .insert([postData])
         .select()
         .single();
@@ -150,7 +226,7 @@ export const dbService = {
       }
 
       const { data, error } = await supabase
-        .from("blog_posts")
+        .from("posts")
         .update(postData)
         .eq("id", id)
         .select()
@@ -177,7 +253,7 @@ export const dbService = {
         throw new Error("Invalid post ID provided");
       }
 
-      const { error } = await supabase.from("blog_posts").delete().eq("id", id);
+      const { error } = await supabase.from("posts").delete().eq("id", id);
 
       if (error) {
         throw new Error(`Error deleting post: ${error.message}`);
@@ -199,7 +275,13 @@ export const dbService = {
 
       const { data, error } = await supabase
         .from("comments")
-        .select("*")
+        .select(`
+          id,
+          post_id,
+          comment_text,
+          created_at,
+          user_id
+        `)
         .eq("post_id", postId)
         .order("created_at", { ascending: true });
 
@@ -207,7 +289,18 @@ export const dbService = {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      return data || [];
+      // Transform data to match frontend expectations
+      const transformedData = (data || []).map(comment => ({
+        id: comment.id,
+        post_id: comment.post_id,
+        name: 'Anonymous',
+        comment: comment.comment_text,
+        image: 'https://via.placeholder.com/48x48?text=U',
+        created_at: comment.created_at,
+        user: null
+      }));
+
+      return transformedData;
     } catch (error) {
       console.error("Database error in getCommentsByPostId:", error);
       throw error;
@@ -218,14 +311,31 @@ export const dbService = {
     try {
       const { data, error } = await supabase
         .from("comments")
-        .select("*")
+        .select(`
+          id,
+          post_id,
+          comment_text,
+          created_at,
+          user_id
+        `)
         .order("created_at", { ascending: false });
 
       if (error) {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      return data || [];
+      // Transform data to match frontend expectations
+      const transformedData = (data || []).map(comment => ({
+        id: comment.id,
+        post_id: comment.post_id,
+        name: 'Anonymous',
+        comment: comment.comment_text,
+        image: 'https://via.placeholder.com/48x48?text=U',
+        created_at: comment.created_at,
+        user: null
+      }));
+
+      return transformedData;
     } catch (error) {
       console.error("Database error in getAllComments:", error);
       throw error;
@@ -235,30 +345,45 @@ export const dbService = {
   async createComment(commentData) {
     try {
       // Validate required fields
-      if (!commentData.post_id || !commentData.name || !commentData.comment) {
-        throw new Error("Missing required comment fields");
+      if (!commentData.post_id || !commentData.comment_text) {
+        throw new Error("Missing required comment fields: post_id and comment_text");
       }
 
-      // Prepare comment data with current timestamp
       const commentToInsert = {
         post_id: commentData.post_id,
-        name: commentData.name,
-        comment: commentData.comment,
-        image: commentData.image || "https://via.placeholder.com/48x48?text=U",
+        user_id: commentData.user_id || null,
+        comment_text: commentData.comment_text || commentData.comment,
         created_at: commentData.created_at || new Date().toISOString(),
       };
 
       const { data, error } = await supabase
         .from("comments")
         .insert([commentToInsert])
-        .select()
+        .select(`
+          id,
+          post_id,
+          comment_text,
+          created_at,
+          user_id
+        `)
         .single();
 
       if (error) {
         throw new Error(`Error creating comment: ${error.message}`);
       }
 
-      return data;
+      // Transform data to match frontend expectations
+      const transformedData = {
+        id: data.id,
+        post_id: data.post_id,
+        name: commentData.name || 'Anonymous',
+        comment: data.comment_text,
+        image: commentData.image || 'https://via.placeholder.com/48x48?text=U',
+        created_at: data.created_at,
+        user: null
+      };
+
+      return transformedData;
     } catch (error) {
       console.error("Database error in createComment:", error);
       throw error;
@@ -269,24 +394,15 @@ export const dbService = {
   async getCategories() {
     try {
       const { data, error } = await supabase
-        .from("blog_posts")
-        .select("category")
-        .not("category", "is", null);
+        .from("categories")
+        .select("id, name");
 
       if (error) {
         throw new Error(`Error fetching categories: ${error.message}`);
       }
 
-      // Get unique categories and filter out empty/null values
-      const categories = [
-        ...new Set(
-          (data || [])
-            .map((item) => item.category)
-            .filter((category) => category && category.trim().length > 0)
-        ),
-      ];
-
-      return categories;
+      // Return full category objects with id and name
+      return data || [];
     } catch (error) {
       console.error("Database error in getCategories:", error);
       throw error;
@@ -298,7 +414,7 @@ export const dbService = {
     try {
       // Get total posts
       const { count: totalPosts, error: postsError } = await supabase
-        .from("blog_posts")
+        .from("posts")
         .select("*", { count: "exact", head: true });
 
       if (postsError) {
@@ -307,15 +423,15 @@ export const dbService = {
 
       // Get total likes
       const { data: likesData, error: likesError } = await supabase
-        .from("blog_posts")
-        .select("likes");
+        .from("posts")
+        .select("likes_count");
 
       if (likesError) {
         throw new Error(`Error fetching likes: ${likesError.message}`);
       }
 
       const totalLikes = (likesData || []).reduce(
-        (sum, post) => sum + (post.likes || 0),
+        (sum, post) => sum + (post.likes_count || 0),
         0
       );
 
@@ -338,7 +454,7 @@ export const dbService = {
         totalLikes: totalLikes || 0,
         totalComments: totalComments || 0,
         totalCategories: categories.length,
-        categories,
+        categories: categories.map(cat => cat.name), // Return category names for backward compatibility
       };
     } catch (error) {
       console.error("Database error in getStats:", error);

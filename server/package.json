@@ -7,8 +7,6 @@
   "scripts": {
     "start": "node --env-file=.env server.js",
     "dev": "nodemon --env-file=.env server.js",
-    "seed": "node --env-file=.env database/seed.js",
-    "check-db": "node --env-file=.env database/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -20,10 +18,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.3",
+    "@supabase/supabase-js": "^2.55.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",

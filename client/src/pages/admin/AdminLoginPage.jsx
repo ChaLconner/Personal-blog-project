@@ -1,16 +1,25 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/authContext.js";
 
 export default function AdminLoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isErrorEmail, setIsErrorEmail] = useState(false);
     const [isErrorPassword, setIsErrorPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    
     const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useAuth();
+    
+    const from = location.state?.from?.pathname || "/admin/create-article";
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError("");
 
         let valid = true;
 
@@ -28,15 +37,27 @@ export default function AdminLoginPage() {
             setIsErrorPassword(false);
         }
 
-        if (valid) {
-            // Submit the login form
-            console.log("Logging in with:", { email, password });
-            // Add logic for login submission (e.g., API call)
+        if (!valid) return;
 
-            // Navigate to a new page after login
-            navigate("/");
+        setIsLoading(true);
+        
+        try {
+            await login({ email, password });
+            
+            // Check if the user is admin (you might need to get user info first)
+            // For now, assume login response includes user role info
+            // If not admin, show error
+            // Note: You might need to modify this based on your API response structure
+            
+            navigate(from, { replace: true });
+        } catch (error) {
+            const errorMessage = error.message || "Login failed. Please try again.";
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
         }
     };
+
     return (
         <div className="flex flex-col min-h-screen">
             <main className="flex justify-center items-center p-4 my-4 flex-grow">
@@ -47,6 +68,13 @@ export default function AdminLoginPage() {
                     <h2 className="text-4xl font-semibold text-center mb-6 text-foreground">
                         Log in
                     </h2>
+                    
+                    {error && (
+                        <div className="w-full p-4 text-red-700 bg-red-100 border border-red-300 rounded mb-6">
+                            {error}
+                        </div>
+                    )}
+                    
                     <form className="space-y-8" onSubmit={handleSubmit}>
                         <div className="relative space-y-1">
                             <label
@@ -95,9 +123,10 @@ export default function AdminLoginPage() {
                         <div className="flex justify-center">
                             <button
                                 type="submit"
-                                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                                disabled={isLoading}
+                                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Log in
+                                {isLoading ? "Logging in..." : "Log in"}
                             </button>
                         </div>
                     </form>

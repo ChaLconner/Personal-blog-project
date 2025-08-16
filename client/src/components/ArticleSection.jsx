@@ -206,10 +206,10 @@ export default function ArticleSection() {
                     )}
                     
                     {/* Show posts */}
-                    {posts.map((blog) => (
+                    {posts.map((blog, index) => (
                         <BlogCard
                             id={blog.id}
-                            key={blog.id || blog.title}
+                            key={`${blog.id}-${index}`}
                             image={blog.image}
                             category={blog.category}
                             title={blog.title}
