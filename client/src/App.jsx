@@ -85,7 +85,6 @@ function AppContent() {
               isLoading={state.getUserLoading}
               isAuthenticated={isAuthenticated}
               userRole={state.user?.role}
-              requiredRole="user"
             >
               <ProfilePage />
             </ProtectedRoute>

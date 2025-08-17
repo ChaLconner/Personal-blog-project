@@ -2,6 +2,7 @@ import { useState } from "react";
 import NavBar from "@/components/NavBar";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
+import { toast } from "sonner";
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -11,9 +12,8 @@ export default function SignUpPage() {
         password: ""
     });
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState(false);
-    
+    const [, setError] = useState("");
+
     const navigate = useNavigate();
     const { register } = useAuth();
 
@@ -37,34 +37,34 @@ export default function SignUpPage() {
         try {
             const result = await register(formData);
             if (result.success) {
-                setSuccess(true);
-                // Redirect to signup success page or login
+                // แสดงข้อความแจ้งเตือนที่มุมขวาล่าง
+                toast.success("Registration successful! Redirecting...", {
+                    position: "bottom-right",
+                    duration: 2000,
+                });
+
+                // เปลี่ยนเส้นทางไปยัง SignUpSuccessPage
                 setTimeout(() => {
                     navigate("/signup-success");
                 }, 2000);
             } else if (result.error) {
                 setError(result.error);
+                toast.error(result.error, {
+                    position: "bottom-right",
+                    duration: 4000,
+                });
             }
         } catch (error) {
-            setError(error.message || "Registration failed. Please try again.");
+            const errorMessage = error.message || "Registration failed. Please try again.";
+            setError(errorMessage);
+            toast.error(errorMessage, {
+                position: "bottom-right",
+                duration: 4000,
+            });
         } finally {
             setIsLoading(false);
         }
     };
-
-    if (success) {
-        return (
-            <div className="flex flex-col min-h-screen">
-                <NavBar />
-                <div className="flex justify-center items-center flex-grow">
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded max-w-md">
-                        <p className="font-bold">Registration Successful!</p>
-                        <p>Please check your email to verify your account, then log in.</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -72,78 +72,72 @@ export default function SignUpPage() {
             <div className="flex justify-center rounded-2xl mt-10 mx-4 sm:mt-15 sm:mx-40">
                 <div className="bg-gray-100 w-full rounded-2xl shadow-md gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
                     <h1 className="text-[40px] font-semibold">Sign up</h1>
-                    
-                    {error && (
-                        <div className="w-full p-4 text-red-700 bg-red-100 border border-red-300 rounded">
-                            {error}
-                        </div>
-                    )}
-                    
+
                     <form className="w-full" onSubmit={handleSubmit}>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="name">Name</label>
-                            <input 
-                                type="text" 
-                                id="name" 
+                            <input
+                                type="text"
+                                id="name"
                                 name="name"
-                                placeholder="Name" 
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white" 
+                                placeholder="Name"
+                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
                                 value={formData.name}
                                 onChange={handleInputChange}
-                                required 
+                                required
                             />
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="username">Username</label>
-                            <input 
-                                type="text" 
-                                id="username" 
+                            <input
+                                type="text"
+                                id="username"
                                 name="username"
-                                placeholder="Username" 
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white" 
+                                placeholder="Username"
+                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
                                 value={formData.username}
                                 onChange={handleInputChange}
-                                required 
+                                required
                             />
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="email">Email</label>
-                            <input 
-                                type="email" 
-                                id="email" 
+                            <input
+                                type="email"
+                                id="email"
                                 name="email"
-                                placeholder="Email" 
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white" 
+                                placeholder="Email"
+                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
                                 value={formData.email}
                                 onChange={handleInputChange}
-                                required 
+                                required
                             />
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="password">Password</label>
-                            <input 
-                                type="password" 
-                                id="password" 
+                            <input
+                                type="password"
+                                id="password"
                                 name="password"
-                                placeholder="Password" 
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white" 
+                                placeholder="Password"
+                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
                                 value={formData.password}
                                 onChange={handleInputChange}
-                                required 
+                                required
                             />
-                        </div>                        
-                        
+                        </div>
+
                         <div className="flex flex-col items-center gap-4">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isLoading}
                                 className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? "Signing up..." : "Sign up"}
                             </button>
-                            <button 
+                            <button
                                 type="button"
-                                onClick={navigateToLogin} 
+                                onClick={navigateToLogin}
                                 className="text-[#75716B]"
                             >
                                 Already have an account?<span className="text-black underline ml-2">Log in</span>

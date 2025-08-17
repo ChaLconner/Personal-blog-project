@@ -19,8 +19,15 @@ const ProtectedRoute = ({
 
   // ตรวจสอบการเข้าสู่ระบบ
   if (!isAuthenticated) {
+    // สร้าง return URL พร้อม query parameters
+    const returnUrl = `${location.pathname}${location.search}${location.hash}`;
+    
     // เปลี่ยนเส้นทางไปหน้า login พร้อมเก็บ URL ปัจจุบัน
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate 
+      to={`/login?redirect=${encodeURIComponent(returnUrl)}`} 
+      state={{ from: location }} 
+      replace 
+    />;
   }
 
   // ตรวจสอบ role โดยใช้ requireAdmin (backward compatibility)

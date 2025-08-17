@@ -1,321 +1,96 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import process from 'process';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables first - ES module syntax
+// Load environment variables first
 dotenv.config();
 
-// Debug environment variables
-console.log('Environment check:');
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'NOT SET');
-console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? 'SET' : 'NOT SET');
-
-import { dbService } from './config/database.js';
+// Import routes
 import authRouter from './routes/auth.mjs';
 import adminRouter from './routes/admin.mjs';
-import postRouter from './apps/postRoutes.mjs';
-import protectUser from './middlewares/protectUser.mjs';
-import protectAdmin from './middlewares/protectAdmin.mjs';
+import blogRouter from './routes/blogRouter.js';
+// Note: posts.js contains individual functions, not a router
 
+// Get current directory for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
 
-// Request logging middleware (for development)
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    next();
-  });
-}
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Routes
-app.get('/', (req, res) => {
-  res.json({ message: 'Blog API Server is running!' });
-});
-
-// Auth Routes
+// API Routes
 app.use('/api/auth', authRouter);
-
-// Admin Routes  
 app.use('/api/admin', adminRouter);
-
-// Post Routes (with file upload)
-app.use('/api/posts', postRouter);
-
-// Blog Posts Listing Routes (keep existing functionality)
-app.get('/api/blog/posts', async (req, res) => {
-  try {
-    const { category, limit, search, offset } = req.query;
-    
-    // Validate limit parameter
-    let validatedLimit = null;
-    if (limit) {
-      const limitNum = parseInt(limit);
-      if (isNaN(limitNum) || limitNum <= 0 || limitNum > 100) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid limit: must be a positive number between 1 and 100'
-        });
-      }
-      validatedLimit = limitNum;
-    }
-    
-    // Validate offset parameter
-    let validatedOffset = null;
-    if (offset) {
-      const offsetNum = parseInt(offset);
-      if (isNaN(offsetNum) || offsetNum < 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid offset: must be a non-negative number'
-        });
-      }
-      validatedOffset = offsetNum;
-    }
-    
-    const filters = { 
-      category: category || null, 
-      limit: validatedLimit, 
-      search: search ? search.trim() : null,
-      offset: validatedOffset
-    };
-    
-    const posts = await dbService.getAllPosts(filters);
-
-    res.json({
-      success: true,
-      data: posts,
-      total: posts.length
-    });
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching blog posts',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// ตัวอย่างเส้นทางที่ผู้ใช้ทั่วไปที่ล็อกอินแล้วสามารถเข้าถึงได้
-app.get("/api/protected-route", protectUser, (req, res) => {
-  res.json({ message: "This is protected content", user: req.user });
-});
-
-// ตัวอย่างเส้นทางที่เฉพาะ Admin เท่านั้นที่เข้าถึงได้
-app.get("/api/admin-only", protectAdmin, (req, res) => {
-  res.json({ message: "This is admin-only content", admin: req.user });
-});
-
-// Get single blog post
-app.get('/api/blog/posts/:id', async (req, res) => {
-  try {
-    const postId = parseInt(req.params.id);
-    
-    // Validate post ID
-    if (isNaN(postId) || postId <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid post ID: must be a positive number'
-      });
-    }
-    
-    const post = await dbService.getPostById(postId);
-    
-    res.json({
-      success: true,
-      data: post
-    });
-  } catch (error) {
-    console.error('Error fetching post:', error);
-    res.status(404).json({
-      success: false,
-      message: 'Blog post not found',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Post not found'
-    });
-  }
-});
-
-// Comments Routes
-app.get('/api/comments', async (req, res) => {
-  try {
-    const { postId } = req.query;
-    let comments;
-
-    if (postId) {
-      const postIdNum = parseInt(postId);
-      if (isNaN(postIdNum) || postIdNum <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid postId: must be a positive number'
-        });
-      }
-      comments = await dbService.getCommentsByPostId(postIdNum);
-    } else {
-      comments = await dbService.getAllComments();
-    }
-
-    res.json({
-      success: true,
-      data: comments,
-      total: comments.length
-    });
-  } catch (error) {
-    console.error('Error fetching comments:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching comments',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// Create new comment
-app.post('/api/comments', async (req, res) => {
-  try {
-    const { post_id, name, comment, comment_text, image, user_id } = req.body;
-    
-    // Validate required fields - support both old 'comment' and new 'comment_text' fields
-    const commentContent = comment_text || comment;
-    if (!post_id || !commentContent) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: post_id, comment_text'
-      });
-    }
-
-    // Validate post_id is a valid number
-    const postIdNum = parseInt(post_id);
-    if (isNaN(postIdNum) || postIdNum <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid post_id: must be a positive number'
-      });
-    }
-
-    // Validate comment length
-    if (commentContent.trim().length === 0 || commentContent.length > 1000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment must be between 1 and 1000 characters'
-      });
-    }
-
-    // Check if post exists
-    try {
-      await dbService.getPostById(postIdNum);
-    } catch (error) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
-    }
-
-    const newComment = await dbService.createComment({
-      post_id: postIdNum,
-      comment_text: commentContent.trim(),
-      user_id: user_id || null, // For authenticated users
-      name: name ? name.trim() : null, // For anonymous comments
-      image: image || 'https://via.placeholder.com/48x48?text=U',
-      created_at: new Date().toISOString()
-    });
-
-    res.status(201).json({
-      success: true,
-      data: newComment,
-      message: 'Comment created successfully'
-    });
-  } catch (error) {
-    console.error('Error creating comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error creating comment',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// Categories Route
-app.get('/api/categories', async (req, res) => {
-  try {
-    const categories = await dbService.getCategories();
-    res.json({
-      success: true,
-      data: categories
-    });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching categories',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// Stats Route
-app.get('/api/stats', async (req, res) => {
-  try {
-    const stats = await dbService.getStats();
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching stats',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-  });
-});
+app.use('/api/blog', blogRouter);
+// Posts routes are handled within admin routes
 
 // 404 handler
-app.use((req, res) => {
+app.use('*', (req, res) => {
   res.status(404).json({
-    success: false,
-    message: 'API endpoint not found'
+    error: 'Route not found',
+    path: req.originalUrl,
+    method: req.method
   });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
+  
+  res.status(error.status || 500).json({
+    error: error.message || 'Internal Server Error',
+    timestamp: new Date().toISOString(),
+    path: req.path
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log('🚀 Server starting up...');
+  console.log(`📡 Server is running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 API Base URL: http://localhost:${PORT}`);
+  console.log(`💻 Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
+  console.log('✅ Server is ready to accept connections');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  process.exit(0);
-});
-
 process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
+  console.log('\n🛑 Received SIGINT. Graceful shutdown...');
   process.exit(0);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`API URL: http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Received SIGTERM. Graceful shutdown...');
+  process.exit(0);
 });
+
+export default app;

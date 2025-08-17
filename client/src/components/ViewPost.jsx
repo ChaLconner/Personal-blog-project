@@ -21,6 +21,7 @@ import authorImage from "../assets/react.svg";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
+import ProtectedAction from "./ProtectedAction";
 
 export default function ViewPost() {
     const [img, setImg] = useState("");
@@ -135,15 +136,17 @@ function Share({ likesAmount, setDialogState }) {
     return (
         <div className="md:px-4">
             <div className="bg-[#EFEEEB] py-4 px-4 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row md:items-center md:space-y-0 md:justify-between mb-10">
-                <button
-                    onClick={() => setDialogState(true)}
-                    className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
-                >
-                    <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
-                    <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
-                        {likesAmount}
-                    </span>
-                </button>
+                <ProtectedAction action="like this post">
+                    <button
+                        onClick={() => setDialogState(true)}
+                        className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+                    >
+                        <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
+                        <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
+                            {likesAmount}
+                        </span>
+                    </button>
+                </ProtectedAction>
                 <div className="flex items-center space-x-2">
                     <button
                         onClick={() => {
@@ -217,30 +220,32 @@ function Comment({ setDialogState, postComments }) {
         <div>
             <div className="space-y-4 px-4 mb-16">
                 <h3 className="text-lg font-semibold">Comment</h3>
-                <form className="space-y-2" onSubmit={handleSendComment}>
-                    <Textarea
-                        value={comment}
-                        onFocus={() => {
-                            setIsError(false);
-                            setDialogState(true);
-                        }}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="What are your thoughts?"
-                        className={`w-full p-4 h-24 resize-none py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 ${isError ? "border-red-500" : "border-muted-foreground"
-                            }`}
-                    /> {isError && (
-                        <p className="text-red-500 text-sm">
-                            Please type something before sending.
-                        </p>
-                    )}
-                    <div className="flex justify-end">
-                        <button type="submit"
-                            className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
-                        >
-                            Send
-                        </button>
-                    </div>
-                </form>
+                <ProtectedAction action="comment on this post">
+                    <form className="space-y-2" onSubmit={handleSendComment}>
+                        <Textarea
+                            value={comment}
+                            onFocus={() => {
+                                setIsError(false);
+                                setDialogState(true);
+                            }}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="What are your thoughts?"
+                            className={`w-full p-4 h-24 resize-none py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 ${isError ? "border-red-500" : "border-muted-foreground"
+                                }`}
+                        /> {isError && (
+                            <p className="text-red-500 text-sm">
+                                Please type something before sending.
+                            </p>
+                        )}
+                        <div className="flex justify-end">
+                            <button type="submit"
+                                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </form>
+                </ProtectedAction>
             </div>
             <div className="space-y-6 px-4">
                 {postComments.map((comment, index) => (

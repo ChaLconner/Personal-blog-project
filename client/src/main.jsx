@@ -3,10 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import jwtInterceptor from './utils/jwtInterceptor'
+import { Toaster } from 'sonner'
 
 // Initialize JWT interceptor
 jwtInterceptor();
 
 createRoot(document.getElementById('root')).render(
-    <App />
+    <>
+        <App />
+        <Toaster />
+    </>
 )

@@ -56,21 +56,44 @@ export function AuthProvider({ children }) {
   // ล็อกอินผู้ใช้
   const login = async (data) => {
     try {
+      console.log('🔐 Attempting login...', { email: data.email });
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
+      
       const response = await axios.post(
         "http://localhost:3001/api/auth/login",
         data
       );
+      
+      console.log('✅ Login response:', response.data);
+      
       const token = response.data.access_token;
       localStorage.setItem("token", token);
 
-      // ดึงและตั้งค่าข้อมูลผู้ใช้
-      setState((prevState) => ({ ...prevState, loading: false, error: null }));
-      await fetchUser();
+      // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
+      console.log('📋 Fetching user data...');
+      const userResponse = await axios.get(
+        "http://localhost:3001/api/auth/get-user",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log('✅ User data received:', userResponse.data);
+      
+      setState((prevState) => ({ 
+        ...prevState, 
+        loading: false, 
+        error: null,
+        user: userResponse.data,
+        getUserLoading: false
+      }));
       
       // Return success to handle navigation in component
       return { success: true };
     } catch (error) {
+      console.error('❌ Login error:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.error || "Login failed";
       setState((prevState) => ({
         ...prevState,
@@ -84,16 +107,28 @@ export function AuthProvider({ children }) {
   // ลงทะเบียนผู้ใช้
   const register = async (data) => {
     try {
+      console.log('📝 Attempting registration...', { 
+        email: data.email, 
+        username: data.username, 
+        name: data.name,
+        hasPassword: !!data.password 
+      });
+      
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
-      await axios.post(
+      
+      const response = await axios.post(
         "http://localhost:3001/api/auth/register",
         data
       );
+      
+      console.log('✅ Registration response:', response.data);
+      
       setState((prevState) => ({ ...prevState, loading: false, error: null }));
       
       // Return success to handle navigation in component
       return { success: true };
     } catch (error) {
+      console.error('❌ Registration error:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.error || "Registration failed";
       setState((prevState) => ({
         ...prevState,
