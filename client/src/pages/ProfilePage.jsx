@@ -24,11 +24,12 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        console.log('🔍 ProfilePage - state.user:', state.user);
         setProfile({
-          image: state.user.profilePic || "",
-          name: state.user.name || "",
-          username: state.user.username || "",
-          email: state.user.email || "",
+          image: state.user?.profile_pic || "",
+          name: state.user?.name || "",
+          username: state.user?.username || "",
+          email: state.user?.email || "",
         });
       } catch {
         toast.custom((t) => (
@@ -207,7 +208,7 @@ export default function ProfilePage() {
           <div className="hidden md:flex items-center p-6">
             <Avatar className="h-14 w-14">
               <AvatarImage
-                src={state.user.profilePic}
+                src={state.user?.profile_pic}
                 alt="Profile"
                 className="object-cover"
               />
@@ -216,7 +217,7 @@ export default function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="ml-4">
-              <h1 className="text-2xl font-bold">{state.user.name}</h1>
+              <h1 className="text-2xl font-bold">{state.user?.name}</h1>
             </div>
           </div>
 
@@ -227,13 +228,16 @@ export default function ProfilePage() {
                 <User className="h-5 w-5 mb-1" />
                 <span>Profile</span>
               </div>
-              <a
-                onClick={() => navigate("/reset-password")}
+              <button
+                onClick={() => {
+                  console.log('🔍 Navigating to /reset-password');
+                  navigate("/reset-password");
+                }}
                 className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
               >
                 <Lock className="h-5 w-5 mb-1" />
                 Reset password
-              </a>
+              </button>
             </div>
             <div className="flex items-center">
               <Avatar className="h-10 w-10">
@@ -259,13 +263,16 @@ export default function ProfilePage() {
                     <User className="h-5 w-5 mb-1" />
                     <span>Profile</span>
                   </div>
-                  <a
-                    onClick={() => navigate("/reset-password")}
+                  <button
+                    onClick={() => {
+                      console.log('🔍 Desktop - Navigating to /reset-password');
+                      navigate("/reset-password");
+                    }}
                     className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                   >
                     <Lock className="h-5 w-5 mb-1" />
                     Reset password
-                  </a>
+                  </button>
                 </div>
               </nav>
             </aside>
@@ -344,7 +351,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-8 py-2 mt-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-2 mt-2 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? "Saving..." : "Save"}
                 </button>

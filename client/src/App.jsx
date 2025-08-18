@@ -68,17 +68,6 @@ function AppContent() {
             </AuthenticationRoute>
           }
         />
-        <Route
-          path="/reset-password"
-          element={
-            <AuthenticationRoute
-              isLoading={state.getUserLoading}
-              isAuthenticated={isAuthenticated}
-            >
-              <ResetPasswordPage />
-            </AuthenticationRoute>
-          }
-        />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         
         {/* เส้นทางที่เฉพาะผู้ใช้ทั่วไปที่ล็อกอินแล้วเข้าถึงได้ */}
@@ -91,6 +80,18 @@ function AppContent() {
               userRole={state.user?.role}
             >
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <ProtectedRoute
+              isLoading={state.getUserLoading}
+              isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
+            >
+              <ResetPasswordPage />
             </ProtectedRoute>
           }
         />

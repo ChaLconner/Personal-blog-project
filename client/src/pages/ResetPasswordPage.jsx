@@ -112,7 +112,7 @@ export default function ResetPasswordPage() {
           <div className="hidden md:flex items-center p-6">
             <Avatar className="h-14 w-14">
               <AvatarImage
-                src={state.user.profilePic}
+                src={state.user?.profile_pic}
                 alt="Profile"
                 className="object-cover"
               />
@@ -121,7 +121,7 @@ export default function ResetPasswordPage() {
               </AvatarFallback>
             </Avatar>
             <div className="ml-4">
-              <h1 className="text-2xl font-bold">{state.user.name}</h1>
+              <h1 className="text-2xl font-bold">{state.user?.name}</h1>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export default function ResetPasswordPage() {
             <div className="flex items-center">
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={state.user.profilePic}
+                  src={state.user?.profile_pic}
                   alt="Profile"
                   className="object-cover"
                 />
@@ -151,7 +151,7 @@ export default function ResetPasswordPage() {
                   <User />
                 </AvatarFallback>
               </Avatar>
-              <h2 className="ml-3 text-xl font-semibold">{state.user.name}</h2>
+              <h2 className="ml-3 text-xl font-semibold">{state.user?.name}</h2>
             </div>
           </div>
 
