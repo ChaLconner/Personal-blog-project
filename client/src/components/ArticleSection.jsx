@@ -24,6 +24,26 @@ export default function ArticleSection() {
     const [searchKeyword, setSearchKeyword] = useState("");
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Utility function to retry API calls
+    const retryApiCall = async (apiCall, maxRetries = 3, delay = 1000) => {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                console.log(`🔄 API attempt ${i + 1}/${maxRetries}`);
+                return await apiCall();
+            } catch (error) {
+                console.warn(`❌ API attempt ${i + 1} failed:`, error.message);
+                
+                if (i === maxRetries - 1) {
+                    throw error; // Throw on last attempt
+                }
+                
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+            }
+        }
+    };
 
     // Utility function to remove duplicate posts by ID, title, and content
     const removeDuplicatePosts = (posts) => {
@@ -72,15 +92,29 @@ export default function ArticleSection() {
                     offset: (page - 1) * 6  // Keep offset based on 6 for consistent pagination
                 });
 
-                const response = await blogApi.getPosts({
-                    category: categoryParam,
-                    limit: requestLimit,
-                    offset: (page - 1) * 6, // Keep offset calculation consistent
+                const response = await retryApiCall(async () => {
+                    return await blogApi.getPosts({
+                        category: categoryParam,
+                        limit: requestLimit,
+                        offset: (page - 1) * 6, // Keep offset calculation consistent
+                    });
                 });
 
                 console.log('API Response:', response);
-                console.log('Posts received from API:', response.data?.length || 0);
-                console.log('Raw post IDs:', response.data?.map(p => p.id) || []);
+                
+                // Handle both success and error cases from API
+                if (!response || !response.success) {
+                    console.warn('⚠️ API returned unsuccessful response:', response);
+                    if (page === 1) {
+                        setPosts([]); // Clear posts on failed first load
+                    }
+                    setHasMore(false);
+                    return;
+                }
+
+                const postsData = response.posts || [];
+                console.log('Posts received from API:', postsData.length);
+                console.log('Raw post IDs:', postsData.map(p => p.id) || []);
 
                 setPosts((prevPosts) => {
                     console.log('=== STATE UPDATE ===');
@@ -89,7 +123,7 @@ export default function ArticleSection() {
 
                     if (page === 1) {
                         // For new category, replace all posts and remove any duplicates
-                        let newPosts = removeDuplicatePosts(response.data || []);
+                        let newPosts = removeDuplicatePosts(postsData);
 
                         // For Highlight, ensure we show exactly 6 posts on first load
                         if (category === "Highlight" && newPosts.length > 6) {
@@ -101,7 +135,7 @@ export default function ArticleSection() {
                         return newPosts;
                     } else {
                         // For load more, combine and remove duplicates
-                        const allPosts = [...prevPosts, ...(response.data || [])];
+                        const allPosts = [...prevPosts, ...postsData];
                         console.log('Combined posts before dedup:', allPosts.length);
                         console.log('Combined post IDs:', allPosts.map(p => p.id));
 
@@ -124,14 +158,27 @@ export default function ArticleSection() {
                 // Determine if there are more posts available
                 if (category === "Highlight") {
                     // For Highlight, check if we have more unique posts available
-                    const uniqueFromResponse = removeDuplicatePosts(response.data || []);
-                    setHasMore(uniqueFromResponse.length >= 6 || (response.data || []).length === requestLimit);
+                    const uniqueFromResponse = removeDuplicatePosts(postsData);
+                    setHasMore(uniqueFromResponse.length >= 6 || postsData.length === requestLimit);
                 } else {
-                    setHasMore((response.data || []).length === 6);
+                    setHasMore(postsData.length === 6);
                 }
             } catch (error) {
-                console.error("Error fetching posts:", error);
-                setPosts([]);
+                console.error("❌ Error fetching posts:", error.message);
+                console.error("Error details:", error);
+                
+                // Set error state
+                setError(error.message);
+                
+                // On error, clear posts if it's the first page
+                if (page === 1) {
+                    setPosts([]);
+                }
+                setHasMore(false);
+                
+                // Clear error after 5 seconds
+                setTimeout(() => setError(null), 5000);
+                
             } finally {
                 setIsLoading(false);
                 setIsCategoryChanging(false);
@@ -150,10 +197,13 @@ export default function ArticleSection() {
                         search: searchKeyword,
                         limit: 5
                     });
-                    setSuggestions(response.data); // Set search suggestions
+                    // Handle the response structure properly
+                    const postsData = response.success ? response.posts : [];
+                    setSuggestions(postsData || []); // Ensure it's always an array
                     setIsLoading(false);
                 } catch (error) {
                     console.log(error);
+                    setSuggestions([]); // Set empty array on error
                     setIsLoading(false);
                 }
             };
@@ -166,6 +216,10 @@ export default function ArticleSection() {
 
     const handleCategoryChange = (newCategory) => {
         if (newCategory !== category) {
+            console.log('🔄 Category changing from', category, 'to', newCategory);
+            
+            // Clear error state
+            setError(null);
             setIsCategoryChanging(true);
             setCategory(newCategory);
             setPage(1);
@@ -174,6 +228,7 @@ export default function ArticleSection() {
 
             // Clear any relevant cache for immediate refresh
             if (typeof blogApi.clearCache === 'function') {
+                console.log('🗑️ Clearing API cache for category change');
                 blogApi.clearCache();
             }
         }
@@ -225,6 +280,7 @@ export default function ArticleSection() {
                         {!isLoading &&
                             showDropdown &&
                             searchKeyword &&
+                            Array.isArray(suggestions) &&
                             suggestions.length > 0 && (
                                 <div className="absolute left-0 top-full z-20 w-full mt-2 bg-background rounded-sm shadow-lg p-1 max-h-60 overflow-auto">
                                     {suggestions.map((suggestion, index) => (
@@ -263,6 +319,20 @@ export default function ArticleSection() {
                         </Select>
                     </div>
                 </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="px-4 pt-2">
+                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                            <p className="text-sm">
+                                <strong>Connection Error:</strong> {error}
+                            </p>
+                            <p className="text-xs mt-1">
+                                Please check if the server is running or try refreshing the page.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Blog Cards */}
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">

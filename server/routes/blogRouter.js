@@ -6,14 +6,17 @@ const router = express.Router();
 // GET /api/blog/posts - Get posts with optional filtering
 router.get("/posts", async (req, res) => {
   try {
-    const { category, limit = 10, offset = 0 } = req.query;
+    const { category, search, limit = 12, offset = 0 } = req.query;
     
-    console.log(`📝 Blog posts request: category=${category}, limit=${limit}, offset=${offset}`);
+    console.log(`📝 Blog posts request: category=${category}, search=${search}, limit=${limit}, offset=${offset}`);
     
     // Create filters object
     const filters = {};
-    if (category && category !== 'all') {
+    if (category && category !== 'all' && category !== 'null') {
       filters.category = category;
+    }
+    if (search && search.trim()) {
+      filters.search = search.trim();
     }
     if (limit) {
       filters.limit = parseInt(limit);
@@ -32,6 +35,7 @@ router.get("/posts", async (req, res) => {
       posts: posts,
       meta: {
         category: category || 'all',
+        search: search || null,
         limit: parseInt(limit),
         offset: parseInt(offset),
         count: posts.length
@@ -44,6 +48,47 @@ router.get("/posts", async (req, res) => {
       success: false, 
       error: error.message || "Failed to fetch posts",
       posts: [] 
+    });
+  }
+});
+
+// GET /api/blog/posts/:id - Get single post by ID
+router.get("/posts/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`📖 Single post request: id=${id}`);
+    
+    // Get post by ID using the existing dbService
+    const post = await dbService.getPostById(parseInt(id));
+    
+    if (!post) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Post not found" 
+      });
+    }
+    
+    console.log(`✅ Retrieved post: ${post.title}`);
+    
+    res.json({ 
+      success: true, 
+      post: post 
+    });
+    
+  } catch (error) {
+    console.error("❌ Error fetching single post:", error);
+    
+    if (error.message === "Post not found") {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Post not found" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to fetch post" 
     });
   }
 });
@@ -69,6 +114,31 @@ router.get("/categories", async (req, res) => {
       success: false, 
       error: error.message || "Failed to fetch categories",
       categories: [] 
+    });
+  }
+});
+
+// GET /api/blog/stats - Get blog statistics
+router.get("/stats", async (req, res) => {
+  try {
+    console.log(`📊 Blog stats request`);
+    
+    // Get stats using the existing dbService
+    const stats = await dbService.getStats();
+    
+    console.log(`✅ Retrieved blog stats`);
+    
+    res.json({ 
+      success: true, 
+      stats: stats 
+    });
+    
+  } catch (error) {
+    console.error("❌ Error fetching blog stats:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to fetch stats",
+      stats: {} 
     });
   }
 });

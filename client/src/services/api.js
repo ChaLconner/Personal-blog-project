@@ -224,22 +224,57 @@ export const blogApi = {
         Object.entries(params).filter(([, value]) => value !== null && value !== undefined && value !== '')
       );
       
+      // Add debug logging
+      console.log('🔍 BlogAPI getPosts called with params:', cleanParams);
+      
       // Check cache first
       const cacheKey = getCacheKey('/blog/posts', cleanParams);
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
+        console.log('📦 Using cached data for:', cacheKey);
         return cachedData;
       }
       
+      console.log('🌐 Making API request to /api/blog/posts with params:', cleanParams);
       const response = await api.get('/blog/posts', { params: cleanParams });
       
-      // Cache the response
-      setCachedData(cacheKey, response.data);
+      // Validate response structure
+      if (!response.data) {
+        console.warn('⚠️ No response data received');
+        throw new Error('No data received from server');
+      }
+      
+      if (!response.data.success) {
+        console.warn('⚠️ Server returned unsuccessful response:', response.data);
+        // Still try to use the data if posts exist
+        if (!response.data.posts) {
+          throw new Error(response.data.error || 'Server returned unsuccessful response');
+        }
+      }
+      
+      console.log('✅ API response received:', {
+        success: response.data.success,
+        postsCount: response.data.posts?.length || 0,
+        meta: response.data.meta
+      });
+      
+      // Cache the response only if it's successful
+      if (response.data.success) {
+        setCachedData(cacheKey, response.data);
+      }
       
       return response.data;
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      throw error;
+      console.error('❌ Error fetching posts:', error.message);
+      console.error('Error details:', error.response?.data || error);
+      
+      // Return fallback data structure instead of throwing
+      return {
+        success: false,
+        posts: [],
+        meta: { category: 'all', limit: 0, offset: 0, count: 0 },
+        error: error.message
+      };
     }
   },
 
@@ -362,15 +397,18 @@ export const blogApi = {
   // Health check
   healthCheck: async () => {
     try {
-      const response = await api.get('/health');
-      return response.data;
+      console.log('🏥 Performing health check...');
+      const response = await api.get('/health', { timeout: 5000 });
+      console.log('✅ Health check passed:', response.data);
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error checking server health:', error);
-      throw error;
+      console.error('❌ Health check failed:', error.message);
+      return { success: false, error: error.message };
     }
   },
 
   // Clear cache
+  // Clear cache function
   clearCache: () => {
     clearCache();
   },

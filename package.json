@@ -4,23 +4,23 @@
   "private": true,
   "description": "Full-stack blog application with React frontend and Node.js backend",
 "scripts": {
-    "dev:client": "cd client; npm run dev",
-    "dev:server": "cd server; npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     
-    "start:client": "cd client; npm start",
-    "start:server": "cd server; npm start",
+    "start:client": "cd client && npm start",
+    "start:server": "cd server && npm start",
     "start": "concurrently \"npm run start:client\" \"npm run start:server\"",
     
-    "install:client": "cd client; npm install",
-    "install:server": "cd server; npm install",
-    "install:all": "npm run install:client; npm run install:server",
+    "install:client": "cd client && npm install",
+    "install:server": "cd server && npm install",
+    "install:all": "npm run install:client && npm run install:server",
     
-    "build:client": "cd client; npm run build",
+    "build:client": "cd client && npm run build",
     "build": "npm run build:client",
     
-    "test:client": "cd client; npm test",
-    "test:server": "cd server; npm test",
+    "test:client": "cd client && npm test",
+    "test:server": "cd server && npm test",
     "test": "concurrently \"npm run test:client\" \"npm run test:server\""
   },
   "devDependencies": {

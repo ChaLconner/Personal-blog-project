@@ -101,6 +101,13 @@ export const dbService = {
         }
       }
 
+      // Apply search filter
+      if (filters.search && filters.search.trim()) {
+        const searchTerm = filters.search.trim();
+        console.log(`🔍 Applying search filter: "${searchTerm}"`);
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+      }
+
       // Apply pagination offset to prevent duplicates
       if (filters.offset && filters.offset > 0) {
         console.log(`🔄 Applying pagination: offset=${filters.offset}, limit=${filters.limit || 6}`);
