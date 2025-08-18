@@ -287,4 +287,178 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
   }
 });
 
+// ===== CATEGORY MANAGEMENT =====
+
+// Get all categories for admin
+adminRouter.get('/categories', requireAdmin, async (req, res) => {
+  try {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      return res.status(500).json({ error: "Error fetching categories" });
+    }
+
+    res.json({
+      success: true,
+      data: categories,
+      total: categories.length
+    });
+  } catch (error) {
+    console.error('Admin categories error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Create new category
+adminRouter.post('/categories', requireAdmin, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Category name is required" });
+    }
+
+    // Check if category already exists
+    const { data: existing, error: checkError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', name.trim())
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      return res.status(500).json({ error: "Error checking existing categories" });
+    }
+
+    if (existing) {
+      return res.status(409).json({ error: "Category already exists" });
+    }
+
+    const { data: newCategory, error } = await supabase
+      .from('categories')
+      .insert([{
+        name: name.trim()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: "Error creating category" });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: newCategory,
+      message: "Category created successfully"
+    });
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update category
+adminRouter.put('/categories/:id', requireAdmin, async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    const { name } = req.body;
+
+    if (!categoryId || isNaN(categoryId)) {
+      return res.status(400).json({ error: "Invalid category ID" });
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Category name is required" });
+    }
+
+    // Check if category name already exists (excluding current category)
+    const { data: existing, error: checkError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', name.trim())
+      .neq('id', categoryId)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      return res.status(500).json({ error: "Error checking existing categories" });
+    }
+
+    if (existing) {
+      return res.status(409).json({ error: "Category name already exists" });
+    }
+
+    const { data: updatedCategory, error } = await supabase
+      .from('categories')
+      .update({
+        name: name.trim()
+      })
+      .eq('id', categoryId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      return res.status(500).json({ error: "Error updating category" });
+    }
+
+    res.json({
+      success: true,
+      data: updatedCategory,
+      message: "Category updated successfully"
+    });
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Delete category
+adminRouter.delete('/categories/:id', requireAdmin, async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+
+    if (!categoryId || isNaN(categoryId)) {
+      return res.status(400).json({ error: "Invalid category ID" });
+    }
+
+    // Check if category is being used by any posts
+    const { data: posts, error: postError } = await supabase
+      .from('blog_posts')
+      .select('id')
+      .eq('category', categoryId)
+      .limit(1);
+
+    if (postError) {
+      return res.status(500).json({ error: "Error checking category usage" });
+    }
+
+    if (posts && posts.length > 0) {
+      return res.status(409).json({ 
+        error: "Cannot delete category. It is being used by existing posts."
+      });
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId);
+
+    if (error) {
+      return res.status(500).json({ error: "Error deleting category" });
+    }
+
+    res.json({
+      success: true,
+      message: "Category deleted successfully"
+    });
+  } catch (error) {
+    console.error('Delete category error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default adminRouter;

@@ -58,13 +58,20 @@ export default function ViewPost() {
         try {
             const response = await blogApi.getPost(param.postId);
             const post = response.data;
-            setImg(post.image);
+            
+            // Handle image URL properly
+            let imageUrl = post.image;
+            if (imageUrl && !imageUrl.startsWith('http') && imageUrl.startsWith('/uploads/')) {
+                imageUrl = `http://localhost:3001${imageUrl}`;
+            }
+            
+            setImg(imageUrl || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=600&fit=crop&auto=format&q=60');
             setTitle(post.title);
             setDate(post.date);
             setDescription(post.description);
             setCategory(post.category);
             setContent(post.content);
-            setLikes(post.likes);
+            setLikes(post.likes_count || post.likes || 0);
             setIsLoading(false);
         } catch (error) {
             console.log(error);

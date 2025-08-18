@@ -4,21 +4,43 @@ import { formatShortDate } from "../utils/dateFormatter";
 function BlogCard({ id, image, category, title, description, author, date }) {
   const navigate = useNavigate();
   
+  // Handle image URL - support both full URLs and relative paths
+  const getImageUrl = () => {
+    if (!image) {
+      return 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60';
+    }
+    
+    // If it's already a full URL, return as is
+    if (image.startsWith('http')) {
+      return image;
+    }
+    
+    // If it's a relative path (uploaded file), prepend server URL
+    if (image.startsWith('/uploads/')) {
+      return `http://localhost:3001${image}`;
+    }
+    
+    // Default fallback
+    return image;
+  };
+  
   return (
     <div className="flex flex-col gap-4">
       <button
         onClick={() => navigate(`/post/${id}`)}
-        className="relative h-[212px] sm:h-[360px] cursor-pointer"
+        className="relative h-[212px] sm:h-[360px] cursor-pointer overflow-hidden rounded-md group"
         type="button"
       >
         <img
-          className="w-full h-full object-cover rounded-md"
-          src={image}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          src={getImageUrl()}
           alt={title}
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60';
           }}
         />
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
       </button>
       <div className="flex flex-col">
         <div className="flex">

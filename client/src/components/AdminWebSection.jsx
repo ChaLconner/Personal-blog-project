@@ -25,8 +25,18 @@ export function AdminSidebar() {
             </div>
             <nav className="mt-6">
                 <Link
+                    to="/admin"
+                    className={`flex items-center px-4 py-2 ${location.pathname === "/admin"
+                            ? "bg-gray-200 text-gray-700"
+                            : "text-gray-600 hover:bg-gray-100"
+                        }`}
+                >
+                    <Globe className="mr-3 h-5 w-5" />
+                    Dashboard
+                </Link>
+                <Link
                     to="/admin/article-management"
-                    className={`flex items-center px-4 py-2 ${isActive("/admin/article-management")
+                    className={`flex items-center px-4 py-2 ${isActive("/admin/article-management") || isActive("/admin/create-article") || isActive("/admin/edit-article")
                             ? "bg-gray-200 text-gray-700"
                             : "text-gray-600 hover:bg-gray-100"
                         }`}
@@ -36,7 +46,7 @@ export function AdminSidebar() {
                 </Link>
                 <Link
                     to="/admin/category-management"
-                    className={`flex items-center px-4 py-2 ${isActive("/admin/category-management")
+                    className={`flex items-center px-4 py-2 ${isActive("/admin/category-management") || isActive("/admin/create-category") || isActive("/admin/edit-category")
                             ? "bg-gray-200 text-gray-700"
                             : "text-gray-600 hover:bg-gray-100"
                         }`}
@@ -45,8 +55,8 @@ export function AdminSidebar() {
                     Category management
                 </Link>
                 <Link
-                    to="/admin/profile"
-                    className={`flex items-center px-4 py-2 ${isActive("/admin/profile")
+                    to="/profile"
+                    className={`flex items-center px-4 py-2 ${isActive("/profile")
                             ? "bg-gray-200 text-gray-700"
                             : "text-gray-600 hover:bg-gray-100"
                         }`}
@@ -55,7 +65,7 @@ export function AdminSidebar() {
                     Profile
                 </Link>
                 <Link
-                    to="/admin/notification"
+                    to="/admin/notifications"
                     className={`flex items-center px-4 py-2 ${isActive("/admin/notification")
                             ? "bg-gray-200 text-gray-700"
                             : "text-gray-600 hover:bg-gray-100"

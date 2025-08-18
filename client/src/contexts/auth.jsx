@@ -66,8 +66,10 @@ export function AuthProvider({ children }) {
       
       console.log('✅ Login response:', response.data);
       
-      const token = response.data.access_token;
-      localStorage.setItem("token", token);
+  const token = response.data.access_token;
+  // Store token for both legacy and api service compatibility
+  localStorage.setItem("token", token);
+  localStorage.setItem("authToken", token);
 
       // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
       console.log('📋 Fetching user data...');
@@ -94,13 +96,36 @@ export function AuthProvider({ children }) {
       return { success: true };
     } catch (error) {
       console.error('❌ Login error:', error.response?.data || error.message);
-      const errorMessage = error.response?.data?.error || "Login failed";
+      const serverData = error.response?.data;
+      const errorMessage = serverData?.error || serverData?.message || "Login failed";
       setState((prevState) => ({
         ...prevState,
         loading: false,
         error: errorMessage,
       }));
-      return { error: errorMessage };
+      return {
+        error: errorMessage,
+        requiresVerification: Boolean(serverData?.requiresVerification),
+        message: serverData?.message || null
+      };
+    }
+  };
+
+  // ส่งอีเมลยืนยันใหม่
+  const resendVerification = async (email) => {
+    if (!email) {
+      return { success: false, error: "Email is required" };
+    }
+    try {
+      const { data } = await axios.post(
+        "http://localhost:3001/api/auth/resend-verification",
+        { email }
+      );
+      return { success: true, message: data?.message || "Verification email sent" };
+    } catch (error) {
+      const serverData = error.response?.data;
+      const errorMessage = serverData?.error || serverData?.message || error.message || "Failed to resend verification email";
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -141,7 +166,8 @@ export function AuthProvider({ children }) {
 
   // ล็อกเอาท์ผู้ใช้
   const logout = () => {
-    localStorage.removeItem("token");
+  localStorage.removeItem("token");
+  localStorage.removeItem("authToken");
     setState({ user: null, error: null, loading: false, getUserLoading: false });
     
     // Return success to handle navigation in component
@@ -157,6 +183,7 @@ export function AuthProvider({ children }) {
     register,
     isAuthenticated,
     fetchUser,
+  resendVerification,
     // Add these for compatibility with ProtectedRoute
     user: state.user,
     loading: state.loading || state.getUserLoading,

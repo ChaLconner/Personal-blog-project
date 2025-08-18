@@ -1,4 +1,3 @@
-import authorImage from "../assets/author-image.jpeg";
 import { Menu } from "lucide-react";
 import { useState } from "react";
 import {
@@ -187,7 +186,7 @@ export function HeroSection() {
                     </p>
                 </div>
                 <img
-                    src={authorImage}
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=530&fit=crop&crop=face"
                     alt="Person with a cat"
                     className="h-[530px] object-cover rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0"
                 />

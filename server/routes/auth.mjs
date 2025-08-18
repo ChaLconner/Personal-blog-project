@@ -353,4 +353,210 @@ authRouter.post("/logout", async (req, res) => {
   }
 });
 
+// Get current user info using Supabase Auth token
+authRouter.get("/get-user", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized: Token missing" });
+    }
+
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) {
+      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+    }
+
+    const userId = data.user.id;
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('username, name, profile_pic, role')
+      .eq('id', userId)
+      .single();
+
+    if (userError) {
+      // Still return basic auth info if profile not found
+      return res.json({
+        id: userId,
+        email: data.user.email,
+        username: null,
+        name: null,
+        profile_pic: null,
+        role: 'user',
+        emailConfirmed: Boolean(data.user.email_confirmed_at)
+      });
+    }
+
+    return res.json({
+      id: userId,
+      email: data.user.email,
+      username: userData?.username || null,
+      name: userData?.name || null,
+      profile_pic: userData?.profile_pic || null,
+      role: userData?.role || 'user',
+      emailConfirmed: Boolean(data.user.email_confirmed_at)
+    });
+  } catch (err) {
+    console.error('❌ get-user error:', err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update profile endpoint with file upload support
+authRouter.put("/update-profile", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized: Token missing" });
+    }
+
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) {
+      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+    }
+
+    const userId = data.user.id;
+    let updateData = {};
+
+    // Handle form data (including file uploads)
+    if (req.headers['content-type']?.includes('multipart/form-data')) {
+      // File upload is handled by upload route
+      const { name, username, imageUrl } = req.body;
+      
+      if (name) updateData.name = name.trim();
+      if (username) updateData.username = username.trim();
+      if (imageUrl) updateData.profile_pic = imageUrl;
+    } else {
+      // Regular form data
+      const { name, username } = req.body;
+      
+      if (name) updateData.name = name.trim();
+      if (username) updateData.username = username.trim();
+    }
+
+    // Check if username is already taken by another user
+    if (updateData.username) {
+      const { data: existingUser, error: usernameError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', updateData.username)
+        .neq('id', userId)
+        .single();
+
+      if (existingUser) {
+        return res.status(400).json({ 
+          error: "Username is already taken" 
+        });
+      }
+    }
+
+    // Add updated timestamp
+    updateData.updated_at = new Date().toISOString();
+
+    // Update user data in users table
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Profile update error:', updateError);
+      return res.status(500).json({ error: "Failed to update profile" });
+    }
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+
+  } catch (err) {
+    console.error('❌ update-profile error:', err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Reset password endpoint
+authRouter.put("/reset-password", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized: Token missing" });
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ 
+        error: "Old password and new password are required" 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        error: "New password must be at least 6 characters long" 
+      });
+    }
+
+    // Create a new Supabase client instance to verify the old password
+    // We need to sign in with the old password to verify it's correct
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: userData.user.email,
+      password: oldPassword
+    });
+
+    if (signInError) {
+      return res.status(400).json({ 
+        error: "Current password is incorrect" 
+      });
+    }
+
+    // Use the original authenticated session to update the password
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: signInData.session.refresh_token
+    });
+
+    if (sessionError) {
+      console.error('❌ Session error:', sessionError);
+      return res.status(500).json({ 
+        error: "Failed to authenticate for password update" 
+      });
+    }
+
+    // Update the password using the authenticated session
+    const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (updateError) {
+      console.error('❌ Password update error:', updateError);
+      return res.status(500).json({ 
+        error: "Failed to update password" 
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Password updated successfully"
+    });
+
+  } catch (err) {
+    console.error('❌ reset-password error:', err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default authRouter;

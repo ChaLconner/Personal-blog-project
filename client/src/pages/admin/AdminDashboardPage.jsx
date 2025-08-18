@@ -113,14 +113,14 @@ export default function AdminDashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <button
-            onClick={() => navigate('/admin/create-article')}
+            onClick={() => navigate('/admin/article-management')}
             className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <h3 className="font-semibold">Create Post</h3>
-            <p className="text-sm opacity-90">Write a new blog post</p>
+            <h3 className="font-semibold">Article Management</h3>
+            <p className="text-sm opacity-90">Manage your blog posts</p>
           </button>
           <button
-            onClick={() => navigate('/admin/create-category')}
+            onClick={() => navigate('/admin/category-management')}
             className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors"
           >
             <h3 className="font-semibold">Manage Categories</h3>

@@ -9,7 +9,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const ENABLE_CACHE_LOGGING = false; // Set to true for debugging
 
 // Token management
-let authToken = localStorage.getItem('authToken');
+let authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
 
 // Create axios instance with default config
 const api = axios.create({
@@ -28,9 +28,11 @@ api.interceptors.request.use(
       console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
     
-    // Add authentication token if available
-    if (authToken) {
-      config.headers.Authorization = `Bearer ${authToken}`;
+    // Add authentication token if available (always read latest from storage)
+    const latestToken = localStorage.getItem('authToken') || localStorage.getItem('token') || authToken;
+    if (latestToken) {
+      config.headers.Authorization = `Bearer ${latestToken}`;
+      authToken = latestToken;
     }
     
     return config;
@@ -83,21 +85,43 @@ api.interceptors.response.use(
 // Authentication functions
 const auth = {
   setToken: (token) => {
-    authToken = token;
-    localStorage.setItem('authToken', token);
+  authToken = token;
+  localStorage.setItem('authToken', token);
+  localStorage.setItem('token', token);
   },
   
   removeToken: () => {
     authToken = null;
     localStorage.removeItem('authToken');
+  localStorage.removeItem('token');
   },
   
   getToken: () => {
-    return authToken || localStorage.getItem('authToken');
+  return localStorage.getItem('authToken') || localStorage.getItem('token') || authToken;
   },
   
   isAuthenticated: () => {
     return !!authToken;
+  },
+
+  updateProfile: async (profileData) => {
+    try {
+      const response = await api.put('/auth/update-profile', profileData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  },
+
+  resetPassword: async (passwordData) => {
+    try {
+      const response = await api.put('/auth/reset-password', passwordData);
+      return response.data;
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    }
   }
 };
 
@@ -145,6 +169,9 @@ const clearCache = () => {
 
 // API service functions
 export const blogApi = {
+  // Auth helper functions
+  auth,
+
   // Authentication functions
   register: async (userData) => {
     try {
@@ -413,6 +440,73 @@ export const blogApi = {
     clearCache();
   },
 
+  // File upload functions
+  uploadImage: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await api.post('/upload/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  },
+
+  uploadImages: async (files) => {
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('images', file);
+      });
+
+      const response = await api.post('/upload/images', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      throw error;
+    }
+  },
+
+  uploadProfileImage: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('imageFile', file);
+
+      const response = await api.post('/upload/profile', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      throw error;
+    }
+  },
+
+  deleteImage: async (filename) => {
+    try {
+      const response = await api.delete(`/upload/image/${filename}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      throw error;
+    }
+  },
+
   // Admin functions
   admin: {
     // Posts management
@@ -487,6 +581,50 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error fetching admin stats:', error);
+        throw error;
+      }
+    },
+
+    // Category management
+    getCategories: async () => {
+      try {
+        const response = await api.get('/admin/categories');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching admin categories:', error);
+        throw error;
+      }
+    },
+
+    createCategory: async (categoryData) => {
+      try {
+        const response = await api.post('/admin/categories', categoryData);
+        clearCache(); // Clear cache after creating category
+        return response.data;
+      } catch (error) {
+        console.error('Error creating category:', error);
+        throw error;
+      }
+    },
+
+    updateCategory: async (id, categoryData) => {
+      try {
+        const response = await api.put(`/admin/categories/${id}`, categoryData);
+        clearCache(); // Clear cache after updating category
+        return response.data;
+      } catch (error) {
+        console.error('Error updating category:', error);
+        throw error;
+      }
+    },
+
+    deleteCategory: async (id) => {
+      try {
+        const response = await api.delete(`/admin/categories/${id}`);
+        clearCache(); // Clear cache after deleting category
+        return response.data;
+      } catch (error) {
+        console.error('Error deleting category:', error);
         throw error;
       }
     }

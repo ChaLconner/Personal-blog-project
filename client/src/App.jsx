@@ -6,11 +6,14 @@ import NotFoundPage from "./pages/NotFoundPage";
 import SignUpPage from "./pages/SignUpPage";
 import SignUpSuccessPage from "./pages/SignUpSuccessPage";
 import LoginPage from "./pages/LoginPage";
-import ProfilePage from "./components/ProfilePage";
+import ProfilePage from "./pages/ProfilePage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import AdminLogin from "./pages/admin/AdminLoginPage";
 import AdminCreateArticlePage from "./pages/admin/AdminCreateArticle";
+import AdminArticlePage from "./pages/admin/AdminArticlePage";
 import AdminNotificationPage from "./pages/admin/AdminNotificationPage";
+import AdminCategoryPage from "./pages/admin/AdminCategoryPage";
 import AdminCreateCategoryPage from "./pages/admin/AdminCreateCategoryPage";
 import AdminEditCategoryPage from "./pages/admin/AdminEditCategoryPage";
 import AdminEditArticlePage from "./pages/admin/AdminEditArticlePage";
@@ -76,6 +79,7 @@ function AppContent() {
             </AuthenticationRoute>
           }
         />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         
         {/* เส้นทางที่เฉพาะผู้ใช้ทั่วไปที่ล็อกอินแล้วเข้าถึงได้ */}
         <Route
@@ -130,6 +134,19 @@ function AppContent() {
           }
         />
         <Route
+          path="/admin/article-management"
+          element={
+            <ProtectedRoute
+              isLoading={state.getUserLoading}
+              isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
+              requiredRole="admin"
+            >
+              <AdminArticlePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/edit-article/:postId"
           element={
             <ProtectedRoute
@@ -156,7 +173,20 @@ function AppContent() {
           }
         />
         <Route
-          path="/admin/edit-category/:categoryId"
+          path="/admin/category-management"
+          element={
+            <ProtectedRoute
+              isLoading={state.getUserLoading}
+              isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
+              requiredRole="admin"
+            >
+              <AdminCategoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/edit-category/:id"
           element={
             <ProtectedRoute
               isLoading={state.getUserLoading}

@@ -9,10 +9,11 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [, setError] = useState("");
+    const [requiresVerification, setRequiresVerification] = useState(false);
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { login } = useAuth();
+    const { login, resendVerification } = useAuth();
 
     // Get the page user was trying to visit from URL params or location state
     const getRedirectPath = () => {
@@ -90,6 +91,7 @@ export default function LoginPage() {
                 }, 500);
             } else if (result.error) {
                 setError(result.error);
+                setRequiresVerification(Boolean(result.requiresVerification));
                 toast.error(result.error, {
                     position: "bottom-right",
                     duration: 4000,
@@ -98,6 +100,7 @@ export default function LoginPage() {
         } catch (error) {
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
+            setRequiresVerification(false);
             toast.error(errorMessage, {
                 position: "bottom-right",
                 duration: 4000,
@@ -138,6 +141,26 @@ export default function LoginPage() {
                                 required
                             />
                         </div>
+
+                        {requiresVerification && (
+                            <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded">
+                                <p className="text-sm">กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ</p>
+                                <button
+                                    type="button"
+                                    className="mt-2 text-sm underline"
+                                    onClick={async () => {
+                                        const res = await resendVerification(email);
+                                        if (res.success) {
+                                            toast.success(res.message, { position: "bottom-right" });
+                                        } else {
+                                            toast.error(res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { position: "bottom-right" });
+                                        }
+                                    }}
+                                >
+                                    ส่งอีเมลยืนยันอีกครั้ง
+                                </button>
+                            </div>
+                        )}
 
                         <div className="flex flex-col items-center gap-4">
                             <button
