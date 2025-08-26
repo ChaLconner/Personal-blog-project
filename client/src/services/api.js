@@ -106,7 +106,7 @@ const auth = {
 
   updateProfile: async (profileData) => {
     try {
-      const response = await api.put('/auth/update-profile', profileData);
+      const response = await api.put('/api/auth/update-profile', profileData);
       return response.data;
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -507,6 +507,47 @@ export const blogApi = {
     }
   },
 
+  // Notification functions
+  getNotifications: async (userId) => {
+    try {
+      const response = await api.get(`/api/notifications/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  },
+
+  markNotificationAsRead: async (notificationId) => {
+    try {
+      const response = await api.put(`/api/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+
+  markAllNotificationsAsRead: async (userId) => {
+    try {
+      const response = await api.put(`/api/notifications/user/${userId}/read-all`);
+      return response.data;
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  },
+
+  createNotification: async (notificationData) => {
+    try {
+      const response = await api.post('/api/notifications', notificationData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  },
+
   // Admin functions
   admin: {
     // Posts management
@@ -527,6 +568,16 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error creating post:', error);
+        throw error;
+      }
+    },
+
+    getPost: async (id) => {
+      try {
+        const response = await api.get(`/admin/posts/${id}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching post:', error);
         throw error;
       }
     },

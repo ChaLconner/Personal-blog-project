@@ -6,21 +6,17 @@ const authRouter = express.Router();
 // Helper function to check table schema
 const checkUsersTableSchema = async () => {
   try {
-    console.log('🔍 Checking users table schema...');
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .limit(1);
     
     if (error) {
-      console.log('❌ Schema check error:', error);
       return null;
     }
     
-    console.log('✅ Users table accessible');
     return true;
   } catch (error) {
-    console.log('❌ Schema check failed:', error);
     return null;
   }
 };
@@ -430,11 +426,12 @@ authRouter.put("/update-profile", async (req, res) => {
       if (username) updateData.username = username.trim();
       if (imageUrl) updateData.profile_pic = imageUrl;
     } else {
-      // Regular form data
-      const { name, username } = req.body;
+      // Regular JSON data
+      const { name, username, imageUrl } = req.body;
       
       if (name) updateData.name = name.trim();
       if (username) updateData.username = username.trim();
+      if (imageUrl) updateData.profile_pic = imageUrl;
     }
 
     // Check if username is already taken by another user
@@ -453,8 +450,7 @@ authRouter.put("/update-profile", async (req, res) => {
       }
     }
 
-    // Add updated timestamp
-    updateData.updated_at = new Date().toISOString();
+    console.log('📝 Updating user profile with data:', updateData);
 
     // Update user data in users table
     const { data: updatedUser, error: updateError } = await supabase

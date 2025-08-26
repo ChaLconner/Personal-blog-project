@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/database.js';
+import { createNewArticleNotification } from '../utils/notificationHelpers.mjs';
 
 const adminRouter = express.Router();
 
@@ -40,21 +41,50 @@ const requireAdmin = async (req, res, next) => {
 // Get all posts for admin (with additional info)
 adminRouter.get('/posts', requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Fetching admin posts...');
     const { data: posts, error } = await supabase
-      .from('blog_posts')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from('posts')
+      .select(`
+        id,
+        title,
+        description,
+        content,
+        image,
+        date,
+        likes_count,
+        categories(id, name),
+        statuses(id, status)
+      `)
+      .order('date', { ascending: false });
 
     if (error) {
+      console.error('❌ Error fetching posts:', error);
       return res.status(500).json({ error: "Error fetching posts" });
     }
 
+    // Transform the data to match frontend expectations
+    const transformedPosts = posts.map(post => ({
+      id: post.id,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      image: post.image,
+      date: post.date,
+      likes_count: post.likes_count,
+      category: post.categories?.name || 'Uncategorized',
+      category_id: post.categories?.id || null,
+      status: post.statuses?.status || 'publish',
+      status_id: post.statuses?.id || null
+    }));
+
+    console.log('✅ Retrieved posts:', transformedPosts.length);
     res.json({
       success: true,
-      data: posts,
-      total: posts.length
+      data: transformedPosts,
+      total: transformedPosts.length
     });
   } catch (error) {
+    console.error('❌ Admin posts error:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -62,32 +92,79 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
 // Create new post
 adminRouter.post('/posts', requireAdmin, async (req, res) => {
   try {
-    const { title, description, content, image, category } = req.body;
+    const { title, description, content, image, category, status } = req.body;
+    console.log('📝 Creating new post:', { title, category, status });
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
     }
 
+    // Find category ID if category name is provided
+    let categoryId = null;
+    if (category) {
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', category)
+        .single();
+      
+      if (!categoryError && categoryData) {
+        categoryId = categoryData.id;
+      }
+    }
+
+    // Find status ID (default to publish)
+    const statusName = status || 'publish';
+    const { data: statusData, error: statusError } = await supabase
+      .from('statuses')
+      .select('id')
+      .eq('status', statusName)
+      .single();
+
+    let statusId = statusData?.id || 2; // Default to publish (id: 2)
+
     const { data: newPost, error } = await supabase
-      .from('blog_posts')
+      .from('posts')
       .insert([{
         title: title.trim(),
-        description: description?.trim() || '',
+        description: description?.trim() || null,
         content: content.trim(),
-        image: image || null,
-        category: category?.trim() || null,
-        author: req.user.name,
-        date: new Date().toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
+        image: image || '',
+        category_id: categoryId,
+        status_id: statusId,
+        likes_count: 0
       }])
-      .select()
+      .select(`
+        id,
+        title,
+        description,
+        content,
+        image,
+        date,
+        likes_count,
+        categories(id, name),
+        statuses(id, status)
+      `)
       .single();
 
     if (error) {
+      console.error('❌ Error creating post:', error);
       return res.status(500).json({ error: "Error creating post" });
+    }
+
+    console.log('✅ Post created successfully:', newPost.id);
+    
+    // Create notification if the post is published
+    if (statusName === 'publish') {
+      try {
+        // Get the admin user who created the post
+        const adminUserId = req.user.id;
+        await createNewArticleNotification(adminUserId, newPost.id, newPost.title);
+        console.log('📢 Notifications created for new published article');
+      } catch (notificationError) {
+        console.error('❌ Error creating notifications:', notificationError);
+        // Don't fail the post creation if notification fails
+      }
     }
 
     res.status(201).json({
@@ -96,6 +173,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
       message: "Post created successfully"
     });
   } catch (error) {
+    console.error('❌ Create post error:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -104,7 +182,8 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
 adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    const { title, description, content, image, category } = req.body;
+    const { title, description, content, image, category, status } = req.body;
+    console.log('📝 Updating post:', postId, { title, category, status });
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -114,25 +193,91 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Title and content are required" });
     }
 
-    const { data: updatedPost, error } = await supabase
-      .from('blog_posts')
-      .update({
-        title: title.trim(),
-        description: description?.trim() || '',
-        content: content.trim(),
-        image: image || null,
-        category: category?.trim() || null,
-        updated_at: new Date().toISOString()
-      })
+    // Find category ID if category name is provided
+    let categoryId = null;
+    if (category) {
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('name', category)
+        .single();
+      
+      if (!categoryError && categoryData) {
+        categoryId = categoryData.id;
+      }
+    }
+
+    // Find status ID
+    let statusId = null;
+    if (status) {
+      const { data: statusData, error: statusError } = await supabase
+        .from('statuses')
+        .select('id')
+        .eq('status', status)
+        .single();
+      
+      if (!statusError && statusData) {
+        statusId = statusData.id;
+      }
+    }
+
+    const updateData = {
+      title: title.trim(),
+      description: description?.trim() || null,
+      content: content.trim()
+    };
+
+    if (image !== undefined) updateData.image = image || '';
+    if (categoryId !== null) updateData.category_id = categoryId;
+    if (statusId !== null) updateData.status_id = statusId;
+
+    // Check if this is changing from draft to published
+    const { data: currentPost, error: currentError } = await supabase
+      .from('posts')
+      .select('statuses(status)')
       .eq('id', postId)
-      .select()
+      .single();
+
+    const wasNotPublished = currentPost && currentPost.statuses.status !== 'publish';
+    const isNowPublished = status === 'publish';
+
+    const { data: updatedPost, error } = await supabase
+      .from('posts')
+      .update(updateData)
+      .eq('id', postId)
+      .select(`
+        id,
+        title,
+        description,
+        content,
+        image,
+        date,
+        likes_count,
+        categories(id, name),
+        statuses(id, status)
+      `)
       .single();
 
     if (error) {
+      console.error('❌ Error updating post:', error);
       if (error.code === 'PGRST116') {
         return res.status(404).json({ error: "Post not found" });
       }
       return res.status(500).json({ error: "Error updating post" });
+    }
+
+    console.log('✅ Post updated successfully:', postId);
+    
+    // Create notification if the post was just published
+    if (wasNotPublished && isNowPublished) {
+      try {
+        const adminUserId = req.user.id;
+        await createNewArticleNotification(adminUserId, updatedPost.id, updatedPost.title);
+        console.log('📢 Notifications created for newly published article');
+      } catch (notificationError) {
+        console.error('❌ Error creating notifications:', notificationError);
+        // Don't fail the post update if notification fails
+      }
     }
 
     res.json({
@@ -141,6 +286,67 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
       message: "Post updated successfully"
     });
   } catch (error) {
+    console.error('❌ Update post error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get single post for editing
+adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    console.log('🔍 Fetching single post for edit:', postId);
+
+    if (!postId || isNaN(postId)) {
+      return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    const { data: post, error } = await supabase
+      .from('posts')
+      .select(`
+        id,
+        title,
+        description,
+        content,
+        image,
+        date,
+        likes_count,
+        categories(id, name),
+        statuses(id, status)
+      `)
+      .eq('id', postId)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching post:', error);
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      return res.status(500).json({ error: "Error fetching post" });
+    }
+
+    // Transform the data
+    const transformedPost = {
+      id: post.id,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      image: post.image,
+      date: post.date,
+      likes_count: post.likes_count,
+      category: post.categories?.name || '',
+      category_id: post.categories?.id || null,
+      status: post.statuses?.status || 'publish',
+      status_id: post.statuses?.id || null
+    };
+
+    console.log('✅ Retrieved post for edit:', transformedPost.id);
+    res.json({
+      success: true,
+      data: transformedPost
+    });
+  } catch (error) {
+    console.error('❌ Get single post error:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -149,25 +355,29 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
 adminRouter.delete('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
+    console.log('🗑️ Deleting post:', postId);
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
     }
 
     const { error } = await supabase
-      .from('blog_posts')
+      .from('posts')
       .delete()
       .eq('id', postId);
 
     if (error) {
+      console.error('❌ Error deleting post:', error);
       return res.status(500).json({ error: "Error deleting post" });
     }
 
+    console.log('✅ Post deleted successfully:', postId);
     res.json({
       success: true,
       message: "Post deleted successfully"
     });
   } catch (error) {
+    console.error('❌ Delete post error:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

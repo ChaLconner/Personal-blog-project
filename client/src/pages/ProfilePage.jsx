@@ -12,6 +12,15 @@ import { blogApi } from "@/services/api.js";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { state, fetchUser } = useAuth();
+  
+  // Helper function to generate user initials (consistent with NavBar)
+  const getUserInitials = (user) => {
+    if (!user) return "U";
+    const name = user?.name || user?.username || user?.email || "";
+    const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    return initials || "U";
+  };
+
   const [profile, setProfile] = useState({
     image: "",
     name: "",
@@ -24,7 +33,6 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        console.log('🔍 ProfilePage - state.user:', state.user);
         setProfile({
           image: state.user?.profile_pic || "",
           name: state.user?.name || "",
@@ -110,10 +118,28 @@ export default function ProfilePage() {
     }
 
     setImageFile(file);
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
     setProfile((prev) => ({
       ...prev,
-      image: URL.createObjectURL(file),
+      image: previewUrl,
     }));
+
+    // Show success message for valid file
+    toast.custom((t) => (
+      <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
+        <div>
+          <h2 className="font-bold text-lg mb-1">Image selected</h2>
+          <p className="text-sm">Click "Save" to upload your new profile picture.</p>
+        </div>
+        <button
+          onClick={() => toast.dismiss(t)}
+          className="text-white hover:text-gray-200"
+        >
+          <X size={20} />
+        </button>
+      </div>
+    ));
   };
 
   const handleSubmit = async (e) => {
@@ -128,9 +154,10 @@ export default function ProfilePage() {
         const uploadResponse = await blogApi.uploadProfileImage(imageFile);
 
         if (uploadResponse.success) {
+          // ใช้ URL ที่ได้จาก Supabase Storage โดยตรง
           imageUrl = uploadResponse.url;
         } else {
-          throw new Error('Failed to upload image');
+          throw new Error(uploadResponse.error || 'Failed to upload image');
         }
       }
 
@@ -145,38 +172,36 @@ export default function ProfilePage() {
         updateData.imageUrl = imageUrl;
       }
 
-      await blogApi.auth.updateProfile(updateData);
+      const response = await blogApi.auth.updateProfile(updateData);
 
-      toast.custom((t) => (
-        <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
-          <div>
-            <h2 className="font-bold text-lg mb-1">
-              Profile updated successfully
-            </h2>
-            <p className="text-sm">Your profile changes have been saved.</p>
+      if (response.success) {
+        toast.custom((t) => (
+          <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
+            <div>
+              <h2 className="font-bold text-lg mb-1">
+                Profile updated successfully
+              </h2>
+              <p className="text-sm">Your profile changes have been saved.</p>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="text-white hover:text-gray-200"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button
-            onClick={() => toast.dismiss(t)}
-            className="text-white hover:text-gray-200"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      ));
+        ));
 
-      // Update local state with new image URL if uploaded
-      if (imageUrl && imageUrl !== profile.image) {
-        setProfile(prev => ({
-          ...prev,
-          image: imageUrl
-        }));
+        // Clear the image file since it's now uploaded
+        setImageFile(null);
+
+        // Fetch updated user data to sync global state
+        await fetchUser();
+      } else {
+        throw new Error(response.error || 'Failed to update profile');
       }
-      
-      // Clear the image file since it's now uploaded
-      setImageFile(null);
 
     } catch (error) {
-      console.error('Profile update error:', error);
       toast.custom((t) => (
         <div className="bg-red-500 text-white p-4 rounded-sm flex justify-between items-start">
           <div>
@@ -195,7 +220,6 @@ export default function ProfilePage() {
       ));
     } finally {
       setIsSaving(false);
-      fetchUser();
     }
   };
 
@@ -208,16 +232,19 @@ export default function ProfilePage() {
           <div className="hidden md:flex items-center p-6">
             <Avatar className="h-14 w-14">
               <AvatarImage
-                src={state.user?.profile_pic}
+                src={profile.image}
                 alt="Profile"
                 className="object-cover"
               />
-              <AvatarFallback>
-                <User />
+              <AvatarFallback className="bg-gray-500 text-white">
+                {getUserInitials(state.user)}
               </AvatarFallback>
             </Avatar>
             <div className="ml-4">
-              <h1 className="text-2xl font-bold">{state.user?.name}</h1>
+              <h1 className="text-2xl font-bold">{profile.name || state.user?.name}</h1>
+            </div>
+            <div className="ml-4 font-semibold text-2xl leading-8 tracking-normal" style={{ fontFamily: 'Poppins', fontSize: '24px', lineHeight: '32px' }}>
+              <span className="mr-4">|</span> Profile
             </div>
           </div>
 
@@ -246,11 +273,11 @@ export default function ProfilePage() {
                   alt="Profile"
                   className="object-cover"
                 />
-                <AvatarFallback>
-                  <User className="h-8 w-8" />
+                <AvatarFallback className="bg-gray-500 text-white">
+                  {getUserInitials(state.user)}
                 </AvatarFallback>
               </Avatar>
-              <h2 className="ml-3 text-xl font-semibold">{profile.name}</h2>
+              <h2 className="ml-3 text-xl font-semibold">{profile.name || state.user?.name}</h2>
             </div>
           </div>
 
@@ -286,8 +313,8 @@ export default function ProfilePage() {
                     alt="Profile"
                     className="object-cover"
                   />
-                  <AvatarFallback>
-                    <User className="h-8 w-8" />
+                  <AvatarFallback className="text-lg font-medium bg-gray-500 text-white">
+                    {getUserInitials(state.user)}
                   </AvatarFallback>
                 </Avatar>
                 <label className="bg-background px-8 py-2 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer">

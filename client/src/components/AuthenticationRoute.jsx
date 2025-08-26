@@ -1,10 +1,10 @@
 import { Navigate } from "react-router-dom";
-import LoadingScreen from "./LoadingScreen";
 
 function AuthenticationRoute({ isLoading, isAuthenticated, children }) {
+  // ข้าม loading state - ไม่แสดงหน้า checking authentication
   if (isLoading === null || isLoading) {
-    // สถานะกำลังโหลดข้อมูลหรือยังไม่มีข้อมูล
-    return <LoadingScreen message="Checking authentication..." />;
+    // ถ้ายังโหลดอยู่ ให้แสดง children ไปก่อน (หรือ return null หากไม่ต้องการแสดงอะไร)
+    return children;
   }
 
   if (isAuthenticated) {

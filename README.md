@@ -1,13 +1,16 @@
-# My Side Project - Blog Application
+# Personal Blog Project
 
-A full-stack blog application with a React frontend and Node.js backend.
+A full-stack blog application built with React, Node.js, Express, and Supabase.
 
-## Architecture
+## 🚀 Features
 
-This project is structured as a client-server application:
-
-- **Client**: React + Vite frontend application
-- **Server**: Node.js + Express backend API
+- **User Authentication** - Secure login/signup with Supabase Auth
+- **Profile Management** - Upload profile pictures to Supabase Storage
+- **Article Management** - Create, edit, delete articles with rich content
+- **Admin Dashboard** - Complete admin panel for content management
+- **Real-time Notifications** - Get notified about new articles and comments
+- **Responsive Design** - Mobile-first design with Tailwind CSS
+- **Modern UI** - Built with Radix UI components
 
 ## Project Structure
 

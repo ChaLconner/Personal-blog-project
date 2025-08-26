@@ -21,6 +21,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [valid, setValid] = useState({
     password: true,
     newPassword: true,
@@ -28,6 +29,14 @@ export default function ResetPasswordPage() {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { state } = useAuth();
+
+  // Helper function to generate user initials (consistent with other pages)
+  const getUserInitials = (user) => {
+    if (!user) return "U";
+    const name = user?.name || user?.username || user?.email || "";
+    const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+    return initials || "U";
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,14 +58,17 @@ export default function ResetPasswordPage() {
 
   const handleResetPassword = async () => {
     try {
+      setIsLoading(true);
       setIsDialogOpen(false);
 
+      console.log('🔑 Attempting password reset...');
       const response = await blogApi.auth.resetPassword({
         oldPassword: password,
         newPassword: newPassword,
       });
 
       if (response.success) {
+        console.log('✅ Password reset successful');
         toast.custom((t) => (
           <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
             <div>
@@ -79,6 +91,8 @@ export default function ResetPasswordPage() {
         setPassword("");
         setNewPassword("");
         setConfirmNewPassword("");
+      } else {
+        throw new Error(response.error || 'Password reset failed');
       }
     } catch (error) {
       console.error('Password reset error:', error);
@@ -100,6 +114,8 @@ export default function ResetPasswordPage() {
           </button>
         </div>
       ));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -116,12 +132,15 @@ export default function ResetPasswordPage() {
                 alt="Profile"
                 className="object-cover"
               />
-              <AvatarFallback>
-                <User />
+              <AvatarFallback className="bg-gray-500 text-white">
+                {getUserInitials(state.user)}
               </AvatarFallback>
             </Avatar>
             <div className="ml-4">
               <h1 className="text-2xl font-bold">{state.user?.name}</h1>
+            </div>
+            <div className="ml-4 font-semibold text-2xl leading-8 tracking-normal" style={{ fontFamily: 'Poppins', fontSize: '24px', lineHeight: '32px' }}>
+              <span className="mr-4">|</span> Reset Password
             </div>
           </div>
 
@@ -147,8 +166,8 @@ export default function ResetPasswordPage() {
                   alt="Profile"
                   className="object-cover"
                 />
-                <AvatarFallback>
-                  <User />
+                <AvatarFallback className="bg-gray-500 text-white">
+                  {getUserInitials(state.user)}
                 </AvatarFallback>
               </Avatar>
               <h2 className="ml-3 text-xl font-semibold">{state.user?.name}</h2>
@@ -263,12 +282,13 @@ export default function ResetPasswordPage() {
         dialogState={isDialogOpen}
         setDialogState={setIsDialogOpen}
         resetFunction={handleResetPassword}
+        isLoading={isLoading}
       />
     </div>
   );
 }
 
-function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
+function ResetPasswordModal({ dialogState, setDialogState, resetFunction, isLoading }) {
   return (
     <AlertDialog open={dialogState} onOpenChange={setDialogState}>
       <AlertDialogContent className="bg-white rounded-md pt-16 pb-6 max-w-[22rem] sm:max-w-md flex flex-col items-center">
@@ -287,9 +307,10 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
           </button>
           <button
             onClick={resetFunction}
-            className="rounded-full text-white bg-foreground hover:bg-muted-foreground transition-colors py-4 text-lg px-10"
+            disabled={isLoading}
+            className="rounded-full text-white bg-foreground hover:bg-muted-foreground transition-colors py-4 text-lg px-10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Reset
+            {isLoading ? "Resetting..." : "Reset"}
           </button>
         </div>
         <AlertDialogCancel className="absolute right-4 top-2 sm:top-4 p-1 border-none">

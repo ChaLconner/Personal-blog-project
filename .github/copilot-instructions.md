@@ -2,111 +2,232 @@
 
 ## Project Overview
 
-This is a full-stack blog application built with React + Vite frontend and Node.js + Express backend, using Supabase for authentication and data storage. The project follows a monorepo structure with clear separation between client and server components.
+This is a full-stack blog application built with React + Vite frontend and Node.js + Express backend, using Supabase for authentication and data storage. The project follows a true monorepo structure with both client and server in same repository.
 
 ## Architecture
 
 ### Frontend Stack
-- **React 19** with Vite as build tool
-- **Tailwind CSS** for styling
-- **shadcn/ui** components built on Radix UI primitives
-- **React Router DOM** for routing
-- **Axios** for API calls with interceptors
-- **Supabase** for authentication (client-side)
+- **React 19** with Vite (port 5173)
+- **Tailwind CSS 4.0** with `@tailwindcss/vite` plugin
+- **shadcn/ui** components built on Radix UI primitives  
+- **React Router DOM v7** for routing
+- **Axios** with interceptors and 5-minute caching
+- **Supabase** client-side integration
 
 ### Backend Stack
 - **Node.js** with ES modules (`"type": "module"`)
-- **Express.js** framework
-- **Supabase** for database and auth (server-side)
+- **Express.js** (port 3001/5000)
+- **Supabase Auth** for authentication
 - **CORS** enabled for frontend integration
-- **Multer** for file uploads
-
-## Directory Structure
-
-```
-project-root/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   │   └── ui/        # shadcn/ui component wrappers
-│   │   ├── contexts/      # React context providers
-│   │   ├── pages/         # Route components
-│   │   ├── services/      # API service layer
-│   │   └── utils/         # Helper functions
-│   └── package.json
-└── server/                # Express backend
-    ├── routes/            # API route handlers
-    ├── middlewares/       # Authentication middleware
-    ├── config/            # Database configuration
-    └── package.json
-```
+- **Multer** for file uploads to `/server/uploads/`
+- **Environment**: Uses `--env-file=.env` with native Node.js support
 
 ## Development Workflow
 
-### Starting Development Servers
+### Critical Commands
 ```bash
-# Install all dependencies (client + server)
+# Install all dependencies (both client + server)
 npm run install:all
 
-# Start both client and server concurrently
-npm run dev:full
+# Start both frontend and backend concurrently  
+npm run dev
 
-# Or start individually:
-npm run dev        # Client only (port 5173)
-npm run server     # Server only (port 3001)
+# Individual services
+cd client && npm run dev          # Frontend only
+cd server && npm run dev          # Backend only (with nodemon)
 ```
 
-### Environment Setup
-- **Client**: Uses `VITE_` prefixed environment variables
-- **Server**: Uses `--env-file=.env` with Node.js native support
-- **Ports**: Client (5173), Server (3001/5000)
+### Project Structure Reality
+```
+my-side-project/
+├── client/                      # React frontend (port 5173)
+│   ├── src/
+│   │   ├── components/ui/       # shadcn/ui components
+│   │   ├── contexts/           # auth.jsx + authContext.js (DUAL pattern)
+│   │   ├── pages/              # Page components
+│   │   ├── services/api.js     # Centralized API with caching
+│   │   └── utils/              # Helper functions
+│   ├── vite.config.js         # "@" alias to ./src
+│   └── package.json
+└── server/                     # Express backend (port 3001)
+    ├── routes/                 # *.mjs files use ES modules
+    ├── middlewares/           # protectUser.mjs, protectAdmin.mjs  
+    ├── config/database.js     # Supabase client config
+    ├── uploads/               # Static file storage
+    └── server.js              # Main entry point
+```
 
-## Key Patterns & Conventions
+## Critical Authentication Patterns
 
-### Authentication Flow
-1. **Context Provider**: `AuthProvider` in `src/contexts/auth.jsx`
-   - Manages global auth state
-   - Provides login, logout, register methods
-   - Auto-fetches user data on app initialization
-   - Stores JWT tokens in localStorage with dual keys (`token` + `authToken`)
+### Dual Context Architecture (IMPORTANT)
+The project uses a **dual auth context pattern**:
+- `contexts/auth.jsx` - AuthProvider implementation with state management
+- `contexts/authContext.js` - Context creation and useAuth hook (Fast Refresh compatibility)
 
-2. **Protected Routes**: Use `ProtectedRoute` component
-   ```jsx
-   <ProtectedRoute>
-     <ProtectedComponent />
-   </ProtectedRoute>
-   ```
+```jsx
+// In auth.jsx
+import { AuthContext } from './authContext.js';
+export function AuthProvider({ children }) { /* implementation */ }
 
-3. **API Integration**: Token automatically added via axios interceptors
-   ```javascript
-   // Automatic header injection
-   Authorization: `Bearer ${token}`
-   ```
+// In authContext.js  
+export const AuthContext = createContext();
+export const useAuth = () => { /* hook implementation */ }
+```
 
-### shadcn/ui Component Structure
-- Components located in `src/components/ui/`
-- Built on Radix UI primitives
-- Use `cn()` utility for conditional styling
-- Standard export pattern:
-  ```jsx
-  export { ComponentName, ComponentVariant, ComponentFallback }
-  ```
+### Token Management
+Dual token storage for compatibility:
+```javascript
+// Both keys stored for legacy and new code
+localStorage.setItem("token", token);
+localStorage.setItem("authToken", token);
+```
 
-### API Service Layer
-- Centralized in `src/services/api.js`
-- Built on axios with interceptors
-- Includes caching for performance
-- Error handling with user-friendly messages
-- Authentication token management
+### Protected Route Pattern
+```jsx
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-### Server-Side Patterns
-1. **ES Modules**: All `.js` files use import/export syntax
-2. **Route Structure**: 
-   - `routes/auth.mjs` - Authentication endpoints
-   - `routes/posts.js` - Blog post CRUD
-   - `routes/admin.mjs` - Admin functionality
-3. **Middleware**: Authentication middleware for protected routes
-4. **Supabase Integration**: Server-side client for database operations
+// Usage with flexible role checking
+<ProtectedRoute 
+  isLoading={loading}
+  isAuthenticated={isAuthenticated} 
+  userRole={user?.role}
+  requireAdmin={true}  // Backward compatibility
+  requiredRole="admin" // Flexible role checking
+>
+  <Component />
+</ProtectedRoute>
+```
+
+## API Service Architecture
+
+### Centralized Service (`src/services/api.js`)
+- **Built-in caching**: 5-minute cache for GET requests
+- **Automatic token injection**: Reads from both `token` and `authToken` keys
+- **Error handling**: Browser extension interference filtering
+- **Timeout**: 30-second default
+- **Environment aware**: Different behaviors for dev/prod
+
+### Critical API Patterns
+```javascript
+// Multi-part file upload
+await blogApi.uploadProfileImage(file);
+
+// Admin operations with cache clearing
+await blogApi.admin.createPost(data); // Automatically clears cache
+
+// Error handling with user-friendly messages
+try {
+  const posts = await blogApi.getPosts({ category: 'tech' });
+} catch (error) {
+  // Returns structured fallback instead of throwing
+}
+```
+
+## Server-Side Patterns
+
+### File Extensions Matter
+- `.mjs` files: ES modules for routes (auth.mjs, admin.mjs, upload.mjs)
+- `.js` files: Regular modules (blogRouter.js, posts.js)
+- All use `import/export` syntax due to `"type": "module"`
+
+### Supabase Auth Integration
+```javascript
+// Server auth check pattern
+const { data, error } = await supabase.auth.getUser(token);
+// Then fetch additional user data from users table
+const { data: userData } = await supabase.from('users').select('*').eq('id', data.user.id);
+```
+
+### Middleware Pattern
+```javascript
+import protectUser from '../middlewares/protectUser.mjs';
+
+// Attaches req.user and req.userId
+router.use('/protected-route', protectUser, handlerFunction);
+```
+
+## Environment Configuration
+
+### Client (.env)
+```
+VITE_API_URL=http://localhost:3001
+```
+
+### Server (.env) 
+```
+PORT=3001
+CLIENT_URL=http://localhost:5173
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
+```
+
+## File Upload System
+
+### Upload Structure
+- **Storage**: `/server/uploads/images/` for profile pictures
+- **Size limit**: 5MB max
+- **Formats**: JPEG, PNG, GIF, WebP
+- **API**: Separate upload then update profile flow
+
+```javascript
+// Two-step process
+const uploadResult = await blogApi.uploadProfileImage(file);
+const updateResult = await blogApi.auth.updateProfile({ imageUrl: uploadResult.imageUrl });
+```
+
+## Development Quirks
+
+### Import Paths
+- **Client**: Uses `@/` alias for `./src`
+- **Server**: Relative imports only, `.mjs` extensions required
+- **Components**: Always export from `ui/` directory
+
+### Port Management  
+- **Frontend**: Always 5173 (Vite default)
+- **Backend**: 3001 (development), 5000 (production fallback)
+- **Concurrency**: Root package.json manages both with `concurrently`
+
+### CSS Framework
+- **Tailwind 4.0**: Uses `@tailwindcss/vite` plugin (not postcss)
+- **Utilities**: `cn()` function from `lib/utils.js` for conditional classes
+- **Components**: All shadcn/ui components pre-configured
+
+## Common Tasks
+
+### Adding New Route
+1. **Server**: Add to appropriate `.mjs` file in `/routes`
+2. **Client**: Add to `blogApi` object in `services/api.js`
+3. **Auth required**: Use `protectUser` or `protectAdmin` middleware
+
+### Creating Protected Page
+```jsx
+function MyPage() {
+  const { user, loading, isAuthenticated } = useAuth();
+  
+  return (
+    <ProtectedRoute
+      isLoading={loading}
+      isAuthenticated={isAuthenticated}
+      userRole={user?.role}
+      requireAdmin={true}
+    >
+      <div>Protected content</div>
+    </ProtectedRoute>
+  );
+}
+```
+
+### File Upload Implementation
+Always use two-step process: upload file first, then update record with URL.
+
+---
+
+**Key Development Notes**: 
+- Always run `npm run dev` from root (starts both client and server)
+- File uploads require authentication and use separate endpoints
+- Dual token storage ensures compatibility between old and new code
+- Cache is automatically managed but can be manually cleared with `blogApi.clearCache()`
 
 ## Common Tasks & Examples
 

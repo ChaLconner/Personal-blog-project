@@ -8,11 +8,98 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
+import { useState, useEffect } from "react";
+import { blogApi } from "@/services/api.js";
 
 function NavBar() {
     const navigate = useNavigate();
     const { state, logout, isAuthenticated } = useAuth();
     const { user } = state;
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch notifications from Supabase
+    const fetchNotifications = async () => {
+        if (!user?.id) return;
+        
+        try {
+            setLoading(true);
+            const response = await blogApi.getNotifications(user.id);
+            if (response.success) {
+                setNotifications(response.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isAuthenticated && user?.id) {
+            fetchNotifications();
+            // Set up polling for new notifications every 30 seconds
+            const interval = setInterval(fetchNotifications, 30000);
+            return () => clearInterval(interval);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, user?.id]);
+
+    // Get unread notification count
+    const unreadCount = notifications.filter(notif => !notif.read).length;
+
+    const handleMarkAsRead = async (notificationId) => {
+        try {
+            const response = await blogApi.markNotificationAsRead(notificationId);
+            if (response.success) {
+                setNotifications(prev => 
+                    prev.map(notif => 
+                        notif.id === notificationId ? { ...notif, read: true } : notif
+                    )
+                );
+            }
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    };
+
+    const handleMarkAllAsRead = async () => {
+        try {
+            const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+            if (unreadIds.length === 0) return;
+            
+            const response = await blogApi.markAllNotificationsAsRead(user.id);
+            if (response.success) {
+                setNotifications(prev => 
+                    prev.map(notif => ({ ...notif, read: true }))
+                );
+            }
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    };
+
+    // Helper function to format notification time
+    const formatNotificationTime = (timestamp) => {
+        const now = new Date();
+        const notificationTime = new Date(timestamp);
+        const diffInMinutes = Math.floor((now - notificationTime) / (1000 * 60));
+        
+        if (diffInMinutes < 1) return 'Just now';
+        if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+        
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+        
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+        
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        if (diffInWeeks < 4) return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
+        
+        const diffInMonths = Math.floor(diffInDays / 30);
+        return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+    };
 
     // Debug user data
     console.log('🔍 NavBar - user object:', user);
@@ -29,13 +116,16 @@ function NavBar() {
 
     // Get user avatar - use profile pic or generate initials
     const getUserAvatar = () => {
+        console.log('🖼️ NavBar - Getting user avatar, profile_pic:', user?.profile_pic);
         if (user?.profile_pic) {
+            console.log('✅ NavBar - Using profile picture:', user.profile_pic);
             return user.profile_pic;
         }
 
         // Generate initials from name or username
         const name = user?.name || user?.username || user?.email || "";
         const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+        console.log('📝 NavBar - Using initials:', initials);
         return initials || "U";
     };
 
@@ -76,15 +166,87 @@ function NavBar() {
                 {isAuthenticated ? (
                     <div className="flex items-center gap-4">
                         {/* Notification Bell */}
-                        <button
-                            className="relative flex items-center justify-center w-12 h-12 rounded-full bg-white border border-[#EFEEEB] focus:outline-none"
-                        >
-                            <Bell size={20} className="text-gray-600 hover:text-gray-800 transition-colors" />
-                            {/* Notification Badge */}
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                {user?.newPostsCount > 0 ? user.newPostsCount : null}
-                            </span>
-                        </button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="relative flex items-center justify-center w-12 h-12 rounded-full bg-white border border-[#EFEEEB] focus:outline-none hover:border-gray-300 transition-colors">
+                                    <Bell size={20} className="text-gray-600 hover:text-gray-800 transition-colors" />
+                                    {/* Notification Badge */}
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                                            {unreadCount > 9 ? '9+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent 
+                                align="end" 
+                                className="w-[362px] h-[200px] p-0 border-none shadow-[2px_2px_16px_rgba(0,0,0,0.1)] rounded-xl bg-[#F9F8F6] overflow-hidden"
+                                style={{ 
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-start',
+                                    padding: '24px 16px',
+                                    gap: '16px'
+                                }}
+                            >
+                                {/* Notification Header */}
+                                <div className="flex items-center justify-between w-full">
+                                    <h3 className="font-semibold text-lg text-gray-900">Notifications</h3>
+                                    {unreadCount > 0 && (
+                                        <button
+                                            onClick={handleMarkAllAsRead}
+                                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {/* Notification List */}
+                                <div className="flex-1 w-full overflow-y-auto">
+                                    {loading ? (
+                                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                            Loading notifications...
+                                        </div>
+                                    ) : notifications.length === 0 ? (
+                                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                            No notifications
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {notifications.slice(0, 3).map((notification) => (
+                                                <div
+                                                    key={notification.id}
+                                                    className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                                                        notification.read
+                                                            ? 'bg-white border-gray-200 text-gray-600'
+                                                            : 'bg-blue-50 border-blue-200 text-gray-900'
+                                                    }`}
+                                                    onClick={() => handleMarkAsRead(notification.id)}
+                                                >
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-medium truncate">
+                                                                {notification.title}
+                                                            </h4>
+                                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                                                {notification.message}
+                                                            </p>
+                                                            <span className="text-xs text-gray-400 mt-1">
+                                                                {formatNotificationTime(notification.created_at)}
+                                                            </span>
+                                                        </div>
+                                                        {!notification.read && (
+                                                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 ml-2 mt-1"></div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <DropdownMenu>
                             <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none cursor-pointer">
                                 <UserAvatar />
