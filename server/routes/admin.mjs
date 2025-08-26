@@ -41,7 +41,7 @@ const requireAdmin = async (req, res, next) => {
 // Get all posts for admin (with additional info)
 adminRouter.get('/posts', requireAdmin, async (req, res) => {
   try {
-    console.log('🔍 Fetching admin posts...');
+
     const { data: posts, error } = await supabase
       .from('posts')
       .select(`
@@ -77,7 +77,7 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
       status_id: post.statuses?.id || null
     }));
 
-    console.log('✅ Retrieved posts:', transformedPosts.length);
+
     res.json({
       success: true,
       data: transformedPosts,
@@ -93,7 +93,7 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
 adminRouter.post('/posts', requireAdmin, async (req, res) => {
   try {
     const { title, description, content, image, category, status } = req.body;
-    console.log('📝 Creating new post:', { title, category, status });
+
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
@@ -152,7 +152,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
       return res.status(500).json({ error: "Error creating post" });
     }
 
-    console.log('✅ Post created successfully:', newPost.id);
+
     
     // Create notification if the post is published
     if (statusName === 'publish') {
@@ -160,7 +160,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
         // Get the admin user who created the post
         const adminUserId = req.user.id;
         await createNewArticleNotification(adminUserId, newPost.id, newPost.title);
-        console.log('📢 Notifications created for new published article');
+
       } catch (notificationError) {
         console.error('❌ Error creating notifications:', notificationError);
         // Don't fail the post creation if notification fails
@@ -183,7 +183,7 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const { title, description, content, image, category, status } = req.body;
-    console.log('📝 Updating post:', postId, { title, category, status });
+
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -266,14 +266,14 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
       return res.status(500).json({ error: "Error updating post" });
     }
 
-    console.log('✅ Post updated successfully:', postId);
+
     
     // Create notification if the post was just published
     if (wasNotPublished && isNowPublished) {
       try {
         const adminUserId = req.user.id;
         await createNewArticleNotification(adminUserId, updatedPost.id, updatedPost.title);
-        console.log('📢 Notifications created for newly published article');
+
       } catch (notificationError) {
         console.error('❌ Error creating notifications:', notificationError);
         // Don't fail the post update if notification fails
@@ -295,7 +295,7 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
 adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    console.log('🔍 Fetching single post for edit:', postId);
+
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -340,7 +340,7 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
       status_id: post.statuses?.id || null
     };
 
-    console.log('✅ Retrieved post for edit:', transformedPost.id);
+
     res.json({
       success: true,
       data: transformedPost
@@ -355,7 +355,7 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
 adminRouter.delete('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    console.log('🗑️ Deleting post:', postId);
+
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -371,7 +371,7 @@ adminRouter.delete('/posts/:id', requireAdmin, async (req, res) => {
       return res.status(500).json({ error: "Error deleting post" });
     }
 
-    console.log('✅ Post deleted successfully:', postId);
+
     res.json({
       success: true,
       message: "Post deleted successfully"

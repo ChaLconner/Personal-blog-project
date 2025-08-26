@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../config/database.js';
+import { supabase, supabaseAuth } from '../config/database.js';
 
 const authRouter = express.Router();
 
@@ -59,13 +59,6 @@ authRouter.get("/debug/users-schema", async (req, res) => {
 
 // Register endpoint using Supabase Auth
 authRouter.post("/register", async (req, res) => {
-  console.log('📝 Registration request received:', { 
-    email: req.body.email, 
-    username: req.body.username, 
-    name: req.body.name,
-    hasPassword: !!req.body.password 
-  });
-  
   const { email, password, username, name } = req.body;
 
   // Validate required fields
@@ -76,7 +69,7 @@ authRouter.post("/register", async (req, res) => {
     if (!username) missing.push('username');
     if (!name) missing.push('name');
     
-    console.log('❌ Missing required fields:', missing);
+
     return res.status(400).json({ 
       error: `Missing required fields: ${missing.join(', ')}`,
       success: false,
@@ -85,7 +78,7 @@ authRouter.post("/register", async (req, res) => {
   }
 
   try {
-    console.log('🔍 Checking if username already exists...');
+
     // Check if username already exists
     const { data: existingUser, error: usernameCheckError } = await supabase
       .from('users')
@@ -94,7 +87,7 @@ authRouter.post("/register", async (req, res) => {
       .single();
 
     if (existingUser) {
-      console.log('❌ Username already exists');
+
       return res.status(400).json({ 
         error: "This username is already taken",
         success: false,
@@ -102,10 +95,10 @@ authRouter.post("/register", async (req, res) => {
       });
     }
 
-    console.log('🔐 Creating user with Supabase Auth...');
+
     
     // Use Supabase Auth to create user (will send verification email automatically)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabaseAuth.auth.signUp({
       email: email,
       password: password,
       options: {
@@ -135,7 +128,7 @@ authRouter.post("/register", async (req, res) => {
       });
     }
 
-    console.log('✅ User created with Supabase Auth:', authData.user?.id);
+
 
     // Insert additional user data into users table
     if (authData.user) {
@@ -185,7 +178,7 @@ authRouter.post("/register", async (req, res) => {
 
 // Login endpoint using Supabase Auth
 authRouter.post("/login", async (req, res) => {
-  console.log('🔐 Login request received:', { email: req.body.email });
+
   
   const { email, password } = req.body;
 
@@ -198,10 +191,10 @@ authRouter.post("/login", async (req, res) => {
   }
 
   try {
-    console.log('🔐 Attempting Supabase Auth login...');
+
     
-    // Use Supabase Auth to sign in
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    // Use Supabase Auth to sign in with anonymous key
+    const { data: authData, error: authError } = await supabaseAuth.auth.signInWithPassword({
       email,
       password,
     });
@@ -241,7 +234,7 @@ authRouter.post("/login", async (req, res) => {
       });
     }
 
-    console.log('✅ Supabase Auth login successful');
+
 
     // Get additional user data from users table
     const { data: userData, error: userError } = await supabase
@@ -292,10 +285,10 @@ authRouter.post("/resend-verification", async (req, res) => {
   }
 
   try {
-    console.log('📧 Resending verification email for:', email);
+
     
     // Use Supabase Auth to resend verification
-    const { error } = await supabase.auth.resend({
+    const { error } = await supabaseAuth.auth.resend({
       type: 'signup',
       email: email,
       options: {
@@ -332,7 +325,7 @@ authRouter.post("/logout", async (req, res) => {
   try {
     // Supabase Auth handles logout on client side
     // This endpoint is mainly for logging purposes
-    console.log('👋 User logout requested');
+
     
     return res.status(200).json({
       success: true,
@@ -359,7 +352,7 @@ authRouter.get("/get-user", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized: Token missing" });
     }
 
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data, error } = await supabaseAuth.auth.getUser(token);
     if (error || !data?.user) {
       return res.status(401).json({ error: "Unauthorized: Invalid token" });
     }
@@ -450,7 +443,7 @@ authRouter.put("/update-profile", async (req, res) => {
       }
     }
 
-    console.log('📝 Updating user profile with data:', updateData);
+
 
     // Update user data in users table
     const { data: updatedUser, error: updateError } = await supabase

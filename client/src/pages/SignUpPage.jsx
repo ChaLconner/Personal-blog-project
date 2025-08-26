@@ -13,6 +13,7 @@ export default function SignUpPage() {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [, setError] = useState("");
+    const [validationErrors, setValidationErrors] = useState({});
 
     const navigate = useNavigate();
     const { register } = useAuth();
@@ -21,17 +22,68 @@ export default function SignUpPage() {
         navigate("/login");
     };
 
+    // Validation functions
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePassword = (password) => {
+        return password.length >= 6;
+    };
+
+    const validateForm = () => {
+        const errors = {};
+        
+        if (!formData.name.trim()) {
+            errors.name = "Name is required";
+        }
+
+        if (!formData.username.trim()) {
+            errors.username = "Username is required";
+        } else if (formData.username.length < 3) {
+            errors.username = "Username must be at least 3 characters";
+        }
+
+        if (!formData.email.trim()) {
+            errors.email = "Email is required";
+        } else if (!validateEmail(formData.email)) {
+            errors.email = "Email must be a valid email";
+        }
+
+        if (!formData.password.trim()) {
+            errors.password = "Password is required";
+        } else if (!validatePassword(formData.password)) {
+            errors.password = "Password must be at least 6 characters";
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        // Clear validation error when user starts typing
+        if (validationErrors[name]) {
+            setValidationErrors(prev => ({...prev, [name]: ""}));
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        setValidationErrors({});
+
+        // Validate form first
+        if (!validateForm()) {
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -81,11 +133,18 @@ export default function SignUpPage() {
                                 id="name"
                                 name="name"
                                 placeholder="Name"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.name 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 required
                             />
+                            {validationErrors.name && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.name}</p>
+                            )}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="username">Username</label>
@@ -94,11 +153,18 @@ export default function SignUpPage() {
                                 id="username"
                                 name="username"
                                 placeholder="Username"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.username 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={formData.username}
                                 onChange={handleInputChange}
                                 required
                             />
+                            {validationErrors.username && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.username}</p>
+                            )}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="email">Email</label>
@@ -107,11 +173,18 @@ export default function SignUpPage() {
                                 id="email"
                                 name="email"
                                 placeholder="Email"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.email 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={formData.email}
                                 onChange={handleInputChange}
                                 required
                             />
+                            {validationErrors.email && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+                            )}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="password">Password</label>
@@ -120,11 +193,18 @@ export default function SignUpPage() {
                                 id="password"
                                 name="password"
                                 placeholder="Password"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.password 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={formData.password}
                                 onChange={handleInputChange}
                                 required
                             />
+                            {validationErrors.password && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-center gap-4">

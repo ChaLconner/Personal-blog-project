@@ -81,7 +81,7 @@ export const createNewArticleNotification = async (authorId, postId, postTitle) 
     if (insertError) {
       console.error('Error creating article notifications:', insertError);
     } else {
-      console.log(`Created ${notifications.length} notifications for new article: ${postTitle}`);
+
     }
   } catch (error) {
     console.error('Error in createNewArticleNotification:', error);
@@ -119,7 +119,7 @@ export const createCommentNotification = async (commenterId, postId, postTitle, 
       postId
     });
 
-    console.log(`Created comment notification for post: ${postTitle}`);
+
   } catch (error) {
     console.error('Error in createCommentNotification:', error);
   }
@@ -156,7 +156,7 @@ export const createCommentReplyNotification = async (replierId, originalCommente
       postId
     });
 
-    console.log(`Created comment reply notification for post: ${postTitle}`);
+
   } catch (error) {
     console.error('Error in createCommentReplyNotification:', error);
   }

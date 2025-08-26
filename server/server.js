@@ -80,12 +80,14 @@ app.use((error, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('🚀 Server starting up...');
-  console.log(`📡 Server is running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 API Base URL: http://localhost:${PORT}`);
-  console.log(`💻 Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
-  console.log('✅ Server is ready to accept connections');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🚀 Server starting up...');
+    console.log(`📡 Server is running on port ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 API Base URL: http://localhost:${PORT}`);
+    console.log(`💻 Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
+    console.log('✅ Server is ready to accept connections');
+  }
 });
 
 // Graceful shutdown

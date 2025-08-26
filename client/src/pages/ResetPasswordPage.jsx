@@ -61,14 +61,14 @@ export default function ResetPasswordPage() {
       setIsLoading(true);
       setIsDialogOpen(false);
 
-      console.log('🔑 Attempting password reset...');
+
       const response = await blogApi.auth.resetPassword({
         oldPassword: password,
         newPassword: newPassword,
       });
 
       if (response.success) {
-        console.log('✅ Password reset successful');
+
         toast.custom((t) => (
           <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
             <div>

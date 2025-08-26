@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
   // ล็อกอินผู้ใช้
   const login = async (data) => {
     try {
-      console.log('🔐 Attempting login...', { email: data.email });
+
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       const response = await axios.post(
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
         data
       );
       
-      console.log('✅ Login response:', response.data);
+
       
   const token = response.data.access_token;
   // Store token for both legacy and api service compatibility
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
   localStorage.setItem("authToken", token);
 
       // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
-      console.log('📋 Fetching user data...');
+
       const userResponse = await axios.get(
         "http://localhost:3001/api/auth/get-user",
         {
@@ -82,7 +82,7 @@ export function AuthProvider({ children }) {
         }
       );
       
-      console.log('✅ User data received:', userResponse.data);
+
       
       setState((prevState) => ({ 
         ...prevState, 
@@ -146,7 +146,7 @@ export function AuthProvider({ children }) {
         data
       );
       
-      console.log('✅ Registration response:', response.data);
+
       
       setState((prevState) => ({ ...prevState, loading: false, error: null }));
       

@@ -140,7 +140,7 @@ const getCachedData = (key) => {
   ) {
     // Only log if debugging is enabled
     if (ENABLE_CACHE_LOGGING) {
-      console.debug(`Cache hit for: ${key}`);
+
     }
     return cached.data;
   }
@@ -156,14 +156,14 @@ const setCachedData = (key, data) => {
     timestamp: Date.now()
   });
   if (ENABLE_CACHE_LOGGING) {
-    console.debug(`Cached data for: ${key}`);
+
   }
 };
 
 const clearCache = () => {
   cache.clear();
   if (ENABLE_CACHE_LOGGING) {
-    console.debug('Cache cleared');
+
   }
 };
 
@@ -252,17 +252,17 @@ export const blogApi = {
       );
       
       // Add debug logging
-      console.log('🔍 BlogAPI getPosts called with params:', cleanParams);
+
       
       // Check cache first
       const cacheKey = getCacheKey('/blog/posts', cleanParams);
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
-        console.log('📦 Using cached data for:', cacheKey);
+
         return cachedData;
       }
       
-      console.log('🌐 Making API request to /api/blog/posts with params:', cleanParams);
+
       const response = await api.get('/blog/posts', { params: cleanParams });
       
       // Validate response structure
@@ -424,9 +424,9 @@ export const blogApi = {
   // Health check
   healthCheck: async () => {
     try {
-      console.log('🏥 Performing health check...');
+
       const response = await api.get('/health', { timeout: 5000 });
-      console.log('✅ Health check passed:', response.data);
+
       return { success: true, data: response.data };
     } catch (error) {
       console.error('❌ Health check failed:', error.message);

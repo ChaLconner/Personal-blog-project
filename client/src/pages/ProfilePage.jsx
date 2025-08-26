@@ -257,7 +257,7 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => {
-                  console.log('🔍 Navigating to /reset-password');
+
                   navigate("/reset-password");
                 }}
                 className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
@@ -292,7 +292,7 @@ export default function ProfilePage() {
                   </div>
                   <button
                     onClick={() => {
-                      console.log('🔍 Desktop - Navigating to /reset-password');
+
                       navigate("/reset-password");
                     }}
                     className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"

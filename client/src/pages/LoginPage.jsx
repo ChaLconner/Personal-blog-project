@@ -10,6 +10,7 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [, setError] = useState("");
     const [requiresVerification, setRequiresVerification] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({});
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -29,8 +30,10 @@ export default function LoginPage() {
                 if (decodedPath.startsWith('/')) {
                     return decodedPath;
                 }
-            } catch {
-                console.warn('Invalid redirect parameter:', redirectParam);
+            } catch (error) {
+                // Log decode errors for debugging (avoids empty catch block)
+                // Invalid redirect params will be ignored and fallback path will be used
+                console.warn('Failed to decode redirect parameter:', error);
             }
         }
 
@@ -55,7 +58,8 @@ export default function LoginPage() {
                 }
             }
         } catch (error) {
-            console.warn('Error parsing referrer:', error);
+            // Log errors when parsing referrer to aid debugging in some browsers/environments
+            console.warn('Failed to read document.referrer:', error);
         }
 
         // Default to home page
@@ -64,6 +68,35 @@ export default function LoginPage() {
 
     const from = getRedirectPath();
 
+    // Validation functions
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validatePassword = (password) => {
+        return password.length >= 6;
+    };
+
+    const validateForm = () => {
+        const errors = {};
+        
+        if (!email.trim()) {
+            errors.email = "Email is required";
+        } else if (!validateEmail(email)) {
+            errors.email = "Email must be a valid email";
+        }
+
+        if (!password.trim()) {
+            errors.password = "Password is required";
+        } else if (!validatePassword(password)) {
+            errors.password = "Password must be at least 6 characters";
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleSignupClick = () => {
         navigate("/signup");
     };
@@ -71,6 +104,13 @@ export default function LoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        setValidationErrors({});
+
+        // Validate form first
+        if (!validateForm()) {
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -82,8 +122,8 @@ export default function LoginPage() {
                     duration: 2000,
                 });
 
-                // Redirect to profile page after successful login, or to the page they were trying to visit
-                const redirectPath = from === "/" ? "/profile" : from;
+                // Redirect to homepage after successful login, or to the page they were trying to visit
+                const redirectPath = from === "/" ? "/" : from;
 
                 // Use shorter delay and ensure navigation happens
                 setTimeout(() => {
@@ -91,17 +131,41 @@ export default function LoginPage() {
                 }, 500);
             } else if (result.error) {
                 setError(result.error);
+                
+                // Check if it's an authentication error and show appropriate message
+                const authErrorMessage = result.error.toLowerCase();
+                if (authErrorMessage.includes('invalid') || 
+                    authErrorMessage.includes('wrong') || 
+                    authErrorMessage.includes('incorrect') ||
+                    authErrorMessage.includes('not found') ||
+                    authErrorMessage.includes('password') ||
+                    authErrorMessage.includes('email')) {
+                    toast.error("Your password is incorrect or this email doesn't exist", {
+                        position: "bottom-right",
+                        duration: 4000,
+                    });
+                } else if (result.requiresVerification) {
+                    setRequiresVerification(true);
+                    toast.error("Please verify your email before logging in", {
+                        position: "bottom-right",
+                        duration: 4000,
+                    });
+                } else {
+                    toast.error(result.error, {
+                        position: "bottom-right",
+                        duration: 4000,
+                    });
+                }
+                
                 setRequiresVerification(Boolean(result.requiresVerification));
-                toast.error(result.error, {
-                    position: "bottom-right",
-                    duration: 4000,
-                });
             }
         } catch (error) {
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
             setRequiresVerification(false);
-            toast.error(errorMessage, {
+            
+            // Show generic authentication error message
+            toast.error("Your password is incorrect or this email doesn't exist", {
                 position: "bottom-right",
                 duration: 4000,
             });
@@ -123,11 +187,24 @@ export default function LoginPage() {
                                 type="email"
                                 id="email"
                                 placeholder="Email"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.email 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    // Clear validation error when user starts typing
+                                    if (validationErrors.email) {
+                                        setValidationErrors(prev => ({...prev, email: ""}));
+                                    }
+                                }}
                                 required
                             />
+                            {validationErrors.email && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+                            )}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="password">Password</label>
@@ -135,11 +212,24 @@ export default function LoginPage() {
                                 type="password"
                                 id="password"
                                 placeholder="Password"
-                                className="border-[#DAD6D1] border rounded w-full py-2 px-3 bg-white"
+                                className={`border rounded w-full py-2 px-3 bg-white ${
+                                    validationErrors.password 
+                                        ? "border-red-500 focus:border-red-500" 
+                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                }`}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    // Clear validation error when user starts typing
+                                    if (validationErrors.password) {
+                                        setValidationErrors(prev => ({...prev, password: ""}));
+                                    }
+                                }}
                                 required
                             />
+                            {validationErrors.password && (
+                                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
+                            )}
                         </div>
 
                         {requiresVerification && (

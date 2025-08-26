@@ -3,20 +3,33 @@ import process from "process";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
   console.error('Missing Supabase configuration:');
   console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
   console.error('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'SET' : 'NOT SET');
-  throw new Error("Supabase URL and Service Key must be set in environment variables");
+  console.error('SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'NOT SET');
+  throw new Error("Supabase URL, Service Key, and Anonymous Key must be set in environment variables");
 }
 
-// Log successful connection (hide sensitive data)
-console.log('✅ Supabase configuration loaded successfully');
-console.log('📡 Supabase URL:', supabaseUrl);
-console.log('🔑 Service Key:', supabaseServiceKey ? '***...***' : 'NOT SET');
+// Log successful connection (hide sensitive data) - only in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('✅ Supabase configuration loaded successfully');
+  console.log('📡 Supabase URL:', supabaseUrl);
+  console.log('🔑 Service Key:', supabaseServiceKey ? '***...***' : 'NOT SET');
+  console.log('🔓 Anon Key:', supabaseAnonKey ? '***...***' : 'NOT SET');
+}
 
+// Service client for admin operations (database queries)
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false // Disable auth persistence for server-side usage
+  }
+});
+
+// Auth client for user authentication operations
+export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false // Disable auth persistence for server-side usage
   }
@@ -54,15 +67,12 @@ const CATEGORIES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export const dbService = {
   // Blog Posts
   async getAllPosts(filters = {}) {
-    try {
-      console.log('🔍 Fetching posts from Supabase...', { filters });
-      
+    try {      
       // Get categories with caching to improve performance
       let categories = [];
       const now = Date.now();
       if (categoriesCache && (now - categoriesCacheTime) < CATEGORIES_CACHE_DURATION) {
         categories = categoriesCache;
-        console.log('⚡ Using cached categories:', categories);
       } else {
         try {
           const { data: categoriesData, error: categoriesError } = await supabase
@@ -73,10 +83,9 @@ export const dbService = {
             categories = categoriesData || [];
             categoriesCache = categories;
             categoriesCacheTime = now;
-            console.log('✅ Categories retrieved and cached:', categories);
           }
         } catch (catError) {
-          console.log('⚠️ Categories fetch failed:', catError);
+          // Categories fetch failed, continue without categories
         }
       }
 
@@ -93,10 +102,8 @@ export const dbService = {
         );
         
         if (categoryObj) {
-          console.log(`🎯 Filtering by category: ${filters.category} (ID: ${categoryObj.id})`);
           query = query.eq('category_id', categoryObj.id);
         } else {
-          console.log(`⚠️ Category '${filters.category}' not found, returning empty results`);
           return [];
         }
       }
@@ -104,31 +111,21 @@ export const dbService = {
       // Apply search filter
       if (filters.search && filters.search.trim()) {
         const searchTerm = filters.search.trim();
-        console.log(`🔍 Applying search filter: "${searchTerm}"`);
         query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
       }
 
       // Apply pagination offset to prevent duplicates
       if (filters.offset && filters.offset > 0) {
-        console.log(`🔄 Applying pagination: offset=${filters.offset}, limit=${filters.limit || 6}`);
         query = query.range(filters.offset, filters.offset + (filters.limit || 6) - 1);
       } else if (filters.limit && filters.limit > 0) {
-        console.log(`📄 Applying limit: ${filters.limit}`);
         query = query.limit(filters.limit);
       }
 
       const { data, error } = await query;
 
       if (error) {
-        console.log('❌ Database query error:', error);
         handleDatabaseError(error, 'getAllPosts');
       }
-
-      console.log('✅ Posts retrieved:', data?.length || 0);
-
-      // Log actual post IDs for debugging duplicates
-      const postIds = (data || []).map(post => post.id);
-      console.log('📋 Post IDs retrieved:', postIds);
 
       // Transform data to match frontend expectations (optimized)
       const transformedData = (data || []).map(post => {
@@ -153,8 +150,6 @@ export const dbService = {
         };
       });
 
-      console.log('✅ Posts transformed:', transformedData.length);
-      console.log('⚡ Processing completed in', Date.now() - performance.now(), 'ms');
       return transformedData;
     } catch (error) {
       console.error('❌ Error in getAllPosts:', error);
@@ -187,7 +182,7 @@ export const dbService = {
         const { data: categoriesData } = await supabase.from("categories").select("id, name");
         categories = categoriesData || [];
       } catch (catError) {
-        console.log('⚠️ Categories fetch failed for single post:', catError);
+        // Categories fetch failed for single post
       }
 
       // Transform data to match frontend expectations

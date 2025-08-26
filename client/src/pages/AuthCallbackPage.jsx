@@ -25,7 +25,7 @@ const AuthCallback = () => {
         const refreshToken = hashParams.get('refresh_token');
 
         if (accessToken) {
-          console.log('✅ Email verification successful');
+
           toast.success('ยืนยันอีเมลสำเร็จ! คุณสามารถเข้าสู่ระบบได้แล้ว');
           
           // Store tokens if needed (optional, Supabase client handles this)
@@ -36,7 +36,7 @@ const AuthCallback = () => {
           
           navigate('/login', { state: { verified: true } });
         } else {
-          console.log('✅ Email verification callback received');
+
           toast.success('ยืนยันอีเมลสำเร็จ! กรุณาเข้าสู่ระบบ');
           navigate('/login', { state: { verified: true } });
         }

@@ -8,7 +8,7 @@ router.get("/posts", async (req, res) => {
   try {
     const { category, search, limit = 12, offset = 0 } = req.query;
     
-    console.log(`📝 Blog posts request: category=${category}, search=${search}, limit=${limit}, offset=${offset}`);
+
     
     // Create filters object
     const filters = {};
@@ -28,7 +28,7 @@ router.get("/posts", async (req, res) => {
     // Get posts using the existing dbService
     const posts = await dbService.getAllPosts(filters);
     
-    console.log(`✅ Retrieved ${posts.length} posts`);
+
     
     res.json({ 
       success: true, 
@@ -57,7 +57,7 @@ router.get("/posts/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    console.log(`📖 Single post request: id=${id}`);
+
     
     // Get post by ID using the existing dbService
     const post = await dbService.getPostById(parseInt(id));
@@ -69,7 +69,7 @@ router.get("/posts/:id", async (req, res) => {
       });
     }
     
-    console.log(`✅ Retrieved post: ${post.title}`);
+
     
     res.json({ 
       success: true, 
@@ -96,12 +96,12 @@ router.get("/posts/:id", async (req, res) => {
 // GET /api/blog/categories - Get all categories
 router.get("/categories", async (req, res) => {
   try {
-    console.log(`📂 Categories request`);
+
     
     // Get categories using the existing dbService
     const categories = await dbService.getCategories();
     
-    console.log(`✅ Retrieved ${categories.length} categories`);
+
     
     res.json({ 
       success: true, 
@@ -121,12 +121,12 @@ router.get("/categories", async (req, res) => {
 // GET /api/blog/stats - Get blog statistics
 router.get("/stats", async (req, res) => {
   try {
-    console.log(`📊 Blog stats request`);
+
     
     // Get stats using the existing dbService
     const stats = await dbService.getStats();
     
-    console.log(`✅ Retrieved blog stats`);
+
     
     res.json({ 
       success: true, 
