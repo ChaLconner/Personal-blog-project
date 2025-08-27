@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
             <p className="text-sm opacity-90">View recent activity</p>
           </button>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/admin/profile')}
             className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 transition-colors"
           >
             <h3 className="font-semibold">Profile</h3>

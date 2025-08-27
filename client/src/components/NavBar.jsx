@@ -157,7 +157,7 @@ function NavBar() {
     };
 
     return (
-        <nav className="flex justify-between items-center border-b border-[#DAD6D1] sm:py-4 sm:px-[120px] h-12 sm:h-20 py-3 px-6">
+        <nav className="flex justify-between items-center border-b border-ui-border sm:py-4 sm:px-[120px] h-12 sm:h-20 py-3 px-6">
             <button onClick={() => navigate("/")} className="text-2xl sm:text-[44px] cursor-pointer" >
                 <h1>hh<span className="text-[green]">.</span></h1>
             </button>

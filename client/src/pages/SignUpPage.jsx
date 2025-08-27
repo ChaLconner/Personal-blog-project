@@ -127,7 +127,7 @@ export default function SignUpPage() {
 
                     <form className="w-full" onSubmit={handleSubmit}>
                         <div className="mb-6">
-                            <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="name">Name</label>
+                            <label className="block text-brand-secondary mb-1 rounded-lg" htmlFor="name">Name</label>
                             <input
                                 type="text"
                                 id="name"
@@ -136,7 +136,7 @@ export default function SignUpPage() {
                                 className={`border rounded w-full py-2 px-3 bg-white ${
                                     validationErrors.name 
                                         ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                        : "border-ui-border focus:border-blue-500"
                                 }`}
                                 value={formData.name}
                                 onChange={handleInputChange}

@@ -86,7 +86,7 @@ export default function AdminCategoryManagementPage() {
                     <h2 className="text-2xl font-semibold">Category management</h2>
                     <Button
                         className="px-8 py-2 rounded-full"
-                        onClick={() => navigate("/admin/category-management/create")}
+                        onClick={() => navigate("/admin/create-category")}
                     >
                         <PenSquare className="mr-2 h-4 w-4" /> Create category
                     </Button>

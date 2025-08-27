@@ -65,7 +65,7 @@ export default function SignUpSuccessPage() {
                                 <div className="flex justify-center gap-4">
                                     <Link 
                                         to="/login" 
-                                        className="bg-[#26231E] text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
+                                        className="bg-brand-primary text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
                                     >
                                         Go to Login
                                     </Link>
@@ -85,7 +85,7 @@ export default function SignUpSuccessPage() {
                     ) : (
                         // แสดงข้อความแบบเดิม (สำหรับกรณีไม่ต้องยืนยันอีเมล)
                         <>
-                            <div className="mx-auto w-16 h-16 bg-[#12B279] rounded-full flex items-center justify-center mb-4">
+                            <div className="mx-auto w-16 h-16 bg-brand-accent rounded-full flex items-center justify-center mb-4">
                                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -109,7 +109,7 @@ export default function SignUpSuccessPage() {
                                     }
                                     window.location.href = '/';
                                 }}
-                                className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10"
+                                className="bg-brand-primary text-white border border-brand-secondary px-10 py-3 rounded-full sm:my-10"
                             >
                                 Continue
                             </button>

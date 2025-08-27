@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
     const location = useLocation();
     const { login } = useAuth();
     
-    const from = location.state?.from?.pathname || "/admin/create-article";
+    const from = location.state?.from?.pathname || "/admin/article-management";
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -42,14 +42,19 @@ export default function AdminLoginPage() {
         setIsLoading(true);
         
         try {
-            await login({ email, password });
+            const loginResult = await login({ email, password });
             
-            // Check if the user is admin (you might need to get user info first)
-            // For now, assume login response includes user role info
-            // If not admin, show error
-            // Note: You might need to modify this based on your API response structure
-            
-            navigate(from, { replace: true });
+            if (loginResult.success) {
+                // Re-fetch user data to get the latest info including role
+                await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure user data is updated
+                
+                // The fetchUser will be called automatically by the auth context
+                // We need to get fresh user data by calling login again or checking the stored response
+                // For now, let's just navigate and let ProtectedRoute handle the role check
+                navigate(from, { replace: true });
+            } else {
+                setError(loginResult.error || "Login failed. Please try again.");
+            }
         } catch (error) {
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
@@ -61,7 +66,7 @@ export default function AdminLoginPage() {
     return (
         <div className="flex flex-col min-h-screen">
             <main className="flex justify-center items-center p-4 my-4 flex-grow">
-                <div className="w-full max-w-2xl bg-[#EFEEEB] rounded-sm shadow-md px-3 sm:px-20 py-14">
+                <div className="w-full max-w-2xl bg-ui-surface rounded-sm shadow-md px-3 sm:px-20 py-14">
                     <p className="text-md text-orange-300 text-center mb-4">
                         Admin panel
                     </p>

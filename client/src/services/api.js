@@ -140,7 +140,7 @@ const getCachedData = (key) => {
   ) {
     // Only log if debugging is enabled
     if (ENABLE_CACHE_LOGGING) {
-
+      console.debug('[cache] hit for key:', key, 'ageMs:', Date.now() - cached.timestamp);
     }
     return cached.data;
   }
@@ -156,14 +156,14 @@ const setCachedData = (key, data) => {
     timestamp: Date.now()
   });
   if (ENABLE_CACHE_LOGGING) {
-
+    console.debug('[cache] set key:', key, 'size:', cache.size);
   }
 };
 
 const clearCache = () => {
   cache.clear();
   if (ENABLE_CACHE_LOGGING) {
-
+    console.debug('[cache] cleared');
   }
 };
 
@@ -676,6 +676,49 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error deleting category:', error);
+        throw error;
+      }
+    }
+  },
+
+  // Notifications management
+  notifications: {
+    getAll: async (userId) => {
+      try {
+        const response = await api.get(`/notifications/${userId}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
+    },
+
+    markAsRead: async (notificationId) => {
+      try {
+        const response = await api.put(`/notifications/${notificationId}/read`);
+        return response.data;
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+      }
+    },
+
+    markAllAsRead: async (userId) => {
+      try {
+        const response = await api.put(`/notifications/user/${userId}/read-all`);
+        return response.data;
+      } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        throw error;
+      }
+    },
+
+    create: async (notificationData) => {
+      try {
+        const response = await api.post('/notifications', notificationData);
+        return response.data;
+      } catch (error) {
+        console.error('Error creating notification:', error);
         throw error;
       }
     }

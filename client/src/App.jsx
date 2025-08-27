@@ -18,6 +18,7 @@ import AdminCreateCategoryPage from "@/pages/admin/AdminCreateCategoryPage";
 import AdminEditCategoryPage from "@/pages/admin/AdminEditCategoryPage";
 import AdminEditArticlePage from "@/pages/admin/AdminEditArticlePage";
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+import AdminProfilePage from "@/pages/admin/AdminProfilePage";
 import { AuthProvider } from "@/contexts/auth.jsx";
 import { useAuth } from "@/contexts/authContext.js";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -209,6 +210,19 @@ function AppContent() {
               requiredRole="admin"
             >
               <AdminNotificationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <ProtectedRoute
+              isLoading={state.getUserLoading}
+              isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
+              requiredRole="admin"
+            >
+              <AdminProfilePage />
             </ProtectedRoute>
           }
         />
