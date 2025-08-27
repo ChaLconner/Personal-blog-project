@@ -268,6 +268,7 @@ export default function ArticleSection() {
                         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
                         <Input
                             className="w-full"
+                            placeholder="Search"
                             onChange={(e) => setSearchKeyword(e.target.value)}
                             onFocus={() => setShowDropdown(true)}
                             onBlur={() => {

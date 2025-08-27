@@ -118,11 +118,11 @@ export default function AdminProfilePage() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-ui-surface">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 p-8 bg-background overflow-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Admin Profile</h2>
                     <Button 
@@ -165,7 +165,7 @@ export default function AdminProfilePage() {
                                     }
                                 }}
                             />
-                            <p className="text-sm text-gray-500 mt-2">
+                            <p className="text-sm text-muted-foreground mt-2">
                                 JPG, PNG, GIF or WebP. Max 5MB.
                             </p>
                         </div>
@@ -173,7 +173,7 @@ export default function AdminProfilePage() {
 
                     <form className="space-y-7 max-w-2xl" onSubmit={handleSubmit}>
                         <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
                                 Name *
                             </label>
                             <Input
@@ -186,7 +186,7 @@ export default function AdminProfilePage() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="username" className="block text-sm font-medium text-muted-foreground mb-1">
                                 Username
                             </label>
                             <Input
@@ -198,7 +198,7 @@ export default function AdminProfilePage() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-1">
                                 Email *
                             </label>
                             <Input
@@ -212,7 +212,7 @@ export default function AdminProfilePage() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="bio" className="block text-sm font-medium text-muted-foreground mb-1">
                                 Bio (max 500 characters)
                             </label>
                             <Textarea
@@ -224,15 +224,15 @@ export default function AdminProfilePage() {
                                 className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                                 placeholder="Tell us about yourself..."
                             />
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                                 {formData.bio.length}/500 characters
                             </p>
                         </div>
 
-                        <div className="pt-4 border-t border-gray-200">
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                                <h3 className="text-sm font-medium text-gray-700 mb-2">Account Information</h3>
-                                <div className="text-sm text-gray-600 space-y-1">
+                        <div className="pt-4 border-t border-border">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                                <h3 className="text-sm font-medium text-foreground mb-2">Account Information</h3>
+                                <div className="text-sm text-muted-foreground space-y-1">
                                     <p><strong>Role:</strong> {user?.role || 'User'}</p>
                                     <p><strong>Account Created:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
                                     <p><strong>Last Updated:</strong> {user?.updated_at ? new Date(user.updated_at).toLocaleDateString() : 'N/A'}</p>

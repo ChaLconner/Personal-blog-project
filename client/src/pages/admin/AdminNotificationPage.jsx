@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
 import { useAuth } from "@/contexts/authContext.js";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function AdminNotificationPage() {
     const [notifications, setNotifications] = useState([]);
@@ -68,7 +69,7 @@ export default function AdminNotificationPage() {
 
     if (loading) {
         return (
-            <div className="flex h-screen bg-gray-100">
+            <div className="flex h-screen bg-ui-surface">
                 <AdminSidebar />
                 <main className="flex-1 p-8 overflow-auto">
                     <div className="text-center mt-20">Loading notifications...</div>
@@ -78,17 +79,17 @@ export default function AdminNotificationPage() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-ui-surface">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 p-8 bg-background overflow-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Notifications</h2>
                     {notifications.some(n => !n.read) && (
                         <button
                             onClick={handleMarkAllAsRead}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
                         >
                             Mark All as Read
                         </button>
@@ -96,7 +97,7 @@ export default function AdminNotificationPage() {
                 </div>
 
                 {notifications.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-muted-foreground">
                         <p>No notifications yet.</p>
                     </div>
                 ) : (
@@ -104,11 +105,12 @@ export default function AdminNotificationPage() {
                         {notifications.map((notification) => (
                             <div 
                                 key={notification.id}
-                                className={`p-4 rounded-lg border ${
+                                className={cn(
+                                    "p-4 rounded-lg border",
                                     notification.read 
-                                        ? 'bg-white border-gray-200' 
-                                        : 'bg-blue-50 border-blue-200'
-                                }`}
+                                        ? 'bg-card border-border' 
+                                        : 'bg-accent/50 border-accent'
+                                )}
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-start space-x-4">
@@ -122,23 +124,23 @@ export default function AdminNotificationPage() {
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1">
-                                            <h3 className="font-semibold text-gray-900">
+                                            <h3 className="font-semibold text-foreground">
                                                 {notification.title}
                                             </h3>
-                                            <p className="text-sm text-gray-600 mt-1">
+                                            <p className="text-sm text-muted-foreground mt-1">
                                                 {notification.message}
                                             </p>
                                             {notification.post && (
-                                                <p className="text-xs text-gray-500 mt-1">
+                                                <p className="text-xs text-muted-foreground/80 mt-1">
                                                     Article: {notification.post.title}
                                                 </p>
                                             )}
                                             <div className="flex items-center justify-between mt-2">
-                                                <p className="text-xs text-orange-400">
+                                                <p className="text-xs text-muted-foreground">
                                                     {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
                                                 </p>
                                                 {!notification.read && (
-                                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-full">
                                                         New
                                                     </span>
                                                 )}
@@ -149,7 +151,7 @@ export default function AdminNotificationPage() {
                                         {notification.post && (
                                             <button 
                                                 onClick={() => window.open(`/post/${notification.post.id}`, '_blank')}
-                                                className="text-blue-600 hover:text-blue-800 text-sm underline underline-offset-2"
+                                                className="text-primary hover:text-primary/80 text-sm underline underline-offset-2"
                                             >
                                                 View Post
                                             </button>
@@ -157,7 +159,7 @@ export default function AdminNotificationPage() {
                                         {!notification.read && (
                                             <button 
                                                 onClick={() => handleMarkAsRead(notification.id)}
-                                                className="text-gray-600 hover:text-gray-800 text-sm underline underline-offset-2"
+                                                className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2"
                                             >
                                                 Mark as Read
                                             </button>

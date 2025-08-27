@@ -19,6 +19,7 @@ import AdminEditCategoryPage from "@/pages/admin/AdminEditCategoryPage";
 import AdminEditArticlePage from "@/pages/admin/AdminEditArticlePage";
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
 import AdminProfilePage from "@/pages/admin/AdminProfilePage";
+import AdminResetPasswordPage from "@/pages/admin/AdminResetPasswordPage";
 import { AuthProvider } from "@/contexts/auth.jsx";
 import { useAuth } from "@/contexts/authContext.js";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -223,6 +224,19 @@ function AppContent() {
               requiredRole="admin"
             >
               <AdminProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reset-password"
+          element={
+            <ProtectedRoute
+              isLoading={state.getUserLoading}
+              isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
+              requiredRole="admin"
+            >
+              <AdminResetPasswordPage />
             </ProtectedRoute>
           }
         />
