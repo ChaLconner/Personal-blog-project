@@ -89,6 +89,7 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
         description: post.description,
         content: post.content,
         image: post.image,
+        author: post.author || 'Admin', // เพิ่ม author
         date: post.date,
         likes_count: post.likes_count,
         category: categoryName,
@@ -112,8 +113,9 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
 // Create new post
 adminRouter.post('/posts', requireAdmin, async (req, res) => {
   try {
-    const { title, description, content, image, category, status } = req.body;
+    const { title, description, content, image, category, status, author } = req.body;
 
+    console.log('📝 Creating post with data:', { title, description, content, image, category, status, author });
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
@@ -133,15 +135,15 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
       }
     }
 
-    // Find status ID (default to publish)
-    const statusName = status || 'publish';
+    // Find status ID (default to published)
+    const statusName = status || 'published';
     const { data: statusData, error: statusError } = await supabase
       .from('statuses')
       .select('id')
       .eq('status', statusName)
       .single();
 
-    let statusId = statusData?.id || 2; // Default to publish (id: 2)
+    let statusId = statusData?.id || 2; // Default to published (id: 2)
 
     const { data: newPost, error } = await supabase
       .from('posts')
@@ -150,6 +152,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
         description: description?.trim() || null,
         content: content.trim(),
         image: image || '',
+        author: author?.trim() || 'Admin', // เพิ่ม author
         category_id: categoryId,
         status_id: statusId,
         likes_count: 0
@@ -160,6 +163,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
         description,
         content,
         image,
+        author,
         date,
         likes_count,
         categories(id, name),
@@ -175,7 +179,7 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
 
     
     // Create notification if the post is published
-    if (statusName === 'publish') {
+    if (statusName === 'published') {
       try {
         // Get the admin user who created the post
         const adminUserId = req.user.id;
@@ -202,8 +206,9 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
 adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
-    const { title, description, content, image, category, status } = req.body;
+    const { title, description, content, image, category, status, author } = req.body;
 
+    console.log('📝 Updating post with data:', { postId, title, description, content, image, category, status, author });
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -248,6 +253,7 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
     };
 
     if (image !== undefined) updateData.image = image || '';
+    if (author !== undefined) updateData.author = author?.trim() || 'Admin'; // เพิ่ม author
     if (categoryId !== null) updateData.category_id = categoryId;
     if (statusId !== null) updateData.status_id = statusId;
 
@@ -258,8 +264,8 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
       .eq('id', postId)
       .single();
 
-    const wasNotPublished = currentPost && currentPost.statuses.status !== 'publish';
-    const isNowPublished = status === 'publish';
+    const wasNotPublished = currentPost && currentPost.statuses.status !== 'published';
+    const isNowPublished = status === 'published';
 
     const { data: updatedPost, error } = await supabase
       .from('posts')
@@ -350,7 +356,7 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
     }
 
     // Get status if status_id exists
-    let statusName = 'publish';
+    let statusName = 'published';
     if (post.status_id) {
       const { data: statusData } = await supabase
         .from('statuses')
@@ -370,6 +376,7 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
       description: post.description,
       content: post.content,
       image: post.image,
+      author: post.author || 'Admin', // เพิ่ม author
       date: post.date,
       likes_count: post.likes_count,
       category: categoryName,

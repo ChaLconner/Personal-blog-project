@@ -133,7 +133,7 @@ export const dbService = {
         
         return {
           id: post.id,
-          image: post.image || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60',
+          image: (post.image && post.image.trim() !== '') ? post.image : 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=300&fit=crop&auto=format&q=60',
           category: category?.name || 'General',
           title: post.title || 'Untitled',
           description: post.description || 'No description available',

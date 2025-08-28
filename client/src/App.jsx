@@ -154,7 +154,7 @@ function AppContent() {
           }
         />
         <Route
-          path="/admin/edit-article/:postId"
+          path="/admin/edit-article/:id"
           element={
             <ProtectedRoute
               isLoading={state.getUserLoading}

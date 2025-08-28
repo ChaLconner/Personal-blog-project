@@ -25,7 +25,8 @@ export default function AdminEditArticlePage() {
         description: "",
         content: "",
         image: "",
-        status: "publish"
+        author: "", // เพิ่ม author
+        status: "published" // เปลี่ยนจาก "publish" เป็น "published"
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -52,7 +53,8 @@ export default function AdminEditArticlePage() {
                     description: post.description || "",
                     content: post.content || "",
                     image: post.image || "",
-                    status: post.status || "publish"
+                    author: post.author || "Admin", // เพิ่ม author
+                    status: post.status || "published" // เปลี่ยนจาก "publish" เป็น "published"
                 });
                 
                 if (post.image) {
@@ -85,9 +87,14 @@ export default function AdminEditArticlePage() {
     };
 
     useEffect(() => {
+        console.log('📝 AdminEditArticlePage mounted with ID:', id);
         if (id) {
             fetchPost();
             fetchCategories();
+        } else {
+            console.error('❌ No article ID provided in URL params');
+            toast.error('Invalid article ID');
+            navigate('/admin/article-management');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
@@ -423,9 +430,10 @@ export default function AdminEditArticlePage() {
                         <label htmlFor="author">Author name</label>
                         <Input
                             id="author"
-                            defaultValue="Thompson P."
-                            className="mt-1 max-w-lg"
-                            disabled
+                            placeholder="Enter author name"
+                            value={formData.author}
+                            onChange={(e) => handleInputChange('author', e.target.value)}
+                            className="mt-1 max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
 

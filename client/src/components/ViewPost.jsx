@@ -17,7 +17,6 @@ import {
     X,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import authorImage from "../assets/react.svg";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
@@ -31,6 +30,7 @@ export default function ViewPost() {
     const [category, setCategory] = useState("");
     const [content, setContent] = useState("");
     const [likes, setLikes] = useState(0);
+    const [author, setAuthor] = useState({ name: "Admin", image: null, id: 1, username: "admin" }); // เพิ่ม author state
     const [isLoading, setIsLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [postComments, setPostComments] = useState([]);
@@ -57,7 +57,9 @@ export default function ViewPost() {
         setIsLoading(true);
         try {
             const response = await blogApi.getPost(param.postId);
-            const post = response.data;
+            console.log('API Response:', response); // Debug log
+            const post = response.data || response.post || response;
+            console.log('Post data:', post); // Debug log
             
             // Handle image URL properly
             let imageUrl = post.image;
@@ -65,12 +67,23 @@ export default function ViewPost() {
                 imageUrl = `http://localhost:3001${imageUrl}`;
             }
             
-            setImg(imageUrl || 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800&h=600&fit=crop&auto=format&q=60');
-            setTitle(post.title);
-            setDate(post.date);
-            setDescription(post.description);
-            setCategory(post.category);
-            setContent(post.content);
+            setImg(imageUrl || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60');
+            setTitle(post.title || 'Untitled');
+            setDate(post.date || new Date().toISOString());
+            setDescription(post.description || 'No description available');
+            setCategory(post.category || 'General');
+            setContent(post.content || 'No content available');
+            
+            // Enhanced author handling with better type checking
+            console.log('Author data:', post.author, 'Type:', typeof post.author); // Debug log
+            if (post.author && typeof post.author === 'object') {
+                setAuthor(post.author);
+            } else if (post.author) {
+                setAuthor({ name: post.author, image: null, id: 1, username: post.author });
+            } else {
+                setAuthor({ name: "Admin", image: null, id: 1, username: "admin" });
+            }
+            
             setLikes(post.likes_count || post.likes || 0);
             setIsLoading(false);
         } catch (error) {
@@ -88,9 +101,12 @@ export default function ViewPost() {
         <div className="max-w-7xl mx-auto space-y-8 container md:px-8 pb-20 md:pb-28 md:pt-8 lg:pt-16">
             <div className="space-y-4 md:px-4">
                 <img
-                    src={img}
+                    src={(img && img.trim()) || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60'}
                     alt={title}
                     className="md:rounded-lg object-cover w-full h-[260px] sm:h-[340px] md:h-[587px]"
+                    onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
+                    }}
                 />
             </div>
             <div className="flex flex-col xl:flex-row gap-6">
@@ -116,7 +132,7 @@ export default function ViewPost() {
                     </article>
 
                     <div className="xl:hidden px-4">
-                        <AuthorBio />
+                        <AuthorBio author={author} />
                     </div>
 
                     <Share likesAmount={likes} setDialogState={setIsDialogOpen} />
@@ -125,7 +141,7 @@ export default function ViewPost() {
 
                 <div className="hidden xl:block xl:w-1/4">
                     <div className="sticky top-4">
-                        <AuthorBio />
+                        <AuthorBio author={author} />
                     </div>
                 </div>
             </div>
@@ -260,9 +276,12 @@ function Comment({ setDialogState, postComments }) {
                         <div className="flex space-x-4">
                             <div className="flex-shrink-0">
                                 <img
-                                    src={comment.image}
+                                    src={(comment.image && comment.image.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'}
                                     alt={comment.name}
                                     className="rounded-full w-12 h-12 object-cover"
+                                    onError={(e) => {
+                                        e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+                                    }}
                                 />
                             </div>
                             <div className="flex-grow">
@@ -283,20 +302,26 @@ function Comment({ setDialogState, postComments }) {
     );
 }
 
-function AuthorBio() {
+function AuthorBio({ author = { name: "Admin", image: null, id: 1, username: "admin" } }) {
+    // Ensure author is always an object
+    const safeAuthor = author && typeof author === 'object' ? author : { name: author || "Admin", image: null, id: 1, username: "admin" };
+    
     return (
         <div className="bg-[#EFEEEB] rounded-3xl p-6">
             <div className="flex items-center mb-4">
                 <div className="w-16 h-16 rounded-full overflow-hidden mr-4">
                     <img
-                        src={authorImage}
-                        alt="Thompson P."
+                        src={(safeAuthor.image && safeAuthor.image.trim && safeAuthor.image.trim()) || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face&auto=format&q=60"}
+                        alt={safeAuthor.name || safeAuthor}
                         className="object-cover w-16 h-16"
+                        onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face&auto=format&q=60';
+                        }}
                     />
                 </div>
                 <div>
                     <p className="text-sm">Author</p>
-                    <h3 className="text-2xl font-bold">Thompson P.</h3>
+                    <h3 className="text-2xl font-bold">{safeAuthor.name || safeAuthor}</h3>
                 </div>
             </div>
             <hr className="border-gray-300 mb-4" />

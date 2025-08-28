@@ -6,8 +6,8 @@ function BlogCard({ id, image, category, title, description, author, date }) {
   
   // Handle image URL - support both full URLs and relative paths
   const getImageUrl = () => {
-    if (!image) {
-      return 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60';
+    if (!image || image.trim() === '') {
+      return 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=300&fit=crop&auto=format&q=60';
     }
     
     // If it's already a full URL, return as is
@@ -36,7 +36,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
           src={getImageUrl()}
           alt={title}
           onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&auto=format&q=60';
+            e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=300&fit=crop&auto=format&q=60';
           }}
         />
         {/* Overlay for better readability */}
@@ -63,7 +63,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
         <div className="flex items-center text-sm">
           <img
             className="w-8 h-8 rounded-full mr-2"
-            src={author?.image}
+            src={(author?.image && author.image.trim && author.image.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'}
             alt={`${author?.name || author} profile picture`}
             onError={(e) => {
               e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';

@@ -13,6 +13,7 @@ import adminRouter from './routes/admin.mjs';
 import blogRouter from './routes/blogRouter.js';
 import uploadRouter from './routes/uploadSupabase.mjs';
 import notificationsRouter from './routes/notifications.mjs';
+import commentsRouter from './routes/comments.mjs';
 // Note: posts.js contains individual functions, not a router
 
 // Get current directory for ES modules
@@ -56,6 +57,7 @@ app.use('/admin', adminRouter);
 app.use('/blog', blogRouter);
 app.use('/upload', uploadRouter);
 app.use('/notifications', notificationsRouter);
+app.use('/comments', commentsRouter);
 // Posts routes are handled within admin routes
 
 // 404 handler

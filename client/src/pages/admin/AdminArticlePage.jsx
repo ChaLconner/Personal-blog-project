@@ -69,10 +69,24 @@ export default function AdminArticleManagementPage() {
                 blogApi.admin.getAllPosts(),
                 blogApi.admin.getCategories()
             ]);
-            setArticles(articlesResponse.data || []);
-            setCategories(categoriesResponse.data || []);
+            
+            const articles = articlesResponse.data || [];
+            const categories = categoriesResponse.data || [];
+            
+            // Debug logging สำหรับตรวจสอบข้อมูลที่ได้รับ
+            console.log('📚 Fetched Articles Response:', articlesResponse);
+            console.log('📝 Total Articles:', articles.length);
+            
+            // แสดงสถานะของแต่ละบทความ
+            articles.forEach((article, index) => {
+                const status = article.status || 'published';
+                console.log(`📄 Article ${index + 1}: "${article.title}" - Status: "${status}" (${status === 'draft' ? 'DRAFT 🟤' : 'PUBLISHED 🟢'})`);
+            });
+            
+            setArticles(articles);
+            setCategories(categories);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('❌ Error fetching data:', error);
             toast.error('Failed to fetch articles');
         } finally {
             setLoading(false);
@@ -158,9 +172,10 @@ export default function AdminArticleManagementPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[50%]">Article title</TableHead>
+                            <TableHead className="w-[40%]">Article title</TableHead>
+                            <TableHead>Author</TableHead>
                             <TableHead>Category</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -168,28 +183,38 @@ export default function AdminArticleManagementPage() {
                         {filteredArticles.map((article) => (
                             <TableRow key={article.id}>
                                 <TableCell className="font-medium">{article.title}</TableCell>
+                                <TableCell className="text-sm text-gray-600">{article.author || 'Admin'}</TableCell>
                                 <TableCell>{article.category || 'Uncategorized'}</TableCell>
-                                <TableCell>
-                                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${
-                                        (article.status || 'published') === 'published' 
-                                            ? 'bg-ui-surface text-brand-primary' 
-                                            : 'bg-ui-surface text-brand-secondary'
-                                    }`}>
-                                        <span 
-                                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                                (article.status || 'published') === 'published' 
-                                                    ? 'bg-brand-accent' 
-                                                    : 'bg-brand-secondary'
-                                            }`}
-                                        />
-                                        {article.status === 'draft' ? 'Draft' : 'Publish'}
-                                    </span>
+                                <TableCell className="text-center">{(() => {
+                                        // Debug logging เพื่อตรวจสอบสถานะ
+                                        const status = article.status || 'published';
+                                        const isPublished = status === 'published';
+                                        const isDraft = status === 'draft';
+                                        
+                                        console.log(`📄 Article: ${article.title}, Status: ${status}, isPublished: ${isPublished}, isDraft: ${isDraft}`);
+                                        
+                                        return (
+                                            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium bg-ui-surface ${
+                                                isPublished ? 'text-[#12B279]' : 'text-[#75716B]'
+                                            }`}>
+                                                <span 
+                                                    className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${
+                                                        isPublished ? 'bg-[#12B279]' : 'bg-[#75716B]'
+                                                    }`}
+                                                />
+                                                {isDraft ? 'Draft' : 'Published'}
+                                            </span>
+                                        );
+                                    })()}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Button 
                                         variant="ghost" 
                                         size="sm"
-                                        onClick={() => navigate(`/admin/edit-article/${article.id}`)}
+                                        onClick={() => {
+                                            console.log('🔍 Navigating to edit article with ID:', article.id);
+                                            navigate(`/admin/edit-article/${article.id}`);
+                                        }}
                                     >
                                         <PenSquare className="h-4 w-4 hover:text-muted-foreground" />
                                     </Button>

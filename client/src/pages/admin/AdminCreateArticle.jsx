@@ -8,21 +8,24 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { AdminSidebar } from "@/components/AdminWebSection";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminSidebar } from "@/components/AdminWebSection";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/authContext.js";
 
 export default function AdminCreateArticlePage() {
+    const { user } = useAuth(); // เพิ่มการใช้งาน useAuth
     const [categories, setCategories] = useState([]);
     const [formData, setFormData] = useState({
         title: "",
         category: "",
         description: "",
         content: "",
-        image: ""
+        image: "",
+        author: "" // เพิ่ม author ใน formData
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -33,14 +36,22 @@ export default function AdminCreateArticlePage() {
 
     useEffect(() => {
         fetchCategories();
-    }, []);
+        // ตั้งค่าชื่อ author เริ่มต้นจากข้อมูล user ที่ล็อกอิน
+        if (user?.name) {
+            setFormData(prev => ({
+                ...prev,
+                author: user.name
+            }));
+        }
+    }, [user]);
 
     const fetchCategories = async () => {
         try {
             const response = await blogApi.admin.getCategories();
+            console.log('📂 Categories fetched:', response);
             setCategories(response.data || []);
         } catch (error) {
-            console.error('Error fetching categories:', error);
+            console.error('❌ Error fetching categories:', error);
             toast.error('Failed to fetch categories');
         }
     };
@@ -135,7 +146,7 @@ export default function AdminCreateArticlePage() {
                 throw new Error(response.error || 'Upload failed');
             }
         } catch (error) {
-            console.error('Upload error:', error);
+            console.error('❌ Upload error:', error);
             toast.error('Failed to upload image');
             resetImageState(); // Use the reset function
         } finally {
@@ -145,11 +156,13 @@ export default function AdminCreateArticlePage() {
 
     const handleSaveAsDraft = async (e) => {
         e.preventDefault();
+        console.log('🔧 Saving as draft...');
         await handleSubmit(false);
     };
 
     const handleSaveAndPublish = async (e) => {
         e.preventDefault();
+        console.log('🚀 Publishing article...');
         await handleSubmit(true);
     };
 
@@ -166,8 +179,12 @@ export default function AdminCreateArticlePage() {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
                 content: formData.content.trim(),
-                status: publish ? 'publish' : 'draft'  // Map boolean to string
+                author: formData.author.trim() || user?.name || 'Admin', // ส่ง author ไปด้วย
+                status: publish ? 'published' : 'draft' // แก้ไขให้ใช้ 'published' แทน 'publish'
             };
+
+            console.log('📝 Creating article with data:', postData);
+            console.log('📊 Status will be:', postData.status);
 
             await blogApi.admin.createPost(postData);
             toast.success(`Article ${publish ? 'published' : 'saved as draft'} successfully`);
@@ -178,19 +195,21 @@ export default function AdminCreateArticlePage() {
                 category: "",
                 description: "",
                 content: "",
-                image: ""
+                image: "",
+                author: user?.name || "" // รีเซ็ต author กลับเป็นชื่อ user
             });
             resetImageState(); // Clear image state
             
             navigate('/admin/article-management');
         } catch (error) {
-            console.error('Error creating article:', error);
+            console.error('❌ Error creating article:', error);
             const errorMessage = error.message || 'Failed to create article';
             toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
     };
+
     return (
         <div className="flex h-screen bg-gray-100">
             {/* Sidebar */}
@@ -340,10 +359,14 @@ export default function AdminCreateArticlePage() {
                         <label htmlFor="author">Author name</label>
                         <Input
                             id="author"
-                            defaultValue="Thompson P."
-                            className="mt-1 max-w-lg"
-                            disabled
+                            placeholder="Enter author name"
+                            value={formData.author}
+                            onChange={(e) => handleInputChange('author', e.target.value)}
+                            className="mt-1 max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
+                        <p className="text-sm text-gray-500 mt-1">
+                            Default: {user?.name || 'Admin'}
+                        </p>
                     </div>
 
                     <div>
