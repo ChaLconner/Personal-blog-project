@@ -170,12 +170,19 @@ export default function AdminArticleManagementPage() {
                                 <TableCell className="font-medium">{article.title}</TableCell>
                                 <TableCell>{article.category || 'Uncategorized'}</TableCell>
                                 <TableCell>
-                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ${
                                         (article.status || 'published') === 'published' 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : 'bg-yellow-100 text-yellow-800'
+                                            ? 'bg-ui-surface text-brand-primary' 
+                                            : 'bg-ui-surface text-brand-secondary'
                                     }`}>
-                                        {article.status || 'published'}
+                                        <span 
+                                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                (article.status || 'published') === 'published' 
+                                                    ? 'bg-brand-accent' 
+                                                    : 'bg-brand-secondary'
+                                            }`}
+                                        />
+                                        {article.status === 'draft' ? 'Draft' : 'Publish'}
                                     </span>
                                 </TableCell>
                                 <TableCell className="text-right">

@@ -37,10 +37,15 @@ export default function AdminEditArticlePage() {
     const fetchPost = async () => {
         try {
             setFetchingPost(true);
+            console.log('🔍 Fetching post with ID:', id);
+            
             const response = await blogApi.admin.getPost(id);
+            console.log('📝 Post response:', response);
             
             if (response.success) {
                 const post = response.data;
+                console.log('📋 Post data:', post);
+                
                 setFormData({
                     title: post.title || "",
                     category: post.category || "",
@@ -53,9 +58,15 @@ export default function AdminEditArticlePage() {
                 if (post.image) {
                     setImagePreview(post.image.startsWith('http') ? post.image : `http://localhost:3001${post.image}`);
                 }
+                
+                console.log('✅ Form data set successfully');
+            } else {
+                console.error('❌ Response not successful:', response);
+                toast.error('Failed to fetch article data');
+                navigate('/admin/article-management');
             }
         } catch (error) {
-            console.error('Error fetching post:', error);
+            console.error('❌ Error fetching post:', error);
             toast.error('Failed to fetch article');
             navigate('/admin/article-management');
         } finally {
@@ -181,6 +192,9 @@ export default function AdminEditArticlePage() {
 
         try {
             setLoading(true);
+            console.log('💾 Updating post with ID:', id);
+            console.log('📋 Post data to update:', formData);
+            
             const postData = {
                 ...formData,
                 title: formData.title.trim(),
@@ -189,11 +203,20 @@ export default function AdminEditArticlePage() {
                 status: status
             };
 
-            await blogApi.admin.updatePost(id, postData);
-            toast.success(`Article ${status === 'publish' ? 'published' : 'saved as draft'} successfully`);
-            navigate('/admin/article-management');
+            console.log('📤 Sending update data:', postData);
+            const response = await blogApi.admin.updatePost(id, postData);
+            console.log('📥 Update response:', response);
+            
+            if (response.success) {
+                toast.success(`Article ${status === 'publish' ? 'published' : 'saved as draft'} successfully`);
+                navigate('/admin/article-management');
+            } else {
+                console.error('❌ Update failed:', response);
+                const errorMessage = response.error || 'Failed to update article';
+                toast.error(errorMessage);
+            }
         } catch (error) {
-            console.error('Error updating article:', error);
+            console.error('❌ Error updating article:', error);
             const errorMessage = error.message || 'Failed to update article';
             toast.error(errorMessage);
         } finally {
@@ -235,7 +258,25 @@ export default function AdminEditArticlePage() {
             {/* Main content */}
             <main className="flex-1 p-8 bg-gray-50 overflow-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold">Edit article</h2>
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-2xl font-semibold">Edit article</h2>
+                        {formData.status && (
+                            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${
+                                formData.status === 'publish' 
+                                    ? 'bg-ui-surface text-brand-primary' 
+                                    : 'bg-ui-surface text-brand-secondary'
+                            }`}>
+                                <span 
+                                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                        formData.status === 'publish' 
+                                            ? 'bg-brand-accent' 
+                                            : 'bg-brand-secondary'
+                                    }`}
+                                />
+                                {formData.status === 'draft' ? 'Draft' : 'Published'}
+                            </span>
+                        )}
+                    </div>
                     <div className="space-x-2">
                         <Button 
                             className="px-8 py-2 rounded-full" 

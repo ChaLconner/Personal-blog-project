@@ -25,17 +25,20 @@ function NavBar() {
         try {
             setLoading(true);
             const response = await blogApi.getNotifications(user.id);
-            if (response.success) {
+            
+            if (response && response.success) {
                 setNotifications(response.data || []);
+            } else {
+                console.warn('Failed to fetch notifications:', response?.error || 'Unknown error');
+                setNotifications([]); // Set empty array on failure
             }
         } catch (error) {
             console.error('Error fetching notifications:', error);
+            setNotifications([]); // Set empty array on error
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
+    };    useEffect(() => {
         if (isAuthenticated && user?.id) {
             fetchNotifications();
             // Set up polling for new notifications every 30 seconds
@@ -51,12 +54,14 @@ function NavBar() {
     const handleMarkAsRead = async (notificationId) => {
         try {
             const response = await blogApi.markNotificationAsRead(notificationId);
-            if (response.success) {
-                setNotifications(prev =>
-                    prev.map(notif =>
+            if (response && response.success) {
+                setNotifications(prev => 
+                    prev.map(notif => 
                         notif.id === notificationId ? { ...notif, read: true } : notif
                     )
                 );
+            } else {
+                console.error('Failed to mark notification as read:', response?.error);
             }
         } catch (error) {
             console.error('Error marking notification as read:', error);
@@ -67,15 +72,46 @@ function NavBar() {
         try {
             const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
             if (unreadIds.length === 0) return;
-
+            
             const response = await blogApi.markAllNotificationsAsRead(user.id);
-            if (response.success) {
-                setNotifications(prev =>
+            if (response && response.success) {
+                setNotifications(prev => 
                     prev.map(notif => ({ ...notif, read: true }))
                 );
+            } else {
+                console.error('Failed to mark all notifications as read:', response?.error);
             }
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
+        }
+    };
+
+    // Helper function to create test notification (development only)
+    // Renamed to start with '_' so unused declaration is allowed by lint rules
+    const _createTestNotification = async () => {
+        if (import.meta.env.PROD || !user?.id) return;
+
+        try {
+            const testTypes = ['comment', 'like', 'system', 'mention'];
+            const randomType = testTypes[Math.floor(Math.random() * testTypes.length)];
+            
+            const testMessages = {
+                comment: 'Someone commented on your post!',
+                like: 'Your post received a new like!',
+                system: 'System notification: Welcome to our platform!',
+                mention: 'You were mentioned in a comment!'
+            };
+
+            await blogApi.notifications.createTest(user.id, {
+                type: randomType,
+                title: `Test ${randomType} notification`,
+                message: testMessages[randomType]
+            });
+
+            // Refresh notifications
+            fetchNotifications();
+        } catch (error) {
+            console.error('Error creating test notification:', error);
         }
     };
 

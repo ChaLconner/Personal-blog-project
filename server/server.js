@@ -51,11 +51,11 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/blog', blogRouter);
-app.use('/upload', uploadRouter); // ไม่ใช้ /api prefix สำหรับ upload
-app.use('/api/notifications', notificationsRouter);
+app.use('/auth', authRouter);
+app.use('/admin', adminRouter);
+app.use('/blog', blogRouter);
+app.use('/upload', uploadRouter);
+app.use('/notifications', notificationsRouter);
 // Posts routes are handled within admin routes
 
 // 404 handler

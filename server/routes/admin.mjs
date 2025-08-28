@@ -41,20 +41,9 @@ const requireAdmin = async (req, res, next) => {
 // Get all posts for admin (with additional info)
 adminRouter.get('/posts', requireAdmin, async (req, res) => {
   try {
-
     const { data: posts, error } = await supabase
       .from('posts')
-      .select(`
-        id,
-        title,
-        description,
-        content,
-        image,
-        date,
-        likes_count,
-        categories(id, name),
-        statuses(id, status)
-      `)
+      .select('*')
       .order('date', { ascending: false });
 
     if (error) {
@@ -63,20 +52,51 @@ adminRouter.get('/posts', requireAdmin, async (req, res) => {
     }
 
     // Transform the data to match frontend expectations
-    const transformedPosts = posts.map(post => ({
-      id: post.id,
-      title: post.title,
-      description: post.description,
-      content: post.content,
-      image: post.image,
-      date: post.date,
-      likes_count: post.likes_count,
-      category: post.categories?.name || 'Uncategorized',
-      category_id: post.categories?.id || null,
-      status: post.statuses?.status || 'publish',
-      status_id: post.statuses?.id || null
-    }));
+    const transformedPosts = [];
+    
+    for (const post of posts) {
+      // Get category name if category_id exists
+      let categoryName = 'Uncategorized';
+      if (post.category_id) {
+        const { data: categoryData } = await supabase
+          .from('categories')
+          .select('name')
+          .eq('id', post.category_id)
+          .single();
+        
+        if (categoryData) {
+          categoryName = categoryData.name;
+        }
+      }
 
+      // Get status if status_id exists
+      let statusName = 'published';
+      if (post.status_id) {
+        const { data: statusData } = await supabase
+          .from('statuses')
+          .select('status')
+          .eq('id', post.status_id)
+          .single();
+        
+        if (statusData) {
+          statusName = statusData.status;
+        }
+      }
+
+      transformedPosts.push({
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        content: post.content,
+        image: post.image,
+        date: post.date,
+        likes_count: post.likes_count,
+        category: categoryName,
+        category_id: post.category_id,
+        status: statusName,
+        status_id: post.status_id
+      });
+    }
 
     res.json({
       success: true,
@@ -296,24 +316,14 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
 
-
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
     }
 
+    // Get post data
     const { data: post, error } = await supabase
       .from('posts')
-      .select(`
-        id,
-        title,
-        description,
-        content,
-        image,
-        date,
-        likes_count,
-        categories(id, name),
-        statuses(id, status)
-      `)
+      .select('*')
       .eq('id', postId)
       .single();
 
@@ -325,6 +335,34 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
       return res.status(500).json({ error: "Error fetching post" });
     }
 
+    // Get category name if category_id exists
+    let categoryName = '';
+    if (post.category_id) {
+      const { data: categoryData } = await supabase
+        .from('categories')
+        .select('name')
+        .eq('id', post.category_id)
+        .single();
+      
+      if (categoryData) {
+        categoryName = categoryData.name;
+      }
+    }
+
+    // Get status if status_id exists
+    let statusName = 'publish';
+    if (post.status_id) {
+      const { data: statusData } = await supabase
+        .from('statuses')
+        .select('status')
+        .eq('id', post.status_id)
+        .single();
+      
+      if (statusData) {
+        statusName = statusData.status;
+      }
+    }
+
     // Transform the data
     const transformedPost = {
       id: post.id,
@@ -334,19 +372,15 @@ adminRouter.get('/posts/:id', requireAdmin, async (req, res) => {
       image: post.image,
       date: post.date,
       likes_count: post.likes_count,
-      category: post.categories?.name || '',
-      category_id: post.categories?.id || null,
-      status: post.statuses?.status || 'publish',
-      status_id: post.statuses?.id || null
+      category: categoryName,
+      category_id: post.category_id,
+      status: statusName,
+      status_id: post.status_id
     };
 
-
-    res.json({
-      success: true,
-      data: transformedPost
-    });
+    res.status(200).json({ success: true, data: transformedPost });
   } catch (error) {
-    console.error('❌ Get single post error:', error);
+    console.error('❌ Error in get post:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

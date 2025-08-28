@@ -283,11 +283,11 @@ export default function ArticleSection() {
                             searchKeyword &&
                             Array.isArray(suggestions) &&
                             suggestions.length > 0 && (
-                                <div className="absolute left-0 top-full z-20 w-full mt-2 bg-background rounded-sm shadow-lg p-1 max-h-60 overflow-auto">
+                                <div className="absolute left-0 top-full z-20 w-full mt-2 bg-[#F9F8F6] rounded-sm shadow-lg p-1 max-h-60 overflow-auto scrollbar-hide">
                                     {suggestions.map((suggestion, index) => (
                                         <button
                                             key={index}
-                                            className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm"
+                                            className="text-start px-4 py-2 block text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm w-full"
                                             onMouseDown={() => navigate(`/post/${suggestion.id}`)}
                                             type="button"
                                         >

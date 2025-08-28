@@ -106,7 +106,7 @@ const auth = {
 
   updateProfile: async (profileData) => {
     try {
-      const response = await api.put('/api/auth/update-profile', profileData);
+      const response = await api.put('/auth/update-profile', profileData);
       return response.data;
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -510,41 +510,48 @@ export const blogApi = {
   // Notification functions
   getNotifications: async (userId) => {
     try {
-      const response = await api.get(`/api/notifications/${userId}`);
+      console.log('🔔 Fetching notifications for user:', userId);
+      console.log('📡 API Base URL:', API_BASE_URL);
+      console.log('🌐 Full URL:', `${API_BASE_URL}/notifications/${userId}`);
+      
+      const response = await api.get(`/notifications/${userId}`);
+      console.log('✅ Notifications response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      throw error;
+      console.error('❌ Error fetching notifications:', error);
+      console.error('📊 Error response:', error.response?.data);
+      console.error('🔗 Error config URL:', error.config?.url);
+      return { success: false, data: [], error: error.message };
     }
   },
 
   markNotificationAsRead: async (notificationId) => {
     try {
-      const response = await api.put(`/api/notifications/${notificationId}/read`);
+      const response = await api.put(`/notifications/${notificationId}/read`);
       return response.data;
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
 
   markAllNotificationsAsRead: async (userId) => {
     try {
-      const response = await api.put(`/api/notifications/user/${userId}/read-all`);
+      const response = await api.put(`/notifications/user/${userId}/read-all`);
       return response.data;
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
 
   createNotification: async (notificationData) => {
     try {
-      const response = await api.post('/api/notifications', notificationData);
+      const response = await api.post('/notifications', notificationData);
       return response.data;
     } catch (error) {
       console.error('Error creating notification:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   },
 
@@ -689,7 +696,7 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error fetching notifications:', error);
-        throw error;
+        return { success: false, data: [], error: error.message };
       }
     },
 
@@ -699,7 +706,7 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error marking notification as read:', error);
-        throw error;
+        return { success: false, error: error.message };
       }
     },
 
@@ -709,7 +716,7 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error marking all notifications as read:', error);
-        throw error;
+        return { success: false, error: error.message };
       }
     },
 
@@ -719,7 +726,77 @@ export const blogApi = {
         return response.data;
       } catch (error) {
         console.error('Error creating notification:', error);
-        throw error;
+        return { success: false, error: error.message };
+      }
+    },
+
+    delete: async (notificationId) => {
+      try {
+        const response = await api.delete(`/notifications/${notificationId}`);
+        return response.data;
+      } catch (error) {
+        console.error('Error deleting notification:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Create test notification (development only)
+    createTest: async (userId, testData = {}) => {
+      if (import.meta.env.PROD) {
+        console.warn('Test notifications are only available in development');
+        return { success: false, error: 'Not available in production' };
+      }
+
+      try {
+        const defaultTestData = {
+          type: 'system',
+          title: 'Test Notification',
+          message: 'This is a test notification created at ' + new Date().toLocaleTimeString()
+        };
+
+        const response = await api.post(`/notifications/test/${userId}`, {
+          ...defaultTestData,
+          ...testData
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Error creating test notification:', error);
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Admin functions
+    admin: {
+      getAll: async (params = {}) => {
+        try {
+          const response = await api.get('/notifications/admin/all', { params });
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching admin notifications:', error);
+          return { success: false, data: [], error: error.message };
+        }
+      },
+
+      getStats: async () => {
+        try {
+          const response = await api.get('/notifications/admin/stats');
+          return response.data;
+        } catch (error) {
+          console.error('Error fetching notification stats:', error);
+          return { success: false, error: error.message };
+        }
+      },
+
+      bulkDelete: async (deleteParams) => {
+        try {
+          const response = await api.delete('/notifications/admin/bulk', {
+            data: deleteParams
+          });
+          return response.data;
+        } catch (error) {
+          console.error('Error bulk deleting notifications:', error);
+          return { success: false, error: error.message };
+        }
       }
     }
   }

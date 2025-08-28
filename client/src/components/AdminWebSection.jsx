@@ -19,7 +19,7 @@ export function AdminSidebar() {
         <aside className="w-64 bg-card shadow-md">
             <div className="p-4">
                 <h1 className="text-2xl font-bold text-foreground">
-                    Thomson P<span className="text-brand-accent">.</span>
+                    hh<span className="text-brand-accent">.</span>
                 </h1>
                 <p className="text-sm text-brand-secondary">Admin panel</p>
             </div>
