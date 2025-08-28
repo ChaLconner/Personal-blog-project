@@ -43,6 +43,7 @@ function AppContent() {
             <AuthenticationRoute
               isLoading={state.getUserLoading}
               isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
             >
               <SignUpPage />
             </AuthenticationRoute>
@@ -54,6 +55,7 @@ function AppContent() {
             <AuthenticationRoute
               isLoading={state.getUserLoading}
               isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
             >
               <SignUpSuccessPage />
             </AuthenticationRoute>
@@ -65,6 +67,7 @@ function AppContent() {
             <AuthenticationRoute
               isLoading={state.getUserLoading}
               isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
             >
               <LoginPage />
             </AuthenticationRoute>
@@ -105,6 +108,7 @@ function AppContent() {
             <AuthenticationRoute
               isLoading={state.getUserLoading}
               isAuthenticated={isAuthenticated}
+              userRole={state.user?.role}
             >
               <AdminLogin />
             </AuthenticationRoute>

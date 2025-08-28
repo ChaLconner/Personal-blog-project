@@ -243,7 +243,7 @@ export default function ProfilePage() {
             <div className="ml-4">
               <h1 className="text-2xl font-bold">{profile.name || state.user?.name}</h1>
             </div>
-            <div className="ml-4 font-semibold text-2xl leading-8 tracking-normal" style={{ fontFamily: 'Poppins', fontSize: '24px', lineHeight: '32px' }}>
+            <div className="ml-4 font-semibold text-2xl">
               <span className="mr-4">|</span> Profile
             </div>
           </div>

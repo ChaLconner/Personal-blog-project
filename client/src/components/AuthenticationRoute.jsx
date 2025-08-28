@@ -1,6 +1,8 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-function AuthenticationRoute({ isLoading, isAuthenticated, children }) {
+function AuthenticationRoute({ isLoading, isAuthenticated, userRole, children }) {
+  const location = useLocation();
+  
   // ข้าม loading state - ไม่แสดงหน้า checking authentication
   if (isLoading === null || isLoading) {
     // ถ้ายังโหลดอยู่ ให้แสดง children ไปก่อน (หรือ return null หากไม่ต้องการแสดงอะไร)
@@ -8,8 +10,19 @@ function AuthenticationRoute({ isLoading, isAuthenticated, children }) {
   }
 
   if (isAuthenticated) {
-    // ถ้าผู้ใช้ล็อกอินแล้ว ให้เปลี่ยนเส้นทางไปหน้าโปรไฟล์
-    return <Navigate to="/profile" replace />;
+    // ตรวจสอบว่าเป็น admin route หรือไม่
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    
+    if (isAdminRoute && userRole === 'admin') {
+      // ถ้าเป็น admin route และผู้ใช้มี role admin ให้ redirect ไป admin dashboard
+      return <Navigate to="/admin/article-management" replace />;
+    } else if (isAdminRoute && userRole !== 'admin') {
+      // ถ้าเป็น admin route แต่ผู้ใช้ไม่ใช่ admin ให้ redirect ไปหน้าแรก
+      return <Navigate to="/" replace />;
+    } else {
+      // ถ้าไม่ใช่ admin route หรือผู้ใช้เป็น user ปกติ ให้ redirect ไปหน้าโปรไฟล์
+      return <Navigate to="/profile" replace />;
+    }
   }
 
   // ผู้ใช้ยังไม่ได้ล็อกอิน สามารถเข้าถึงหน้านี้ได้
