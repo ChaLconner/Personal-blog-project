@@ -72,7 +72,22 @@ export default function ViewPost() {
             setDate(post.date || new Date().toISOString());
             setDescription(post.description || 'No description available');
             setCategory(post.category || 'General');
-            setContent(post.content || 'No content available');
+            
+            // Process content to handle literal \n characters
+            let processedContent = post.content || 'No content available';
+            console.log('Raw content:', processedContent); // Debug log
+            
+            // Replace literal \\n with actual line breaks (double backslash case)
+            if (typeof processedContent === 'string') {
+                processedContent = processedContent
+                    .replace(/\\\\n/g, '\n')  // Replace \\n with actual line breaks
+                    .replace(/\\n/g, '\n')    // Replace \n with actual line breaks  
+                    .replace(/\\\n/g, '\n')   // Handle escaped newlines
+                    .trim();                  // Remove extra whitespace
+            }
+            
+            console.log('Processed content:', processedContent); // Debug log
+            setContent(processedContent);
             
             // Enhanced author handling with better type checking
             console.log('Author data:', post.author, 'Type:', typeof post.author); // Debug log
@@ -125,9 +140,170 @@ export default function ViewPost() {
                             </span>
                         </div>
                         <h1 className="text-3xl font-bold">{title}</h1>
-                        <p className="mt-4 mb-10">{description}</p>
-                        <div className="markdown">
-                            <ReactMarkdown>{content}</ReactMarkdown>
+                        <p className="mt-4 mb-10 text-lg text-gray-600 leading-relaxed">{description}</p>
+                        <div className="markdown-content text-gray-700 leading-relaxed">
+                            <ReactMarkdown
+                                components={{
+                                    // Headings with proper hierarchy
+                                    h1: ({children}) => (
+                                        <h1 className="text-3xl font-bold mb-6 mt-8 text-gray-900 border-b-2 border-gray-200 pb-3 first:mt-0">
+                                            {children}
+                                        </h1>
+                                    ),
+                                    h2: ({children}) => (
+                                        <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
+                                            {children}
+                                        </h2>
+                                    ),
+                                    h3: ({children}) => (
+                                        <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">
+                                            {children}
+                                        </h3>
+                                    ),
+                                    h4: ({children}) => (
+                                        <h4 className="text-lg font-semibold mb-2 mt-4 text-gray-900">
+                                            {children}
+                                        </h4>
+                                    ),
+                                    
+                                    // Paragraphs with better spacing
+                                    p: ({children}) => (
+                                        <p className="mb-6 leading-7 text-gray-700 tracking-wide text-base">
+                                            {children}
+                                        </p>
+                                    ),
+                                    
+                                    // Lists
+                                    ul: ({children}) => (
+                                        <ul className="mb-6 pl-6 space-y-2 list-disc text-gray-700">
+                                            {children}
+                                        </ul>
+                                    ),
+                                    ol: ({children}) => (
+                                        <ol className="mb-6 pl-6 space-y-2 list-decimal text-gray-700">
+                                            {children}
+                                        </ol>
+                                    ),
+                                    li: ({children}) => (
+                                        <li className="leading-relaxed text-base">
+                                            {children}
+                                        </li>
+                                    ),
+                                    
+                                    // Blockquote
+                                    blockquote: ({children}) => (
+                                        <blockquote className="border-l-4 border-green-500 pl-6 py-4 my-8 italic text-gray-600 bg-gray-50 rounded-r-lg">
+                                            {children}
+                                        </blockquote>
+                                    ),
+                                    
+                                    // Code
+                                    code: ({inline, children}) => {
+                                        if (inline) {
+                                            return (
+                                                <code className="bg-gray-100 text-green-600 px-2 py-1 rounded text-sm font-mono border">
+                                                    {children}
+                                                </code>
+                                            );
+                                        } else {
+                                            return (
+                                                <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
+                                                    <code>{children}</code>
+                                                </pre>
+                                            );
+                                        }
+                                    },
+                                    
+                                    // Pre (for code blocks)
+                                    pre: ({children}) => (
+                                        <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
+                                            {children}
+                                        </pre>
+                                    ),
+                                    
+                                    // Links
+                                    a: ({href, children}) => (
+                                        <a 
+                                            href={href} 
+                                            className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors duration-200" 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                        >
+                                            {children}
+                                        </a>
+                                    ),
+                                    
+                                    // Images
+                                    img: ({src, alt}) => (
+                                        <div className="my-8">
+                                            <img 
+                                                src={src} 
+                                                alt={alt} 
+                                                className="w-full rounded-lg shadow-lg border border-gray-200 max-w-full h-auto"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                }}
+                                            />
+                                            {alt && (
+                                                <p className="text-sm text-gray-500 italic mt-2 text-center">
+                                                    {alt}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ),
+                                    
+                                    // Horizontal rule
+                                    hr: () => (
+                                        <hr className="border-t-2 border-gray-200 my-12 w-24 mx-auto" />
+                                    ),
+
+                                    // Tables
+                                    table: ({children}) => (
+                                        <div className="overflow-x-auto my-6 rounded-lg shadow-sm border border-gray-200">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                {children}
+                                            </table>
+                                        </div>
+                                    ),
+                                    thead: ({children}) => (
+                                        <thead className="bg-gray-50">
+                                            {children}
+                                        </thead>
+                                    ),
+                                    tbody: ({children}) => (
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {children}
+                                        </tbody>
+                                    ),
+                                    th: ({children}) => (
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {children}
+                                        </th>
+                                    ),
+                                    td: ({children}) => (
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {children}
+                                        </td>
+                                    ),
+                                    
+                                    // Strong and em
+                                    strong: ({children}) => (
+                                        <strong className="font-semibold text-gray-900">
+                                            {children}
+                                        </strong>
+                                    ),
+                                    em: ({children}) => (
+                                        <em className="italic text-gray-800">
+                                            {children}
+                                        </em>
+                                    ),
+                                }}
+                                // Handle line breaks properly
+                                remarkPlugins={[]}
+                                rehypePlugins={[]}
+                            >
+                                {content}
+                            </ReactMarkdown>
                         </div>
                     </article>
 
