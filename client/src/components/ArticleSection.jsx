@@ -306,16 +306,16 @@ export default function ArticleSection() {
 
                 {/* Blog Cards */}
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
-                    {/* Show loading when category is changing and no posts */}
+                    {/* Show loading only when category is changing and no posts */}
                     {isCategoryChanging && posts.length === 0 && (
-                        <div className="col-span-full text-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                            <p className="text-muted-foreground">Loading {category} posts...</p>
+                        <div className="col-span-full text-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
+                            <p className="text-muted-foreground text-lg">Loading {category} posts...</p>
                         </div>
                     )}
 
                     {/* Show posts */}
-                    {posts.map((blog) => (
+                    {!isCategoryChanging && posts.map((blog) => (
                         <BlogCard
                             id={blog.id}
                             key={blog.id} // Use only ID as key since we ensure uniqueness
@@ -326,7 +326,7 @@ export default function ArticleSection() {
                             author={blog.author}
                             date={new Date(blog.date).toLocaleDateString("en-GB", {
                                 day: "numeric",
-                                month: "long",
+                                month: "long", 
                                 year: "numeric",
                             })}
                             onClick={() => blog.id && navigate(`/Post/${blog.id}`)}
