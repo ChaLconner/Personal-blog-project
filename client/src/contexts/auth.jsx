@@ -5,7 +5,7 @@ import { AuthContext } from "./authContext.js";
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
     loading: false,
-    getUserLoading: false,
+    getUserLoading: true, // เริ่มต้นด้วย true เพื่อป้องกัน race condition
     error: null,
     user: null,
   });
@@ -13,6 +13,9 @@ export function AuthProvider({ children }) {
   // ดึงข้อมูลผู้ใช้โดยใช้ Supabase API
   const fetchUser = async () => {
     const token = localStorage.getItem("token");
+    
+    setState((prevState) => ({ ...prevState, getUserLoading: true }));
+    
     if (!token) {
       setState((prevState) => ({
         ...prevState,
@@ -23,9 +26,8 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      setState((prevState) => ({ ...prevState, getUserLoading: true }));
       const response = await axios.get(
-        "https://personal-blog-project-server.onrender.com/auth/get-user",
+        "http://localhost:3001/auth/get-user",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -36,8 +38,10 @@ export function AuthProvider({ children }) {
         ...prevState,
         user: response.data,
         getUserLoading: false,
+        error: null, // เคลียร์ error หากมี
       }));
     } catch (error) {
+      console.warn('❌ fetchUser error:', error.response?.data || error.message);
       setState((prevState) => ({
         ...prevState,
         error: error.message,
@@ -46,6 +50,7 @@ export function AuthProvider({ children }) {
       }));
       // Remove invalid token
       localStorage.removeItem("token");
+      localStorage.removeItem("authToken");
     }
   };
 
@@ -59,7 +64,7 @@ export function AuthProvider({ children }) {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       const response = await axios.post(
-        "https://personal-blog-project-server.onrender.com/auth/login",
+        "http://localhost:3001/auth/login",
         data
       );
       
@@ -70,7 +75,7 @@ export function AuthProvider({ children }) {
 
       // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
       const userResponse = await axios.get(
-        "https://personal-blog-project-server.onrender.com/auth/get-user",
+        "http://localhost:3001/auth/get-user",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -114,7 +119,7 @@ export function AuthProvider({ children }) {
     }
     try {
       const { data } = await axios.post(
-        "https://personal-blog-project-server.onrender.com/auth/resend-verification",
+        "http://localhost:3001/auth/resend-verification",
         { email }
       );
       return { success: true, message: data?.message || "Verification email sent" };
@@ -131,7 +136,7 @@ export function AuthProvider({ children }) {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       await axios.post(
-        "https://personal-blog-project-server.onrender.com/auth/register",
+        "http://localhost:3001/auth/register",
         data
       );
       
@@ -154,9 +159,14 @@ export function AuthProvider({ children }) {
 
   // ล็อกเอาท์ผู้ใช้
   const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("authToken");
-    setState({ user: null, error: null, loading: false, getUserLoading: false });
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    setState({ 
+      user: null, 
+      error: null, 
+      loading: false, 
+      getUserLoading: false // ตั้งค่า loading เป็น false ทันที
+    });
     
     // Return success to handle navigation in component
     return { success: true };

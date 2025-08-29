@@ -39,6 +39,18 @@ const AdminResetPasswordPage = lazy(() => import("@/pages/admin/AdminResetPasswo
 function AppContent() {
   const { isAuthenticated, state } = useAuth();
 
+  // รอให้การตรวจสอบ authentication เสร็จก่อนแสดงเนื้อหา
+  if (state.getUserLoading === true) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading application...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <Suspense fallback={<PageLoadingSpinner />}>

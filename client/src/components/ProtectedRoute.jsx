@@ -11,7 +11,7 @@ const ProtectedRoute = ({
 }) => {
   const location = useLocation();
 
-  if (isLoading === null || isLoading) {
+  if (isLoading === null || isLoading === true) {
     // แสดง loading แบบ inline แทน LoadingScreen
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
