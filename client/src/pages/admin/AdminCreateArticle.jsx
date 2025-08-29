@@ -48,7 +48,6 @@ export default function AdminCreateArticlePage() {
     const fetchCategories = async () => {
         try {
             const response = await blogApi.admin.getCategories();
-            console.log('📂 Categories fetched:', response);
             setCategories(response.data || []);
         } catch (error) {
             console.error('❌ Error fetching categories:', error);
@@ -156,13 +155,11 @@ export default function AdminCreateArticlePage() {
 
     const handleSaveAsDraft = async (e) => {
         e.preventDefault();
-        console.log('🔧 Saving as draft...');
         await handleSubmit(false);
     };
 
     const handleSaveAndPublish = async (e) => {
         e.preventDefault();
-        console.log('🚀 Publishing article...');
         await handleSubmit(true);
     };
 
@@ -182,9 +179,6 @@ export default function AdminCreateArticlePage() {
                 author: formData.author.trim() || user?.name || 'Admin', // ส่ง author ไปด้วย
                 status: publish ? 'published' : 'draft' // แก้ไขให้ใช้ 'published' แทน 'publish'
             };
-
-            console.log('📝 Creating article with data:', postData);
-            console.log('📊 Status will be:', postData.status);
 
             await blogApi.admin.createPost(postData);
             toast.success(`Article ${publish ? 'published' : 'saved as draft'} successfully`);

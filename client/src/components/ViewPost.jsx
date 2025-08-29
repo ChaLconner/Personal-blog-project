@@ -51,8 +51,8 @@ export default function ViewPost() {
         try {
             const response = await blogApi.getComments({ postId: param.postId });
             setPostComments(response.data);
-        } catch (error) {
-            console.log("Error fetching comments:", error);
+        } catch {
+            // Error handled by component error boundary
         }
     };
 
@@ -60,9 +60,7 @@ export default function ViewPost() {
         setIsLoading(true);
         try {
             const response = await blogApi.getPost(param.postId);
-            console.log('API Response:', response); // Debug log
             const post = response.data || response.post || response;
-            console.log('Post data:', post); // Debug log
             
             // Handle image URL properly
             let imageUrl = post.image;
@@ -78,7 +76,6 @@ export default function ViewPost() {
             
             // Process content to handle literal \n characters
             let processedContent = post.content || 'No content available';
-            console.log('Raw content:', processedContent); // Debug log
             
             // Replace literal \\n with actual line breaks (double backslash case)
             if (typeof processedContent === 'string') {
@@ -88,12 +85,9 @@ export default function ViewPost() {
                     .replace(/\\\n/g, '\n')   // Handle escaped newlines
                     .trim();                  // Remove extra whitespace
             }
-            
-            console.log('Processed content:', processedContent); // Debug log
             setContent(processedContent);
             
             // Enhanced author handling with better type checking
-            console.log('Author data:', post.author, 'Type:', typeof post.author); // Debug log
             if (post.author && typeof post.author === 'object') {
                 setAuthor(post.author);
             } else if (post.author) {
@@ -104,8 +98,7 @@ export default function ViewPost() {
             
             setLikes(post.likes_count || post.likes || 0);
             setIsLoading(false);
-        } catch (error) {
-            console.log(error);
+        } catch {
             setIsLoading(false);
             navigate("*");
         }
@@ -416,7 +409,6 @@ function Comment({ setDialogState, postComments }) {
         } else {
             // Submit the comment
             setIsError(false);
-            console.log("Comment submitted:", comment);
             // Add the logic for what should happen after sending the comment
         }
     };

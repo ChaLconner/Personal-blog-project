@@ -30,7 +30,6 @@ export default function ArticleSection() {
     const retryApiCall = async (apiCall, maxRetries = 3, delay = 1000) => {
         for (let i = 0; i < maxRetries; i++) {
             try {
-                console.log(`🔄 API attempt ${i + 1}/${maxRetries}`);
                 return await apiCall();
             } catch (error) {
                 console.warn(`❌ API attempt ${i + 1} failed:`, error.message);
@@ -57,12 +56,9 @@ export default function ArticleSection() {
             if (!seen.has(uniqueKey)) {
                 seen.set(uniqueKey, true);
                 uniquePosts.push(post);
-            } else {
-                console.log(`Duplicate content detected: "${post.title}" (ID: ${post.id})`);
             }
         }
 
-        console.log(`Filtered ${posts.length - uniquePosts.length} duplicate posts`);
         return uniquePosts;
     };
 
@@ -83,15 +79,6 @@ export default function ArticleSection() {
                     categoryParam = category; // Use exact category name
                 }
 
-                console.log('Current category:', category);
-                console.log('Current page:', page);
-                console.log('Fetching posts with category:', categoryParam);
-                console.log('API request params:', {
-                    category: categoryParam,
-                    limit: requestLimit,
-                    offset: (page - 1) * 6  // Keep offset based on 6 for consistent pagination
-                });
-
                 const response = await retryApiCall(async () => {
                     return await blogApi.getPosts({
                         category: categoryParam,
@@ -99,8 +86,6 @@ export default function ArticleSection() {
                         offset: (page - 1) * 6, // Keep offset calculation consistent
                     });
                 });
-
-                console.log('API Response:', response);
                 
                 // Handle both success and error cases from API
                 if (!response || !response.success) {
@@ -113,14 +98,8 @@ export default function ArticleSection() {
                 }
 
                 const postsData = response.posts || [];
-                console.log('Posts received from API:', postsData.length);
-                console.log('Raw post IDs:', postsData.map(p => p.id) || []);
 
                 setPosts((prevPosts) => {
-                    console.log('=== STATE UPDATE ===');
-                    console.log('Previous posts count:', prevPosts.length);
-                    console.log('Previous post IDs:', prevPosts.map(p => p.id));
-
                     if (page === 1) {
                         // For new category, replace all posts and remove any duplicates
                         let newPosts = removeDuplicatePosts(postsData);
@@ -130,14 +109,10 @@ export default function ArticleSection() {
                             newPosts = newPosts.slice(0, 6);
                         }
 
-                        console.log('Page 1: After dedup and limit:', newPosts.length, 'posts');
-                        console.log('Final post IDs for page 1:', newPosts.map(p => p.id));
                         return newPosts;
                     } else {
                         // For load more, combine and remove duplicates
                         const allPosts = [...prevPosts, ...postsData];
-                        console.log('Combined posts before dedup:', allPosts.length);
-                        console.log('Combined post IDs:', allPosts.map(p => p.id));
 
                         let uniquePosts = removeDuplicatePosts(allPosts);
 
@@ -149,8 +124,6 @@ export default function ArticleSection() {
                             }
                         }
 
-                        console.log('Load more: After dedup and limit:', uniquePosts.length, 'posts');
-                        console.log('Final post IDs after load more:', uniquePosts.map(p => p.id));
                         return uniquePosts;
                     }
                 });
@@ -201,8 +174,7 @@ export default function ArticleSection() {
                     const postsData = response.success ? response.posts : [];
                     setSuggestions(postsData || []); // Ensure it's always an array
                     setIsLoading(false);
-                } catch (error) {
-                    console.log(error);
+                } catch {
                     setSuggestions([]); // Set empty array on error
                     setIsLoading(false);
                 }
@@ -216,8 +188,6 @@ export default function ArticleSection() {
 
     const handleCategoryChange = (newCategory) => {
         if (newCategory !== category) {
-            console.log('🔄 Category changing from', category, 'to', newCategory);
-            
             // Clear error state
             setError(null);
             setIsCategoryChanging(true);
@@ -228,7 +198,6 @@ export default function ArticleSection() {
 
             // Clear any relevant cache for immediate refresh
             if (typeof blogApi.clearCache === 'function') {
-                console.log('🗑️ Clearing API cache for category change');
                 blogApi.clearCache();
             }
         }

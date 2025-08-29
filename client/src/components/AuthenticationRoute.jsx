@@ -19,8 +19,12 @@ function AuthenticationRoute({ isLoading, isAuthenticated, userRole, children })
     } else if (isAdminRoute && userRole !== 'admin') {
       // ถ้าเป็น admin route แต่ผู้ใช้ไม่ใช่ admin ให้ redirect ไปหน้าแรก
       return <Navigate to="/" replace />;
+    } else if (location.pathname === '/login') {
+      // ถ้าเป็นหน้า login ไม่ต้อง redirect ทันที ให้ LoginPage จัดการเอง
+      // เพื่อป้องกัน flash ของหน้า profile
+      return null;
     } else {
-      // ถ้าไม่ใช่ admin route หรือผู้ใช้เป็น user ปกติ ให้ redirect ไปหน้าโปรไฟล์
+      // สำหรับหน้าอื่นๆ เช่น signup ให้ redirect ไปหน้าโปรไฟล์
       return <Navigate to="/profile" replace />;
     }
   }

@@ -38,14 +38,11 @@ export default function AdminEditArticlePage() {
     const fetchPost = async () => {
         try {
             setFetchingPost(true);
-            console.log('🔍 Fetching post with ID:', id);
             
             const response = await blogApi.admin.getPost(id);
-            console.log('📝 Post response:', response);
             
             if (response.success) {
                 const post = response.data;
-                console.log('📋 Post data:', post);
                 
                 setFormData({
                     title: post.title || "",
@@ -61,7 +58,6 @@ export default function AdminEditArticlePage() {
                     setImagePreview(post.image.startsWith('http') ? post.image : `http://localhost:3001${post.image}`);
                 }
                 
-                console.log('✅ Form data set successfully');
             } else {
                 console.error('❌ Response not successful:', response);
                 toast.error('Failed to fetch article data');
@@ -87,12 +83,10 @@ export default function AdminEditArticlePage() {
     };
 
     useEffect(() => {
-        console.log('📝 AdminEditArticlePage mounted with ID:', id);
         if (id) {
             fetchPost();
             fetchCategories();
         } else {
-            console.error('❌ No article ID provided in URL params');
             toast.error('Invalid article ID');
             navigate('/admin/article-management');
         }
@@ -199,8 +193,6 @@ export default function AdminEditArticlePage() {
 
         try {
             setLoading(true);
-            console.log('💾 Updating post with ID:', id);
-            console.log('📋 Post data to update:', formData);
             
             const postData = {
                 ...formData,
@@ -210,9 +202,7 @@ export default function AdminEditArticlePage() {
                 status: status
             };
 
-            console.log('📤 Sending update data:', postData);
             const response = await blogApi.admin.updatePost(id, postData);
-            console.log('📥 Update response:', response);
             
             if (response.success) {
                 toast.success(`Article ${status === 'publish' ? 'published' : 'saved as draft'} successfully`);

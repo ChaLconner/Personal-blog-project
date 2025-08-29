@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import NavBar from "@/components/NavBar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
@@ -14,59 +14,62 @@ export default function LoginPage() {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { login, resendVerification } = useAuth();
+    const { login, resendVerification, isAuthenticated, state } = useAuth();
 
-    // Get the page user was trying to visit from URL params or location state
-    const getRedirectPath = () => {
-        // Check URL parameters first (from query string)
-        const urlParams = new URLSearchParams(location.search);
-        const redirectParam = urlParams.get('redirect') || urlParams.get('from');
+    // ถ้าผู้ใช้ล็อกอินแล้ว redirect ทันที
+    useEffect(() => {
+        if (isAuthenticated && !state.getUserLoading) {
+            // Get the page user was trying to visit from URL params or location state
+            const getRedirectPath = () => {
+                // Check URL parameters first (from query string)
+                const urlParams = new URLSearchParams(location.search);
+                const redirectParam = urlParams.get('redirect') || urlParams.get('from');
 
-        if (redirectParam) {
-            // Decode and validate the redirect path
-            try {
-                const decodedPath = decodeURIComponent(redirectParam);
-                // Ensure it's a valid internal path
-                if (decodedPath.startsWith('/')) {
-                    return decodedPath;
-                }
-            } catch (error) {
-                // Log decode errors for debugging (avoids empty catch block)
-                // Invalid redirect params will be ignored and fallback path will be used
-                console.warn('Failed to decode redirect parameter:', error);
-            }
-        }
-
-        // Check location state (from navigation)
-        const fromState = location.state?.from?.pathname;
-        if (fromState) {
-            return fromState;
-        }
-
-        // Check document.referrer for article pages
-        try {
-            const referrer = document.referrer;
-            if (referrer) {
-                const referrerUrl = new URL(referrer);
-                // If same origin, use the path
-                if (referrerUrl.origin === window.location.origin) {
-                    const path = referrerUrl.pathname;
-                    // If it's an article page, return to it
-                    if (path.startsWith('/post/') || path.startsWith('/Post/')) {
-                        return path;
+                if (redirectParam) {
+                    // Decode and validate the redirect path
+                    try {
+                        const decodedPath = decodeURIComponent(redirectParam);
+                        // Ensure it's a valid internal path
+                        if (decodedPath.startsWith('/')) {
+                            return decodedPath;
+                        }
+                    } catch {
+                        // Invalid redirect params will be ignored and fallback path will be used
                     }
                 }
-            }
-        } catch (error) {
-            // Log errors when parsing referrer to aid debugging in some browsers/environments
-            console.warn('Failed to read document.referrer:', error);
+
+                // Check location state (from navigation)
+                const fromState = location.state?.from?.pathname;
+                if (fromState) {
+                    return fromState;
+                }
+
+                // Check document.referrer for article pages
+                try {
+                    const referrer = document.referrer;
+                    if (referrer) {
+                        const referrerUrl = new URL(referrer);
+                        // If same origin, use the path
+                        if (referrerUrl.origin === window.location.origin) {
+                            const path = referrerUrl.pathname;
+                            // If it's an article page, return to it
+                            if (path.startsWith('/post/') || path.startsWith('/Post/')) {
+                                return path;
+                            }
+                        }
+                    }
+                } catch {
+                    // Log errors when parsing referrer to aid debugging in some browsers/environments
+                }
+
+                // Default to home page
+                return "/";
+            };
+
+            const redirectPath = getRedirectPath();
+            navigate(redirectPath, { replace: true });
         }
-
-        // Default to home page
-        return "/";
-    };
-
-    const from = getRedirectPath();
+    }, [isAuthenticated, state.getUserLoading, navigate, location.search, location.state?.from?.pathname]);
 
     // Validation functions
     const validateEmail = (email) => {
@@ -119,16 +122,11 @@ export default function LoginPage() {
                 // Show success toast
                 toast.success("Login successful! Welcome back!", {
                     position: "bottom-right",
-                    duration: 2000,
+                    duration: 1500,
                 });
 
-                // Redirect to homepage after successful login, or to the page they were trying to visit
-                const redirectPath = from === "/" ? "/" : from;
-
-                // Use shorter delay and ensure navigation happens
-                setTimeout(() => {
-                    navigate(redirectPath, { replace: true });
-                }, 500);
+                // The redirect will be handled by useEffect when isAuthenticated becomes true
+                // No need to manually navigate here
             } else if (result.error) {
                 setError(result.error);
                 

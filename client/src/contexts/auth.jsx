@@ -56,7 +56,6 @@ export function AuthProvider({ children }) {
   // ล็อกอินผู้ใช้
   const login = async (data) => {
     try {
-
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       const response = await axios.post(
@@ -64,15 +63,12 @@ export function AuthProvider({ children }) {
         data
       );
       
-
-      
-  const token = response.data.access_token;
-  // Store token for both legacy and api service compatibility
-  localStorage.setItem("token", token);
-  localStorage.setItem("authToken", token);
+      const token = response.data.access_token;
+      // Store token for both legacy and api service compatibility
+      localStorage.setItem("token", token);
+      localStorage.setItem("authToken", token);
 
       // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
-
       const userResponse = await axios.get(
         "http://localhost:3001/auth/get-user",
         {
@@ -82,14 +78,14 @@ export function AuthProvider({ children }) {
         }
       );
       
-
-      
+      // Update all states at once to prevent intermediate renders
       setState((prevState) => ({ 
         ...prevState, 
         loading: false, 
         error: null,
         user: userResponse.data,
-        getUserLoading: false
+        getUserLoading: false,
+        isAuthenticated: true // Ensure authentication state is set immediately
       }));
       
       // Return success to handle navigation in component
@@ -132,13 +128,6 @@ export function AuthProvider({ children }) {
   // ลงทะเบียนผู้ใช้
   const register = async (data) => {
     try {
-      console.log('📝 Attempting registration...', { 
-        email: data.email, 
-        username: data.username, 
-        name: data.name,
-        hasPassword: !!data.password 
-      });
-      
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       await axios.post(

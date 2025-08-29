@@ -23,11 +23,6 @@ const api = axios.create({
 // Request interceptor - เพิ่ม authentication token
 api.interceptors.request.use(
   (config) => {
-    // Only log in development
-    if (import.meta.env.DEV) {
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    }
-    
     // Add authentication token if available (always read latest from storage)
     const latestToken = localStorage.getItem('authToken') || localStorage.getItem('token') || authToken;
     if (latestToken) {
@@ -52,7 +47,6 @@ api.interceptors.response.use(
     // Ignore extension-related errors
     if (error.message?.includes('message channel closed') || 
         error.message?.includes('Extension context invalidated')) {
-      console.warn('Browser extension interference detected, ignoring error');
       return Promise.reject(new Error('Network request failed'));
     }
     
@@ -138,10 +132,6 @@ const getCachedData = (key) => {
     typeof cached.timestamp === 'number' &&
     Date.now() - cached.timestamp < CACHE_DURATION
   ) {
-    // Only log if debugging is enabled
-    if (ENABLE_CACHE_LOGGING) {
-      console.debug('[cache] hit for key:', key, 'ageMs:', Date.now() - cached.timestamp);
-    }
     return cached.data;
   }
   if (cached) {
@@ -155,16 +145,10 @@ const setCachedData = (key, data) => {
     data,
     timestamp: Date.now()
   });
-  if (ENABLE_CACHE_LOGGING) {
-    console.debug('[cache] set key:', key, 'size:', cache.size);
-  }
 };
 
 const clearCache = () => {
   cache.clear();
-  if (ENABLE_CACHE_LOGGING) {
-    console.debug('[cache] cleared');
-  }
 };
 
 // API service functions
@@ -267,23 +251,16 @@ export const blogApi = {
       
       // Validate response structure
       if (!response.data) {
-        console.warn('⚠️ No response data received');
         throw new Error('No data received from server');
       }
       
       if (!response.data.success) {
-        console.warn('⚠️ Server returned unsuccessful response:', response.data);
         // Still try to use the data if posts exist
         if (!response.data.posts) {
           throw new Error(response.data.error || 'Server returned unsuccessful response');
         }
       }
       
-      console.log('✅ API response received:', {
-        success: response.data.success,
-        postsCount: response.data.posts?.length || 0,
-        meta: response.data.meta
-      });
       
       // Cache the response only if it's successful
       if (response.data.success) {
@@ -293,7 +270,6 @@ export const blogApi = {
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching posts:', error.message);
-      console.error('Error details:', error.response?.data || error);
       
       // Return fallback data structure instead of throwing
       return {
@@ -510,17 +486,10 @@ export const blogApi = {
   // Notification functions
   getNotifications: async (userId) => {
     try {
-      console.log('🔔 Fetching notifications for user:', userId);
-      console.log('📡 API Base URL:', API_BASE_URL);
-      console.log('🌐 Full URL:', `${API_BASE_URL}/notifications/${userId}`);
-      
       const response = await api.get(`/notifications/${userId}`);
-      console.log('✅ Notifications response:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching notifications:', error);
-      console.error('📊 Error response:', error.response?.data);
-      console.error('🔗 Error config URL:', error.config?.url);
       return { success: false, data: [], error: error.message };
     }
   },
@@ -743,7 +712,6 @@ export const blogApi = {
     // Create test notification (development only)
     createTest: async (userId, testData = {}) => {
       if (import.meta.env.PROD) {
-        console.warn('Test notifications are only available in development');
         return { success: false, error: 'Not available in production' };
       }
 

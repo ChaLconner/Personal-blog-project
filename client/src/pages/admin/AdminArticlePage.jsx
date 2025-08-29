@@ -73,16 +73,6 @@ export default function AdminArticleManagementPage() {
             const articles = articlesResponse.data || [];
             const categories = categoriesResponse.data || [];
             
-            // Debug logging สำหรับตรวจสอบข้อมูลที่ได้รับ
-            console.log('📚 Fetched Articles Response:', articlesResponse);
-            console.log('📝 Total Articles:', articles.length);
-            
-            // แสดงสถานะของแต่ละบทความ
-            articles.forEach((article, index) => {
-                const status = article.status || 'published';
-                console.log(`📄 Article ${index + 1}: "${article.title}" - Status: "${status}" (${status === 'draft' ? 'DRAFT 🟤' : 'PUBLISHED 🟢'})`);
-            });
-            
             setArticles(articles);
             setCategories(categories);
         } catch (error) {
@@ -191,8 +181,6 @@ export default function AdminArticleManagementPage() {
                                         const isPublished = status === 'published';
                                         const isDraft = status === 'draft';
                                         
-                                        console.log(`📄 Article: ${article.title}, Status: ${status}, isPublished: ${isPublished}, isDraft: ${isDraft}`);
-                                        
                                         return (
                                             <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium bg-ui-surface ${
                                                 isPublished ? 'text-[#12B279]' : 'text-[#75716B]'
@@ -212,7 +200,6 @@ export default function AdminArticleManagementPage() {
                                         variant="ghost" 
                                         size="sm"
                                         onClick={() => {
-                                            console.log('🔍 Navigating to edit article with ID:', article.id);
                                             navigate(`/admin/edit-article/${article.id}`);
                                         }}
                                     >
