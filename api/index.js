@@ -15,8 +15,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://personal-blog-project-six.vercel.app',
-    'https://personal-blog-project-nijtz5qay-chalconners-projects.vercel.app'
-  ],
+    ],
   credentials: true
 }));
 
