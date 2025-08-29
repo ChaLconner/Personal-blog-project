@@ -1,7 +1,14 @@
 import axios from 'axios';
 
 // Base API URL - เปลี่ยนเป็น backend server ของคุณ
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.PROD ? 'https://personal-blog-project-server.onrender.com' : 'http://localhost:3001');
+
+// Debug: Log API URL in development
+if (import.meta.env.DEV) {
+  console.log('🌐 API_BASE_URL:', API_BASE_URL);
+  console.log('🔧 VITE_API_URL:', import.meta.env.VITE_API_URL);
+}
 
 // Simple cache for storing API responses
 const cache = new Map();
