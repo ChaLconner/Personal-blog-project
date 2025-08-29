@@ -314,6 +314,45 @@ export const blogApi = {
     }
   },
 
+  // Like/Unlike a post
+  likePost: async (postId) => {
+    try {
+      const response = await api.post(`/blog/posts/${postId}/like`);
+      return response.data;
+    } catch (error) {
+      console.error('Error liking post:', error);
+      throw error;
+    }
+  },
+
+  // Check if user has liked a post
+  checkPostLike: async (postId) => {
+    try {
+      const response = await api.get(`/blog/posts/${postId}/like-status`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking like status:', error);
+      throw error;
+    }
+  },
+
+  // Add comment to a post
+  addComment: async (commentData) => {
+    try {
+      if (!commentData.postId || !commentData.content) {
+        throw new Error('Missing required fields: postId, content');
+      }
+
+      const response = await api.post(`/blog/posts/${commentData.postId}/comment`, {
+        content: commentData.content
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      throw error;
+    }
+  },
+
   // Create new comment
   createComment: async (commentData) => {
     try {

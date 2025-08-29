@@ -1,32 +1,33 @@
 import { useAuth } from "@/contexts/authContext.js";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const ProtectedAction = ({ 
   children, 
-  requireAuth = true, 
-  action = "perform this action",
-  fallback = null 
+  requireAuth = true,
+  fallback = null,
+  action = "perform this action" // เพิ่ม prop สำหรับอธิบาย action
 }) => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const handleUnauthorizedClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!isAuthenticated) {
-      toast.error(`Please log in to ${action}`, {
-        position: "bottom-right",
-        duration: 4000,
-        action: {
-          label: "Login",
-          onClick: () => {
-            // Get current page URL for redirect after login
-            const currentPath = window.location.pathname + window.location.search;
-            window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
-          }
-        }
-      });
-    }
+    // แสดง toast แนะนำให้ล็อกอิน
+    toast.error(`Please login to ${action}`, {
+      position: "bottom-right",
+      duration: 3000,
+      action: {
+        label: "Login",
+        onClick: () => {
+          // นำผู้ใช้ไปหน้า login โดยเก็บ current page ไว้
+          const currentPath = window.location.pathname;
+          navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        },
+      },
+    });
   };
 
   if (requireAuth && !isAuthenticated) {

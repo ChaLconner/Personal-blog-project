@@ -19,55 +19,60 @@ export default function LoginPage() {
     // ถ้าผู้ใช้ล็อกอินแล้ว redirect ทันที
     useEffect(() => {
         if (isAuthenticated && !state.getUserLoading) {
-            // Get the page user was trying to visit from URL params or location state
-            const getRedirectPath = () => {
-                // Check URL parameters first (from query string)
-                const urlParams = new URLSearchParams(location.search);
-                const redirectParam = urlParams.get('redirect') || urlParams.get('from');
+            // เพิ่มการ delay เล็กน้อยเพื่อให้ toast แสดงให้เห็น
+            const timeoutId = setTimeout(() => {
+                // Get the page user was trying to visit from URL params or location state
+                const getRedirectPath = () => {
+                    // Check URL parameters first (from query string)
+                    const urlParams = new URLSearchParams(location.search);
+                    const redirectParam = urlParams.get('redirect') || urlParams.get('from');
 
-                if (redirectParam) {
-                    // Decode and validate the redirect path
-                    try {
-                        const decodedPath = decodeURIComponent(redirectParam);
-                        // Ensure it's a valid internal path
-                        if (decodedPath.startsWith('/')) {
-                            return decodedPath;
+                    if (redirectParam) {
+                        // Decode and validate the redirect path
+                        try {
+                            const decodedPath = decodeURIComponent(redirectParam);
+                            // Ensure it's a valid internal path
+                            if (decodedPath.startsWith('/')) {
+                                return decodedPath;
+                            }
+                        } catch {
+                            // Invalid redirect params will be ignored and fallback path will be used
                         }
-                    } catch {
-                        // Invalid redirect params will be ignored and fallback path will be used
                     }
-                }
 
-                // Check location state (from navigation)
-                const fromState = location.state?.from?.pathname;
-                if (fromState) {
-                    return fromState;
-                }
+                    // Check location state (from navigation)
+                    const fromState = location.state?.from?.pathname;
+                    if (fromState) {
+                        return fromState;
+                    }
 
-                // Check document.referrer for article pages
-                try {
-                    const referrer = document.referrer;
-                    if (referrer) {
-                        const referrerUrl = new URL(referrer);
-                        // If same origin, use the path
-                        if (referrerUrl.origin === window.location.origin) {
-                            const path = referrerUrl.pathname;
-                            // If it's an article page, return to it
-                            if (path.startsWith('/post/') || path.startsWith('/Post/')) {
-                                return path;
+                    // Check document.referrer for article pages
+                    try {
+                        const referrer = document.referrer;
+                        if (referrer) {
+                            const referrerUrl = new URL(referrer);
+                            // If same origin, use the path
+                            if (referrerUrl.origin === window.location.origin) {
+                                const path = referrerUrl.pathname;
+                                // If it's an article page, return to it
+                                if (path.startsWith('/post/') || path.startsWith('/Post/')) {
+                                    return path;
+                                }
                             }
                         }
+                    } catch {
+                        // Log errors when parsing referrer to aid debugging in some browsers/environments
                     }
-                } catch {
-                    // Log errors when parsing referrer to aid debugging in some browsers/environments
-                }
 
-                // Default to home page
-                return "/";
-            };
+                    // Default to home page
+                    return "/";
+                };
 
-            const redirectPath = getRedirectPath();
-            navigate(redirectPath, { replace: true });
+                const redirectPath = getRedirectPath();
+                navigate(redirectPath, { replace: true });
+            }, 300); // delay 300ms เพื่อให้เห็น success toast
+
+            return () => clearTimeout(timeoutId);
         }
     }, [isAuthenticated, state.getUserLoading, navigate, location.search, location.state?.from?.pathname]);
 

@@ -14,11 +14,14 @@ import {
     Copy,
     Loader2,
     X,
+    Heart,
+    MessageCircle,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
+import { useAuth } from "@/contexts/authContext.js";
 import ProtectedAction from "./ProtectedAction";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -33,6 +36,7 @@ export default function ViewPost() {
     const [category, setCategory] = useState("");
     const [content, setContent] = useState("");
     const [likes, setLikes] = useState(0);
+    const [isLiked, setIsLiked] = useState(false); // เพิ่ม state สำหรับ like status
     const [author, setAuthor] = useState({ name: "Admin", image: null, id: 1, username: "admin" }); // เพิ่ม author state
     const [isLoading, setIsLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -40,26 +44,115 @@ export default function ViewPost() {
 
     const param = useParams();
     const navigate = useNavigate();
+    const { isAuthenticated, state } = useAuth(); // เพิ่ม useAuth hook
 
     useEffect(() => {
         getPost();
         getComments();
+        // ตรวจสอบ like status หากผู้ใช้ล็อกอินแล้ว
+        if (isAuthenticated && state.user?.id) {
+            checkLikeStatus();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isAuthenticated, state.user]);
 
     const getComments = async () => {
         try {
-            const response = await blogApi.getComments({ postId: param.postId });
+            const response = await blogApi.getComments({ postId: param.id });
             setPostComments(response.data);
         } catch {
             // Error handled by component error boundary
         }
     };
 
+    // ตรวจสอบว่าผู้ใช้ได้กดไลก์โพสต์นี้แล้วหรือยัง
+    const checkLikeStatus = async () => {
+        try {
+            const response = await blogApi.checkPostLike(param.id);
+            setIsLiked(response.isLiked || false);
+        } catch (error) {
+            console.error("Error checking like status:", error);
+        }
+    };
+
+    // จัดการการกดไลก์
+    const handleLike = async () => {
+        if (!isAuthenticated) {
+            toast.error("Please login to like this post", {
+                position: "bottom-right",
+                duration: 3000,
+            });
+            return;
+        }
+
+        try {
+            const response = await blogApi.likePost(param.id);
+            
+            if (response.success) {
+                // อัปเดต state ตาม response
+                setIsLiked(response.isLiked);
+                setLikes(response.likes_count);
+                
+                const message = response.isLiked ? "Post liked!" : "Post unliked!";
+                toast.success(message, {
+                    position: "bottom-right",
+                    duration: 2000,
+                });
+            }
+        } catch (error) {
+            console.error("Error liking post:", error);
+            toast.error("Failed to like post. Please try again.", {
+                position: "bottom-right",
+                duration: 3000,
+            });
+        }
+    };
+
+    // ส่ง comment
+    const handleSendComment = async (commentText, setComment, setIsError) => {
+        if (!isAuthenticated) {
+            toast.error("Please login to comment", {
+                position: "bottom-right",
+                duration: 3000,
+            });
+            return;
+        }
+
+        if (!commentText.trim()) {
+            setIsError(true);
+            return;
+        }
+
+        try {
+            const response = await blogApi.addComment({
+                postId: param.id,
+                content: commentText.trim()
+            });
+
+            if (response.success) {
+                toast.success("Comment added successfully!", {
+                    position: "bottom-right",
+                    duration: 2000,
+                });
+                
+                // เคลียร์ form และโหลดความคิดเห็นใหม่
+                setComment("");
+                setIsError(false);
+                getComments(); // รีเฟรชความคิดเห็น
+            }
+        } catch (error) {
+            console.error("Error adding comment:", error);
+            toast.error("Failed to add comment. Please try again.", {
+                position: "bottom-right",
+                duration: 3000,
+            });
+        }
+    };
+
     const getPost = async () => {
         setIsLoading(true);
         try {
-            const response = await blogApi.getPost(param.postId);
+            const response = await blogApi.getPost(param.id);
             const post = response.data || response.post || response;
             
             // Handle image URL properly
@@ -105,7 +198,13 @@ export default function ViewPost() {
     };
 
     if (isLoading) {
-        return <LoadingScreen />;
+        return (
+            <div className="max-w-7xl mx-auto">
+                <div className="flex items-center justify-center min-h-screen">
+                    <LoadingSpinner />
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -115,9 +214,14 @@ export default function ViewPost() {
                     src={(img && img.trim()) || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60'}
                     alt={title}
                     className="md:rounded-lg object-cover w-full h-[260px] sm:h-[340px] md:h-[587px]"
+                    onLoad={() => {
+                        // Image loaded successfully
+                    }}
                     onError={(e) => {
+                        // Fallback to default image if loading fails
                         e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
                     }}
+                    loading="lazy"
                 />
             </div>
             <div className="flex flex-col xl:flex-row gap-6">
@@ -309,8 +413,16 @@ export default function ViewPost() {
                         <AuthorBio author={author} />
                     </div>
 
-                    <Share likesAmount={likes} setDialogState={setIsDialogOpen} />
-                    <Comment setDialogState={setIsDialogOpen} postComments={postComments} />
+                    <Share 
+                        likesAmount={likes} 
+                        handleLike={handleLike} 
+                        isLiked={isLiked} 
+                    />
+                    <Comment 
+                        setDialogState={setIsDialogOpen} 
+                        postComments={postComments} 
+                        onSendComment={handleSendComment} 
+                    />
                 </div>
 
                 <div className="hidden xl:block xl:w-1/4">
@@ -327,7 +439,7 @@ export default function ViewPost() {
     );
 }
 
-function Share({ likesAmount, setDialogState }) {
+function Share({ likesAmount, handleLike, isLiked }) {
     const shareLink = encodeURI(window.location.href);
 
     return (
@@ -335,11 +447,25 @@ function Share({ likesAmount, setDialogState }) {
             <div className="bg-[#EFEEEB] py-4 px-4 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row md:items-center md:space-y-0 md:justify-between mb-10">
                 <ProtectedAction action="like this post">
                     <button
-                        onClick={() => setDialogState(true)}
-                        className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+                        onClick={handleLike}
+                        className={`bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full border transition-colors group ${
+                            isLiked 
+                                ? "text-red-500 border-red-500 hover:border-red-600 hover:text-red-600" 
+                                : "text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground"
+                        }`}
                     >
-                        <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
-                        <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
+                        <Heart 
+                            className={`w-5 h-5 transition-colors ${
+                                isLiked 
+                                    ? "text-red-500 fill-red-500 group-hover:text-red-600 group-hover:fill-red-600" 
+                                    : "text-foreground group-hover:text-muted-foreground"
+                            }`} 
+                        />
+                        <span className={`font-medium transition-colors ${
+                            isLiked 
+                                ? "text-red-500 group-hover:text-red-600" 
+                                : "text-foreground group-hover:text-muted-foreground"
+                        }`}>
                             {likesAmount}
                         </span>
                     </button>
@@ -399,25 +525,21 @@ function Share({ likesAmount, setDialogState }) {
     );
 }
 
-function Comment({ setDialogState, postComments }) {
+function Comment({ setDialogState, postComments, onSendComment }) {
     const [comment, setComment] = useState("");
     const [isError, setIsError] = useState(false);
-    const handleSendComment = (e) => {
+    
+    const handleSubmit = (e) => {
         e.preventDefault();
-        if (!comment.trim()) {
-            setIsError(true);
-        } else {
-            // Submit the comment
-            setIsError(false);
-            // Add the logic for what should happen after sending the comment
-        }
+        onSendComment(comment, setComment, setIsError);
     };
+
     return (
         <div>
             <div className="space-y-4 px-4 mb-16">
                 <h3 className="text-lg font-semibold">Comment</h3>
                 <ProtectedAction action="comment on this post">
-                    <form className="space-y-2" onSubmit={handleSendComment}>
+                    <form className="space-y-2" onSubmit={handleSubmit}>
                         <Textarea
                             value={comment}
                             onFocus={() => {

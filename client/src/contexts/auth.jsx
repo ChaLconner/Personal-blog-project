@@ -89,8 +89,7 @@ export function AuthProvider({ children }) {
         loading: false, 
         error: null,
         user: userResponse.data,
-        getUserLoading: false,
-        isAuthenticated: true // Ensure authentication state is set immediately
+        getUserLoading: false, // ตั้งค่า loading เป็น false ทันที
       }));
       
       // Return success to handle navigation in component
