@@ -5,7 +5,7 @@
       "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "client/dist"
+        "distDir": "dist"
       }
     }
   ],
@@ -20,8 +20,5 @@
   ],
   "env": {
     "VITE_API_URL": "https://your-api-domain.vercel.app"
-  },
-  "buildCommand": "cd client && npm run build",
-  "outputDirectory": "client/dist",
-  "installCommand": "cd client && npm install"
+  }
 }
