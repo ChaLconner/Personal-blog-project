@@ -1,5 +1,7 @@
 import express from "express";
 import { dbService } from "../config/database.js";
+import { likePost, checkPostLike } from "./posts.js";
+import protectUser from "../middlewares/protectUser.mjs";
 
 const router = express.Router();
 
@@ -141,6 +143,20 @@ router.get("/stats", async (req, res) => {
       stats: {} 
     });
   }
+});
+
+// POST /api/blog/posts/:id/like - Like/Unlike a post (requires authentication)
+router.post("/posts/:id/like", protectUser, async (req, res) => {
+  // Update the postId param to match the expected parameter name
+  req.params.postId = req.params.id;
+  return likePost(req, res);
+});
+
+// GET /api/blog/posts/:id/like - Check if user has liked a post (requires authentication)
+router.get("/posts/:id/like", protectUser, async (req, res) => {
+  // Update the postId param to match the expected parameter name
+  req.params.postId = req.params.id;
+  return checkPostLike(req, res);
 });
 
 export default router;
