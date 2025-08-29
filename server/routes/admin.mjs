@@ -115,8 +115,6 @@ adminRouter.post('/posts', requireAdmin, async (req, res) => {
   try {
     const { title, description, content, image, category, status, author } = req.body;
 
-    console.log('📝 Creating post with data:', { title, description, content, image, category, status, author });
-
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
     }
@@ -207,8 +205,6 @@ adminRouter.put('/posts/:id', requireAdmin, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     const { title, description, content, image, category, status, author } = req.body;
-
-    console.log('📝 Updating post with data:', { postId, title, description, content, image, category, status, author });
 
     if (!postId || isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });

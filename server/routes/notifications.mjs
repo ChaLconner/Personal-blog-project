@@ -13,7 +13,6 @@ const supabase = createClient(
 
 // Test endpoint
 router.get('/test', (req, res) => {
-  console.log('🧪 Test notifications endpoint called');
   res.json({ 
     success: true, 
     message: 'Notifications API is working',
@@ -38,8 +37,6 @@ router.post('/create-test/:userId', protectUser, async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    console.log('📝 Creating test notification:', testNotification);
-
     const { data, error } = await supabase
       .from('notifications')
       .insert([testNotification])
@@ -54,8 +51,6 @@ router.post('/create-test/:userId', protectUser, async (req, res) => {
         details: error.message 
       });
     }
-
-    console.log('✅ Test notification created:', data);
 
     res.json({ 
       success: true, 
@@ -77,13 +72,8 @@ router.get('/:userId', protectUser, async (req, res) => {
   try {
     const { userId } = req.params;
     
-    console.log('📩 Fetching notifications for user:', userId);
-    console.log('🔐 Request user ID:', req.userId);
-    console.log('👤 Request user role:', req.user?.role);
-    
     // Verify user owns the notifications or is admin
     if (req.userId !== userId && req.user.role !== 'admin') {
-      console.log('❌ Access denied for user:', req.userId, 'trying to access:', userId);
       return res.status(403).json({ 
         success: false, 
         error: 'Access denied' 
@@ -91,7 +81,6 @@ router.get('/:userId', protectUser, async (req, res) => {
     }
 
     // First, try a simple query to check if notifications table exists
-    console.log('🔍 Checking notifications table...');
     const { data: simpleCheck, error: simpleError } = await supabase
       .from('notifications')
       .select('id')
@@ -105,8 +94,6 @@ router.get('/:userId', protectUser, async (req, res) => {
         details: simpleError.message 
       });
     }
-
-    console.log('✅ Notifications table accessible');
 
     // Try the main query with simpler joins first
     const { data: notifications, error } = await supabase
@@ -135,8 +122,6 @@ router.get('/:userId', protectUser, async (req, res) => {
         details: error.message 
       });
     }
-
-    console.log(`✅ Found ${notifications?.length || 0} notifications`);
 
     // Format notifications for client (simplified for now)
     const formattedNotifications = (notifications || []).map(notification => ({
