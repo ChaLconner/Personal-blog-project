@@ -3,7 +3,7 @@ import cors from 'cors';
 
 // Import all routes
 import authRoutes from '../server/routes/auth.mjs';
-import adminRoutes from '../server/routes/admin.mjs';
+import adminRoutes from '../server/routes/admin.mjs'; 
 import uploadRoutes from '../server/routes/upload.mjs';
 import blogRoutes from '../server/routes/blogRouter.js';
 import postRoutes from '../server/routes/posts.js';
@@ -15,7 +15,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://personal-blog-project-six.vercel.app',
-    ],
+  ],
   credentials: true
 }));
 
@@ -55,4 +55,5 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Export for Vercel
 export default app;

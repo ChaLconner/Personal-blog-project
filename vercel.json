@@ -1,59 +1,44 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/dist", 
+  "installCommand": "cd client && npm install",
+  "framework": "vite",
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs20.x"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/auth/(.*)",
-      "dest": "/api/index.js"
+      "source": "/auth/(.*)", 
+      "destination": "/api/index.js"
     },
     {
-      "src": "/admin/(.*)",
-      "dest": "/api/index.js"
+      "source": "/admin/(.*)",
+      "destination": "/api/index.js" 
     },
     {
-      "src": "/upload/(.*)",
-      "dest": "/api/index.js"
+      "source": "/upload/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/blog/(.*)",
-      "dest": "/api/index.js"
+      "source": "/blog/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "src": "/posts/(.*)",
-      "dest": "/api/index.js"
+      "source": "/posts/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/index.html"
+      "source": "/((?!assets|vite\\.svg|favicon\\.ico).*)",
+      "destination": "/index.html"
     }
   ],
   "env": {
-    "VITE_API_URL": "https://personal-blog-project-six.vercel.app",
-    "NODE_ENV": "production",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "SUPABASE_SERVICE_KEY": "@supabase_service_key"
-  },
-  "installCommand": "cd client && npm install",
-  "buildCommand": "cd client && npm run build",
-  "outputDirectory": "client/dist"
+    "VITE_API_URL": "https://personal-blog-project-six.vercel.app"
+  }
 }
