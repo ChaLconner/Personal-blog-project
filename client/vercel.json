@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    { 
+      "source": "/(.*)", 
+      "destination": "/" 
+    }
+  ],
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "cd client && npm install",
+  "framework": "vite",
+  "rootDirectory": "./",
+  "env": {
+    "VITE_API_URL": "@vite_api_url"
+  }
+}
