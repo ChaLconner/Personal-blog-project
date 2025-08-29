@@ -51,13 +51,13 @@ CLIENT_URL=https://personal-blog-project-six.vercel.app
 
 ## 🎯 **URLs After Deployment**
 - **Frontend**: `https://personal-blog-project-six.vercel.app`
-- **Backend API**: `https://personal-blog-project.onrender.com`
-- **Health Check**: `https://personal-blog-project.onrender.com/health`
+- **Backend API**: `https://personal-blog-project-server.onrender.com`
+- **Health Check**: `https://personal-blog-project-server.onrender.com/health`
 
 ## ✅ **Verification Steps**
 
 1. **Frontend**: Visit your Vercel URL and check if it loads
-2. **Backend**: Visit `https://personal-blog-project.onrender.com/health`
+2. **Backend**: Visit `https://personal-blog-project-server.onrender.com/health`
 3. **Integration**: Test login/signup from frontend to ensure API connection
 4. **Blog Posts**: Check if articles load properly
 

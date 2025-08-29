@@ -1,7 +1,7 @@
 version: "1"
 services:
   - type: web
-    name: personal-blog-api
+    name: personal-blog-project-server
     runtime: node
     plan: free
     rootDir: ./server
