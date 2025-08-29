@@ -55,7 +55,7 @@ export default function AdminEditArticlePage() {
                 });
                 
                 if (post.image) {
-                    setImagePreview(post.image.startsWith('http') ? post.image : `http://localhost:3001${post.image}`);
+                    setImagePreview(post.image.startsWith('http') ? post.image : `https://personal-blog-project-server.onrender.com${post.image}`);
                 }
                 
             } else {
@@ -140,7 +140,7 @@ export default function AdminEditArticlePage() {
         } catch (error) {
             console.error('Upload error:', error);
             toast.error('Failed to upload image');
-            setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `http://localhost:3001${formData.image}`) : null);
+            setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `https://personal-blog-project-server.onrender.com${formData.image}`) : null);
             setImageFile(null);
         } finally {
             setUploading(false);

@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
     try {
       setState((prevState) => ({ ...prevState, getUserLoading: true }));
       const response = await axios.get(
-        "http://localhost:3001/auth/get-user",
+        "https://personal-blog-project-server.onrender.com/auth/get-user",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       const response = await axios.post(
-        "http://localhost:3001/auth/login",
+        "https://personal-blog-project-server.onrender.com/auth/login",
         data
       );
       
@@ -70,7 +70,7 @@ export function AuthProvider({ children }) {
 
       // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
       const userResponse = await axios.get(
-        "http://localhost:3001/auth/get-user",
+        "https://personal-blog-project-server.onrender.com/auth/get-user",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -114,7 +114,7 @@ export function AuthProvider({ children }) {
     }
     try {
       const { data } = await axios.post(
-        "http://localhost:3001/auth/resend-verification",
+        "https://personal-blog-project-server.onrender.com/auth/resend-verification",
         { email }
       );
       return { success: true, message: data?.message || "Verification email sent" };
@@ -131,7 +131,7 @@ export function AuthProvider({ children }) {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       
       await axios.post(
-        "http://localhost:3001/auth/register",
+        "https://personal-blog-project-server.onrender.com/auth/register",
         data
       );
       

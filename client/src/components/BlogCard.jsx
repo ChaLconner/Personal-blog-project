@@ -17,7 +17,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
     
     // If it's a relative path (uploaded file), prepend server URL
     if (image.startsWith('/uploads/')) {
-      return `http://localhost:3001${image}`;
+      return `https://personal-blog-project-server.onrender.com${image}`;
     }
     
     // Default fallback

@@ -65,7 +65,7 @@ export default function ViewPost() {
             // Handle image URL properly
             let imageUrl = post.image;
             if (imageUrl && !imageUrl.startsWith('http') && imageUrl.startsWith('/uploads/')) {
-                imageUrl = `http://localhost:3001${imageUrl}`;
+                imageUrl = `https://personal-blog-project-server.onrender.com${imageUrl}`;
             }
             
             setImg(imageUrl || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60');
