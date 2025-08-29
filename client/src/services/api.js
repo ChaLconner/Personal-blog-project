@@ -1,8 +1,12 @@
 import axios from 'axios';
 
 // Base API URL - เปลี่ยนเป็น backend server ของคุณ
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? 'https://personal-blog-project-server.onrender.com' : 'http://localhost:3001');
+// Force production URL for deployment testing
+const API_BASE_URL = 'https://personal-blog-project-server.onrender.com';
+
+// Original code for later use:
+// const API_BASE_URL = import.meta.env.VITE_API_URL || 
+//   (import.meta.env.PROD ? 'https://personal-blog-project-server.onrender.com' : 'http://localhost:3001');
 
 // Debug: Log API URL in development
 if (import.meta.env.DEV) {
