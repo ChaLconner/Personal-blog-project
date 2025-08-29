@@ -13,7 +13,7 @@
 3. Frontend will be available at: `https://personal-blog-project-six.vercel.app`
 
 ### **Environment Variables (Vercel):**
-- `VITE_API_URL`: `https://personal-blog-project.onrender.com`
+- `VITE_API_URL`: `https://personal-blog-project-server.onrender.com`
 
 ## 🖥️ **Render Deployment (Backend)**
 
