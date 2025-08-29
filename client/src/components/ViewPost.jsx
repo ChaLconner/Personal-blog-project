@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { useEffect, useState, Suspense, lazy } from "react";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -21,6 +20,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
 import ProtectedAction from "./ProtectedAction";
+import LoadingSpinner from "./LoadingSpinner";
+
+// Lazy load ReactMarkdown (heavy dependency)
+const ReactMarkdown = lazy(() => import("react-markdown"));
 
 export default function ViewPost() {
     const [img, setImg] = useState("");
@@ -142,19 +145,20 @@ export default function ViewPost() {
                         <h1 className="text-3xl font-bold">{title}</h1>
                         <p className="mt-4 mb-10 text-lg text-gray-600 leading-relaxed">{description}</p>
                         <div className="markdown-content text-gray-700 leading-relaxed">
-                            <ReactMarkdown
-                                components={{
-                                    // Headings with proper hierarchy
-                                    h1: ({children}) => (
-                                        <h1 className="text-3xl font-bold mb-6 mt-8 text-gray-900 border-b-2 border-gray-200 pb-3 first:mt-0">
-                                            {children}
-                                        </h1>
-                                    ),
-                                    h2: ({children}) => (
-                                        <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
-                                            {children}
-                                        </h2>
-                                    ),
+                            <Suspense fallback={<LoadingSpinner />}>
+                                <ReactMarkdown
+                                    components={{
+                                        // Headings with proper hierarchy
+                                        h1: ({children}) => (
+                                            <h1 className="text-3xl font-bold mb-6 mt-8 text-gray-900 border-b-2 border-gray-200 pb-3 first:mt-0">
+                                                {children}
+                                            </h1>
+                                        ),
+                                        h2: ({children}) => (
+                                            <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
+                                                {children}
+                                            </h2>
+                                        ),
                                     h3: ({children}) => (
                                         <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">
                                             {children}
@@ -304,8 +308,9 @@ export default function ViewPost() {
                             >
                                 {content}
                             </ReactMarkdown>
-                        </div>
-                    </article>
+                        </Suspense>
+                    </div>
+                </article>
 
                     <div className="xl:hidden px-4">
                         <AuthorBio author={author} />
