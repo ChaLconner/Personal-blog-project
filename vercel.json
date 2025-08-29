@@ -3,42 +3,24 @@
   "outputDirectory": "client/dist", 
   "installCommand": "cd client && npm install",
   "framework": "vite",
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/auth/(.*)", 
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/api/index.js" 
-    },
-    {
-      "source": "/upload/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/blog/(.*)",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/posts/(.*)",
-      "destination": "/api/index.js"
-    },
     {
       "source": "/((?!assets|vite\\.svg|favicon\\.ico).*)",
       "destination": "/index.html"
     }
   ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control", 
+          "value": "public, immutable, max-age=31536000"
+        }
+      ]
+    }
+  ],
   "env": {
-    "VITE_API_URL": "https://personal-blog-project-six.vercel.app"
+    "VITE_API_URL": "https://personal-blog-project.onrender.com"
   }
 }
