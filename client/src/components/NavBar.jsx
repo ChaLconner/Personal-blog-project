@@ -48,8 +48,9 @@ function NavBar() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, user?.id]);
 
-    // Get unread notification count
-    const unreadCount = notifications.filter(notif => !notif.read).length;
+    // Ensure notifications is an array (defensive guard) and get unread notification count
+    const safeNotifications = Array.isArray(notifications) ? notifications : (notifications ? [notifications] : []);
+    const unreadCount = safeNotifications.filter(notif => !notif.read).length;
 
     const handleMarkAsRead = async (notificationId) => {
         try {
@@ -162,7 +163,7 @@ function NavBar() {
 
         return (
             <div className="flex items-center">
-                {avatarData.startsWith('http') ? (
+                {typeof avatarData === 'string' && avatarData.startsWith('http') ? (
                     <img
                         src={avatarData}
                         alt="User Avatar"
@@ -236,13 +237,13 @@ function NavBar() {
                                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                                             Loading notifications...
                                         </div>
-                                    ) : notifications.length === 0 ? (
+                                    ) : safeNotifications.length === 0 ? (
                                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                                             No notifications
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
-                                            {notifications.slice(0, 3).map((notification) => (
+                                            {safeNotifications.slice(0, 3).map((notification) => (
                                                 <div
                                                     key={notification.id}
                                                     className={`p-3 rounded-lg border transition-colors cursor-pointer ${notification.read

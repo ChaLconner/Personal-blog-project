@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createNewArticleNotification } from '../utils/notificationHelpers.mjs';
 import process from "process";
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -228,6 +229,21 @@ export const dbService = {
 
       if (error) {
         throw new Error(`Error creating post: ${error.message}`);
+      }
+
+      // Best-effort: create notifications for new article publication.
+      // If postData contains an author id, use it; otherwise skip notification to avoid guessing.
+      try {
+        const authorId = postData.author_id || postData.authorId || postData.user_id || null;
+        // Only trigger if we have a numeric authorId and post is published
+        if (authorId) {
+          // Fire-and-forget; don't await to avoid blocking
+          createNewArticleNotification(authorId, data.id, data.title).catch(err => {
+            console.error('Error creating new article notifications (async):', err);
+          });
+        }
+      } catch (notifErr) {
+        console.error('Error attempting to create new article notification:', notifErr);
       }
 
       return data;

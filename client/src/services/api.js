@@ -249,6 +249,88 @@ const clearCache = () => {
   cache.clear();
 };
 
+// Per-user persisted metadata for incremental notification fetches
+const NOTIF_META_PREFIX = 'notif_meta_';
+
+const loadNotifMeta = (userId) => {
+  try {
+    const raw = localStorage.getItem(`${NOTIF_META_PREFIX}${userId}`);
+    if (!raw) return { etag: null, lastChecked: null };
+    const parsed = JSON.parse(raw);
+    return { etag: parsed?.etag || null, lastChecked: parsed?.lastChecked || null };
+  } catch (err) {
+    console.error('Failed to load notification meta for', userId, err);
+    return { etag: null, lastChecked: null };
+  }
+};
+
+const saveNotifMeta = (userId, { etag, lastChecked }) => {
+  try {
+    const payload = { etag: etag || null, lastChecked: lastChecked || null };
+    localStorage.setItem(`${NOTIF_META_PREFIX}${userId}`, JSON.stringify(payload));
+  } catch (err) {
+    console.error('Failed to save notification meta for', userId, err);
+  }
+};
+
+// Centralized error handler for API helpers
+const handleApiError = (error, action) => {
+  console.error(`❌ Error ${action}:`, error);
+  return { success: false, data: [], error: error?.message || 'Unknown error' };
+};
+
+// Fetch notifications using ETag / If-Modified-Since and incremental params
+const fetchNotificationsIncremental = async (userId) => {
+  try {
+    if (!userId) return { success: false, data: [], error: 'User ID is required' };
+
+    const { etag: lastETagLocal, lastChecked: lastCheckedLocal } = loadNotifMeta(userId);
+
+    const headers = {};
+    if (lastETagLocal) headers['If-None-Match'] = lastETagLocal;
+    if (lastCheckedLocal) headers['If-Modified-Since'] = new Date(lastCheckedLocal).toUTCString();
+
+    const response = await requestWithRetries(
+      () => api.get(`/notifications/${userId}`, {
+        timeout: 30000,
+        headers,
+        params: lastCheckedLocal ? { since: lastCheckedLocal } : {},
+      }),
+      { attempts: 3, initialDelay: 400 }
+    );
+
+    // 304 Not Modified means no new notifications
+    if (response.status === 304) {
+      const now = new Date().toISOString();
+      saveNotifMeta(userId, { etag: lastETagLocal, lastChecked: now });
+      // Always return data as an array to keep client components safe
+      return { success: true, data: [], message: 'No notifications' };
+    }
+
+    // Update ETag and lastChecked from response
+    const newEtag = response.headers && response.headers['etag'] ? response.headers['etag'] : lastETagLocal;
+    const now = new Date().toISOString();
+    saveNotifMeta(userId, { etag: newEtag, lastChecked: now });
+
+    // Normalize response.data to an array for backwards compatibility
+    const payload = response.data;
+    if (payload == null) {
+      return { success: true, data: [] };
+    }
+
+    // If server returned an object with { success, data, ... } unwrap it
+    if (typeof payload === 'object' && !Array.isArray(payload) && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+      const inner = payload.data;
+      return { success: !!payload.success, data: Array.isArray(inner) ? inner : (inner ? [inner] : []) };
+    }
+
+    // If it's already an array, return as-is; otherwise wrap single item
+    return { success: true, data: Array.isArray(payload) ? payload : [payload] };
+  } catch (error) {
+    return handleApiError(error, 'fetching notifications');
+  }
+};
+
 // API service functions
 export const blogApi = {
   // Auth helper functions
@@ -606,45 +688,35 @@ export const blogApi = {
     }
   },
 
-  // Notification functions
+  // Notification functions (incremental fetch + centralized error handling)
   getNotifications: async (userId) => {
-    try {
-  // Use a shorter per-request timeout and retry transient errors
-  const response = await requestWithRetries(() => api.get(`/notifications/${userId}`, { timeout: 8000 }), { attempts: 3, initialDelay: 400 });
-  return response.data;
-    } catch (error) {
-  console.error('❌ Error fetching notifications:', error);
-  return { success: false, data: [], error: error.message };
-    }
+    return fetchNotificationsIncremental(userId);
   },
 
   markNotificationAsRead: async (notificationId) => {
     try {
       const response = await api.put(`/notifications/${notificationId}/read`);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error marking notification as read:', error);
-      return { success: false, error: error.message };
+      return handleApiError(error, 'marking notification as read');
     }
   },
 
   markAllNotificationsAsRead: async (userId) => {
     try {
       const response = await api.put(`/notifications/user/${userId}/read-all`);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      return { success: false, error: error.message };
+      return handleApiError(error, 'marking all notifications as read');
     }
   },
 
   createNotification: async (notificationData) => {
     try {
       const response = await api.post('/notifications', notificationData);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error('Error creating notification:', error);
-      return { success: false, error: error.message };
+      return handleApiError(error, 'creating notification');
     }
   },
 
@@ -784,52 +856,27 @@ export const blogApi = {
   // Notifications management
   notifications: {
     getAll: async (userId) => {
-      try {
-        const response = await api.get(`/notifications/${userId}`);
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-        return { success: false, data: [], error: error.message };
-      }
+      return blogApi.getNotifications(userId);
     },
 
     markAsRead: async (notificationId) => {
-      try {
-        const response = await api.put(`/notifications/${notificationId}/read`);
-        return response.data;
-      } catch (error) {
-        console.error('Error marking notification as read:', error);
-        return { success: false, error: error.message };
-      }
+      return blogApi.markNotificationAsRead(notificationId);
     },
 
     markAllAsRead: async (userId) => {
-      try {
-        const response = await api.put(`/notifications/user/${userId}/read-all`);
-        return response.data;
-      } catch (error) {
-        console.error('Error marking all notifications as read:', error);
-        return { success: false, error: error.message };
-      }
+      return blogApi.markAllNotificationsAsRead(userId);
     },
 
     create: async (notificationData) => {
-      try {
-        const response = await api.post('/notifications', notificationData);
-        return response.data;
-      } catch (error) {
-        console.error('Error creating notification:', error);
-        return { success: false, error: error.message };
-      }
+      return blogApi.createNotification(notificationData);
     },
 
     delete: async (notificationId) => {
       try {
         const response = await api.delete(`/notifications/${notificationId}`);
-        return response.data;
+        return { success: true, data: response.data };
       } catch (error) {
-        console.error('Error deleting notification:', error);
-        return { success: false, error: error.message };
+        return handleApiError(error, 'deleting notification');
       }
     },
 
