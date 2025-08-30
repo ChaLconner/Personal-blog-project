@@ -1,16 +1,5 @@
 import { Loader2 } from "lucide-react";
 
-export default function LoadingSpinner({ className = "" }) {
-  return (
-    <div className={`flex items-center justify-center min-h-[200px] ${className}`}>
-      <div className="flex flex-col items-center">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-        <p className="mt-2 text-sm text-gray-500">Loading...</p>
-      </div>
-    </div>
-  );
-}
-
 // Page loading spinner for full page loads
 export function PageLoadingSpinner() {
   return (

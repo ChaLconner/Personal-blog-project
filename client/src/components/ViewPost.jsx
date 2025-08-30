@@ -20,7 +20,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
 import ProtectedAction from "./ProtectedAction";
-import LoadingSpinner from "./LoadingSpinner";
+import { PageLoadingSpinner } from "@/components/LoadingSpinner";
 
 // Lazy load ReactMarkdown (heavy dependency)
 const ReactMarkdown = lazy(() => import("react-markdown"));
@@ -105,7 +105,7 @@ export default function ViewPost() {
     };
 
     if (isLoading) {
-        return <LoadingScreen />;
+        return <PageLoadingSpinner />;
     }
 
     return (
@@ -138,7 +138,12 @@ export default function ViewPost() {
                         <h1 className="text-3xl font-bold">{title}</h1>
                         <p className="mt-4 mb-10 text-lg text-gray-600 leading-relaxed">{description}</p>
                         <div className="markdown-content text-gray-700 leading-relaxed">
-                            <Suspense fallback={<LoadingSpinner />}>
+                            <Suspense fallback={
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+                                    <span className="ml-2 text-sm text-gray-500">Loading...</span>
+                                </div>
+                            }>
                                 <ReactMarkdown
                                     components={{
                                         // Headings with proper hierarchy
@@ -547,13 +552,4 @@ function CreateAccountModal({ dialogState, setDialogState }) {
     );
 }
 
-function LoadingScreen() {
-    return (
-        <div className="fixed inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center">
-                <Loader2 className="w-16 h-16 animate-spin text-foreground" />
-                <p className="mt-4 text-lg font-semibold">Loading...</p>
-            </div>
-        </div>
-    );
-}
+// removed local LoadingScreen in favor of shared PageLoadingSpinner

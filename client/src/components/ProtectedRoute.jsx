@@ -10,8 +10,19 @@ const ProtectedRoute = ({
   requireAdmin = false
 }) => {
   const location = useLocation();
+  const hasStoredToken = (() => {
+    try {
+      return Boolean(
+        (typeof window !== 'undefined') &&
+        (localStorage.getItem('token') || localStorage.getItem('authToken'))
+      );
+    } catch {
+      return false;
+    }
+  })();
 
-  if (isLoading === null || isLoading) {
+  // Avoid redirects while auth is resolving or when a token exists but state hasn't authenticated yet
+  if (isLoading === null || isLoading || (hasStoredToken && !isAuthenticated)) {
     // แสดง loading แบบ inline แทน LoadingScreen
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -43,7 +54,8 @@ const ProtectedRoute = ({
 
   // ตรวจสอบ role โดยใช้ requiredRole (flexible role checking)
   if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/login" replace />;
+    // For role mismatch, send to home instead of login to prevent confusing redirects
+    return <Navigate to="/" replace />;
   }
 
   // ผู้ใช้มีการยืนยันตัวตนและมีบทบาทที่ถูกต้อง
