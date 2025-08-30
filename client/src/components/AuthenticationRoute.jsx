@@ -3,30 +3,48 @@ import { Navigate, useLocation } from "react-router-dom";
 function AuthenticationRoute({ isLoading, isAuthenticated, userRole, children }) {
   const location = useLocation();
   
-  // ข้าม loading state - ไม่แสดงหน้า checking authentication
-  if (isLoading === null || isLoading) {
-    // ถ้ายังโหลดอยู่ ให้แสดง children ไปก่อน (หรือ return null หากไม่ต้องการแสดงอะไร)
-    return children;
-  }
+  // ระหว่างโหลดสถานะ ให้แสดง children ได้ (เสถียรกว่าใน flow ปัจจุบัน)
+  if (isLoading === null || isLoading) return children;
 
   if (isAuthenticated) {
-    // ตรวจสอบว่าเป็น admin route หรือไม่
     const isAdminRoute = location.pathname.startsWith('/admin');
-    
+
+    // ถ้าเส้นทางเป็น admin และผู้ใช้เป็น admin -> ไปหน้า dashboard
     if (isAdminRoute && userRole === 'admin') {
-      // ถ้าเป็น admin route และผู้ใช้มี role admin ให้ redirect ไป admin dashboard
       return <Navigate to="/admin/article-management" replace />;
-    } else if (isAdminRoute && userRole !== 'admin') {
-      // ถ้าเป็น admin route แต่ผู้ใช้ไม่ใช่ admin ให้ redirect ไปหน้าแรก
-      return <Navigate to="/" replace />;
-    } else if (location.pathname === '/login') {
-      // ถ้าเป็นหน้า login ไม่ต้อง redirect ทันที ให้ LoginPage จัดการเอง
-      // เพื่อป้องกัน flash ของหน้า profile
-      return null;
-    } else {
-      // สำหรับหน้าอื่นๆ เช่น signup ให้ redirect ไปหน้าโปรไฟล์
-      return <Navigate to="/profile" replace />;
     }
+    // ถ้าเป็น admin route แต่ไม่ใช่ admin -> กลับหน้าแรก
+    if (isAdminRoute && userRole !== 'admin') {
+      return <Navigate to="/" replace />;
+    }
+
+    // หากตอนนี้อยู่ที่ /login และล็อกอินแล้ว ให้คำนวณปลายทางและนำทางทันที (เลี่ยงหน้าโล่ง)
+    if (location.pathname === '/login') {
+      const params = new URLSearchParams(location.search);
+      const rawRedirect = params.get('redirect') || params.get('from') || '';
+      let target = '/';
+      try {
+        const decoded = decodeURIComponent(rawRedirect || '');
+        if (decoded && decoded.startsWith('/')) target = decoded;
+      } catch {
+        // ignore invalid redirect param
+      }
+
+      // กัน non-admin ถูกส่งไป admin อีกครั้ง
+      if (target.startsWith('/admin') && userRole !== 'admin') {
+        target = '/';
+      }
+
+      // รองรับ state.from หากไม่มี redirect param
+      if (target === '/' && location.state?.from?.pathname) {
+        target = location.state.from.pathname;
+      }
+
+      return <Navigate to={target} replace />;
+    }
+
+    // เคสอื่น ๆ (เช่น /signup, /signup-success) -> กลับหน้าแรกหรือโปรไฟล์ตามที่ต้องการ
+    return <Navigate to="/" replace />;
   }
 
   // ผู้ใช้ยังไม่ได้ล็อกอิน สามารถเข้าถึงหน้านี้ได้

@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
     confirmNewPassword: true,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { state } = useAuth();
+  const { state, logout } = useAuth();
 
   // Helper function to generate user initials (consistent with other pages)
   const getUserInitials = (user) => {
@@ -67,7 +67,7 @@ export default function ResetPasswordPage() {
         newPassword: newPassword,
       });
 
-      if (response.success) {
+  if (response.success) {
 
         toast.custom((t) => (
           <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
@@ -91,6 +91,14 @@ export default function ResetPasswordPage() {
         setPassword("");
         setNewPassword("");
         setConfirmNewPassword("");
+
+        // For security, log out and redirect to login to sign in with the new password
+        try {
+          await logout();
+        } catch {
+          // ignore logout errors
+        }
+        navigate("/login?redirect=/profile", { replace: true });
       } else {
         throw new Error(response.error || 'Password reset failed');
       }
@@ -268,7 +276,7 @@ export default function ResetPasswordPage() {
                 </div>
                 <button
                   type="submit"
-                  className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                  className="px-8 py-2 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors"
                 >
                   Reset password
                 </button>
