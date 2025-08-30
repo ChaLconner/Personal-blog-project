@@ -4,17 +4,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import helmet from 'helmet';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
-// Rate limiting (basic, can be tuned per route)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
 
 // Load environment variables first
 dotenv.config();
@@ -36,10 +25,40 @@ const __dirname = path.dirname(__filename);
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
-
 // Middleware
-app.use(helmet());
-app.use(compression());
+// Try to load optional security/performance middlewares dynamically so the
+// server can still start if they aren't installed in the environment.
+(async () => {
+  try {
+    const helmetModule = await import('helmet');
+    const helmetFn = helmetModule.default || helmetModule;
+    app.use(helmetFn());
+  } catch (err) {
+    console.warn('Optional dependency "helmet" not available — skipping.');
+  }
+
+  try {
+    const compressionModule = await import('compression');
+    const compressionFn = compressionModule.default || compressionModule;
+    app.use(compressionFn());
+  } catch (err) {
+    console.warn('Optional dependency "compression" not available — skipping.');
+  }
+
+  try {
+    const rateLimitModule = await import('express-rate-limit');
+    const rateLimitFn = rateLimitModule.default || rateLimitModule;
+    const limiter = rateLimitFn({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 200,
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
+    app.use(limiter);
+  } catch (err) {
+    console.warn('Optional dependency "express-rate-limit" not available — skipping.');
+  }
+})();
 app.use(cors({
   origin: [
     'http://localhost:5173',

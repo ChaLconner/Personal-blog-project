@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import NavBar from "@/components/NavBar";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
@@ -8,6 +8,8 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [isWakingServer, setIsWakingServer] = useState(false);
+    const wakeTimeoutRef = useRef(null);
     const [, setError] = useState("");
     const [requiresVerification, setRequiresVerification] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
@@ -109,35 +111,38 @@ export default function LoginPage() {
         setError("");
         setValidationErrors({});
 
-        // Validate form first
         if (!validateForm()) {
             return;
         }
 
         setIsLoading(true);
+        setIsWakingServer(false);
+
+        // Show 'waking up server' if login takes >1.2s
+        wakeTimeoutRef.current = setTimeout(() => {
+            setIsWakingServer(true);
+        }, 1200);
 
         try {
             const result = await login({ email, password });
+            clearTimeout(wakeTimeoutRef.current);
+            setIsWakingServer(false);
             if (result.success) {
-                // Show success toast
                 toast.success("Login successful! Welcome back!", {
                     position: "bottom-right",
                     duration: 1500,
                 });
-
-                // The redirect will be handled by useEffect when isAuthenticated becomes true
-                // No need to manually navigate here
             } else if (result.error) {
                 setError(result.error);
-                
-                // Check if it's an authentication error and show appropriate message
                 const authErrorMessage = result.error.toLowerCase();
-                if (authErrorMessage.includes('invalid') || 
-                    authErrorMessage.includes('wrong') || 
+                if (
+                    authErrorMessage.includes('invalid') ||
+                    authErrorMessage.includes('wrong') ||
                     authErrorMessage.includes('incorrect') ||
                     authErrorMessage.includes('not found') ||
                     authErrorMessage.includes('password') ||
-                    authErrorMessage.includes('email')) {
+                    authErrorMessage.includes('email')
+                ) {
                     toast.error("Your password is incorrect or this email doesn't exist", {
                         position: "bottom-right",
                         duration: 4000,
@@ -154,15 +159,14 @@ export default function LoginPage() {
                         duration: 4000,
                     });
                 }
-                
                 setRequiresVerification(Boolean(result.requiresVerification));
             }
         } catch (error) {
+            clearTimeout(wakeTimeoutRef.current);
+            setIsWakingServer(false);
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
             setRequiresVerification(false);
-            
-            // Show generic authentication error message
             toast.error("Your password is incorrect or this email doesn't exist", {
                 position: "bottom-right",
                 duration: 4000,
@@ -256,7 +260,11 @@ export default function LoginPage() {
                                 disabled={isLoading}
                                 className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isLoading ? "Logging in..." : "Log in"}
+                                {isLoading
+                                    ? isWakingServer
+                                        ? "Waking up server..."
+                                        : "Logging in..."
+                                    : "Log in"}
                             </button>
                             <button
                                 type="button"
