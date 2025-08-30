@@ -19,8 +19,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
+import { formatDateTimeAt } from "@/utils/dateFormatter";
 import ProtectedAction from "./ProtectedAction";
 import { PageLoadingSpinner } from "@/components/LoadingSpinner";
+import { useAuth } from "@/contexts/authContext.js";
 
 // Lazy load ReactMarkdown (heavy dependency)
 const ReactMarkdown = lazy(() => import("react-markdown"));
@@ -50,7 +52,9 @@ export default function ViewPost() {
     const getComments = async () => {
         try {
             const response = await blogApi.getComments({ postId: param.postId });
-            setPostComments(response.data);
+            // API returns { success, data: [...], count }
+            const list = Array.isArray(response?.data) ? response.data : response?.data?.data;
+            setPostComments(Array.isArray(list) ? list : []);
         } catch {
             // Error handled by component error boundary
         }
@@ -61,22 +65,22 @@ export default function ViewPost() {
         try {
             const response = await blogApi.getPost(param.postId);
             const post = response.data || response.post || response;
-            
+
             // Handle image URL properly
             let imageUrl = post.image;
             if (imageUrl && !imageUrl.startsWith('http') && imageUrl.startsWith('/uploads/')) {
                 imageUrl = `https://personal-blog-project-server.onrender.com${imageUrl}`;
             }
-            
+
             setImg(imageUrl || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60');
             setTitle(post.title || 'Untitled');
             setDate(post.date || new Date().toISOString());
             setDescription(post.description || 'No description available');
             setCategory(post.category || 'General');
-            
+
             // Process content to handle literal \n characters
             let processedContent = post.content || 'No content available';
-            
+
             // Replace literal \\n with actual line breaks (double backslash case)
             if (typeof processedContent === 'string') {
                 processedContent = processedContent
@@ -86,7 +90,7 @@ export default function ViewPost() {
                     .trim();                  // Remove extra whitespace
             }
             setContent(processedContent);
-            
+
             // Enhanced author handling with better type checking
             if (post.author && typeof post.author === 'object') {
                 setAuthor(post.author);
@@ -95,7 +99,7 @@ export default function ViewPost() {
             } else {
                 setAuthor({ name: "Admin", image: null, id: 1, username: "admin" });
             }
-            
+
             setLikes(post.likes_count || post.likes || 0);
             setIsLoading(false);
         } catch {
@@ -147,175 +151,180 @@ export default function ViewPost() {
                                 <ReactMarkdown
                                     components={{
                                         // Headings with proper hierarchy
-                                        h1: ({children}) => (
+                                        h1: ({ children }) => (
                                             <h1 className="text-3xl font-bold mb-6 mt-8 text-gray-900 border-b-2 border-gray-200 pb-3 first:mt-0">
                                                 {children}
                                             </h1>
                                         ),
-                                        h2: ({children}) => (
+                                        h2: ({ children }) => (
                                             <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-900 border-b border-gray-200 pb-2">
                                                 {children}
                                             </h2>
                                         ),
-                                    h3: ({children}) => (
-                                        <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">
-                                            {children}
-                                        </h3>
-                                    ),
-                                    h4: ({children}) => (
-                                        <h4 className="text-lg font-semibold mb-2 mt-4 text-gray-900">
-                                            {children}
-                                        </h4>
-                                    ),
-                                    
-                                    // Paragraphs with better spacing
-                                    p: ({children}) => (
-                                        <p className="mb-6 leading-7 text-gray-700 tracking-wide text-base">
-                                            {children}
-                                        </p>
-                                    ),
-                                    
-                                    // Lists
-                                    ul: ({children}) => (
-                                        <ul className="mb-6 pl-6 space-y-2 list-disc text-gray-700">
-                                            {children}
-                                        </ul>
-                                    ),
-                                    ol: ({children}) => (
-                                        <ol className="mb-6 pl-6 space-y-2 list-decimal text-gray-700">
-                                            {children}
-                                        </ol>
-                                    ),
-                                    li: ({children}) => (
-                                        <li className="leading-relaxed text-base">
-                                            {children}
-                                        </li>
-                                    ),
-                                    
-                                    // Blockquote
-                                    blockquote: ({children}) => (
-                                        <blockquote className="border-l-4 border-green-500 pl-6 py-4 my-8 italic text-gray-600 bg-gray-50 rounded-r-lg">
-                                            {children}
-                                        </blockquote>
-                                    ),
-                                    
-                                    // Code
-                                    code: ({inline, children}) => {
-                                        if (inline) {
-                                            return (
-                                                <code className="bg-gray-100 text-green-600 px-2 py-1 rounded text-sm font-mono border">
-                                                    {children}
-                                                </code>
-                                            );
-                                        } else {
-                                            return (
-                                                <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
-                                                    <code>{children}</code>
-                                                </pre>
-                                            );
-                                        }
-                                    },
-                                    
-                                    // Pre (for code blocks)
-                                    pre: ({children}) => (
-                                        <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
-                                            {children}
-                                        </pre>
-                                    ),
-                                    
-                                    // Links
-                                    a: ({href, children}) => (
-                                        <a 
-                                            href={href} 
-                                            className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors duration-200" 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                        >
-                                            {children}
-                                        </a>
-                                    ),
-                                    
-                                    // Images
-                                    img: ({src, alt}) => (
-                                        <div className="my-8">
-                                            <img 
-                                                src={src} 
-                                                alt={alt} 
-                                                className="w-full rounded-lg shadow-lg border border-gray-200 max-w-full h-auto"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                }}
-                                            />
-                                            {alt && (
-                                                <p className="text-sm text-gray-500 italic mt-2 text-center">
-                                                    {alt}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ),
-                                    
-                                    // Horizontal rule
-                                    hr: () => (
-                                        <hr className="border-t-2 border-gray-200 my-12 w-24 mx-auto" />
-                                    ),
-
-                                    // Tables
-                                    table: ({children}) => (
-                                        <div className="overflow-x-auto my-6 rounded-lg shadow-sm border border-gray-200">
-                                            <table className="min-w-full divide-y divide-gray-200">
+                                        h3: ({ children }) => (
+                                            <h3 className="text-xl font-semibold mb-3 mt-6 text-gray-900">
                                                 {children}
-                                            </table>
-                                        </div>
-                                    ),
-                                    thead: ({children}) => (
-                                        <thead className="bg-gray-50">
-                                            {children}
-                                        </thead>
-                                    ),
-                                    tbody: ({children}) => (
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {children}
-                                        </tbody>
-                                    ),
-                                    th: ({children}) => (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            {children}
-                                        </th>
-                                    ),
-                                    td: ({children}) => (
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {children}
-                                        </td>
-                                    ),
-                                    
-                                    // Strong and em
-                                    strong: ({children}) => (
-                                        <strong className="font-semibold text-gray-900">
-                                            {children}
-                                        </strong>
-                                    ),
-                                    em: ({children}) => (
-                                        <em className="italic text-gray-800">
-                                            {children}
-                                        </em>
-                                    ),
-                                }}
-                                // Handle line breaks properly
-                                remarkPlugins={[]}
-                                rehypePlugins={[]}
-                            >
-                                {content}
-                            </ReactMarkdown>
-                        </Suspense>
-                    </div>
-                </article>
+                                            </h3>
+                                        ),
+                                        h4: ({ children }) => (
+                                            <h4 className="text-lg font-semibold mb-2 mt-4 text-gray-900">
+                                                {children}
+                                            </h4>
+                                        ),
+
+                                        // Paragraphs with better spacing
+                                        p: ({ children }) => (
+                                            <p className="mb-6 leading-7 text-gray-700 tracking-wide text-base">
+                                                {children}
+                                            </p>
+                                        ),
+
+                                        // Lists
+                                        ul: ({ children }) => (
+                                            <ul className="mb-6 pl-6 space-y-2 list-disc text-gray-700">
+                                                {children}
+                                            </ul>
+                                        ),
+                                        ol: ({ children }) => (
+                                            <ol className="mb-6 pl-6 space-y-2 list-decimal text-gray-700">
+                                                {children}
+                                            </ol>
+                                        ),
+                                        li: ({ children }) => (
+                                            <li className="leading-relaxed text-base">
+                                                {children}
+                                            </li>
+                                        ),
+
+                                        // Blockquote
+                                        blockquote: ({ children }) => (
+                                            <blockquote className="border-l-4 border-green-500 pl-6 py-4 my-8 italic text-gray-600 bg-gray-50 rounded-r-lg">
+                                                {children}
+                                            </blockquote>
+                                        ),
+
+                                        // Code
+                                        code: ({ inline, children }) => {
+                                            if (inline) {
+                                                return (
+                                                    <code className="bg-gray-100 text-green-600 px-2 py-1 rounded text-sm font-mono border">
+                                                        {children}
+                                                    </code>
+                                                );
+                                            } else {
+                                                return (
+                                                    <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
+                                                        <code>{children}</code>
+                                                    </pre>
+                                                );
+                                            }
+                                        },
+
+                                        // Pre (for code blocks)
+                                        pre: ({ children }) => (
+                                            <pre className="bg-gray-900 text-white p-6 rounded-lg overflow-x-auto font-mono text-sm my-6 shadow-lg">
+                                                {children}
+                                            </pre>
+                                        ),
+
+                                        // Links
+                                        a: ({ href, children }) => (
+                                            <a
+                                                href={href}
+                                                className="text-green-600 font-medium hover:text-green-700 hover:underline transition-colors duration-200"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {children}
+                                            </a>
+                                        ),
+
+                                        // Images
+                                        img: ({ src, alt }) => (
+                                            <div className="my-8">
+                                                <img
+                                                    src={src}
+                                                    alt={alt}
+                                                    className="w-full rounded-lg shadow-lg border border-gray-200 max-w-full h-auto"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                                {alt && (
+                                                    <p className="text-sm text-gray-500 italic mt-2 text-center">
+                                                        {alt}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ),
+
+                                        // Horizontal rule
+                                        hr: () => (
+                                            <hr className="border-t-2 border-gray-200 my-12 w-24 mx-auto" />
+                                        ),
+
+                                        // Tables
+                                        table: ({ children }) => (
+                                            <div className="overflow-x-auto my-6 rounded-lg shadow-sm border border-gray-200">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    {children}
+                                                </table>
+                                            </div>
+                                        ),
+                                        thead: ({ children }) => (
+                                            <thead className="bg-gray-50">
+                                                {children}
+                                            </thead>
+                                        ),
+                                        tbody: ({ children }) => (
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {children}
+                                            </tbody>
+                                        ),
+                                        th: ({ children }) => (
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                {children}
+                                            </th>
+                                        ),
+                                        td: ({ children }) => (
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {children}
+                                            </td>
+                                        ),
+
+                                        // Strong and em
+                                        strong: ({ children }) => (
+                                            <strong className="font-semibold text-gray-900">
+                                                {children}
+                                            </strong>
+                                        ),
+                                        em: ({ children }) => (
+                                            <em className="italic text-gray-800">
+                                                {children}
+                                            </em>
+                                        ),
+                                    }}
+                                    // Handle line breaks properly
+                                    remarkPlugins={[]}
+                                    rehypePlugins={[]}
+                                >
+                                    {content}
+                                </ReactMarkdown>
+                            </Suspense>
+                        </div>
+                    </article>
 
                     <div className="xl:hidden px-4">
                         <AuthorBio author={author} />
                     </div>
 
-                    <Share likesAmount={likes} setDialogState={setIsDialogOpen} />
-                    <Comment setDialogState={setIsDialogOpen} postComments={postComments} />
+                    <Share postId={param.postId} likesAmount={likes} setDialogState={setIsDialogOpen} />
+                    <Comment
+                        postId={param.postId}
+                        setDialogState={setIsDialogOpen}
+                        postComments={postComments}
+                        addComment={(c) => setPostComments((prev) => [...prev, c])}
+                    />
                 </div>
 
                 <div className="hidden xl:block xl:w-1/4">
@@ -332,23 +341,75 @@ export default function ViewPost() {
     );
 }
 
-function Share({ likesAmount, setDialogState }) {
+function Share({ postId, likesAmount, setDialogState }) {
+    const { isAuthenticated } = useAuth();
+    const [localLikes, setLocalLikes] = useState(likesAmount || 0);
+    const [hasLiked, setHasLiked] = useState(false);
+
+    useEffect(() => {
+        setLocalLikes(likesAmount || 0);
+    }, [likesAmount]);
+
+    // Initialize hasLiked for authenticated users
+    useEffect(() => {
+        let mounted = true;
+        const init = async () => {
+            if (!isAuthenticated || !postId) return;
+            try {
+                const res = await blogApi.hasLiked(postId);
+                if (mounted && res && res.success) {
+                    setHasLiked(!!res.hasLiked);
+                }
+            } catch {
+                // ignore silently
+            }
+        };
+        init();
+        return () => { mounted = false; };
+    }, [isAuthenticated, postId]);
+
+    const handleLikeClick = async () => {
+        if (!isAuthenticated) {
+            setDialogState(true);
+            return;
+        }
+        // Toggle like/unlike with optimistic UI and server sync
+        const next = !hasLiked;
+        setHasLiked(next);
+        setLocalLikes((n) => Math.max(0, n + (next ? 1 : -1)));
+        try {
+            const res = await blogApi.toggleLike(postId, next ? 'like' : 'unlike');
+            if (res && res.success) {
+                // Trust server count if provided
+                if (typeof res.likes === 'number') {
+                    setLocalLikes(res.likes);
+                }
+                toast.success(next ? 'Liked' : 'Unliked', { duration: 1200 });
+            } else {
+                throw new Error(res?.error || 'Failed to update like');
+            }
+        } catch (err) {
+            // rollback
+            setHasLiked(!next);
+            setLocalLikes((n) => Math.max(0, n + (next ? -1 : 1)));
+            toast.error(`Unable to update like. ${err?.message || 'Please try again.'}`);
+        }
+    };
     const shareLink = encodeURI(window.location.href);
 
     return (
         <div className="md:px-4">
             <div className="bg-[#EFEEEB] py-4 px-4 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row md:items-center md:space-y-0 md:justify-between mb-10">
-                <ProtectedAction action="like this post">
-                    <button
-                        onClick={() => setDialogState(true)}
-                        className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
-                    >
-                        <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
-                        <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
-                            {likesAmount}
-                        </span>
-                    </button>
-                </ProtectedAction>
+                <button
+                    onClick={handleLikeClick}
+                    className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+                    aria-pressed={hasLiked}
+                >
+                    <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
+                    <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
+                        {localLikes}
+                    </span>
+                </button>
                 <div className="flex items-center space-x-2">
                     <button
                         onClick={() => {
@@ -404,17 +465,65 @@ function Share({ likesAmount, setDialogState }) {
     );
 }
 
-function Comment({ setDialogState, postComments }) {
+function Comment({ postId, setDialogState, postComments, addComment }) {
+    const { state, isAuthenticated } = useAuth();
     const [comment, setComment] = useState("");
     const [isError, setIsError] = useState(false);
-    const handleSendComment = (e) => {
+
+    // Ensure avatar URLs are absolute when coming from server uploads
+    const resolveImageUrl = (url) => {
+        const fallback = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+        if (!url || typeof url !== 'string') return fallback;
+        const trimmed = url.trim();
+        if (!trimmed) return fallback;
+        if (trimmed.startsWith('http')) return trimmed;
+        if (trimmed.startsWith('/uploads/')) {
+            return `https://personal-blog-project-server.onrender.com${trimmed}`;
+        }
+        return trimmed;
+    };
+
+    const handleSendComment = async (e) => {
         e.preventDefault();
         if (!comment.trim()) {
             setIsError(true);
-        } else {
-            // Submit the comment
+            return;
+        }
+
+        if (!isAuthenticated) {
+            // Gate unauthenticated users
+            setDialogState(true);
+            return;
+        }
+
+        try {
             setIsError(false);
-            // Add the logic for what should happen after sending the comment
+            const payload = {
+                post_id: Number(postId),
+                comment_text: comment.trim(),
+                user_id: state.user?.id || null,
+                name: state.user?.name || state.user?.username,
+                image: state.user?.profile_pic || undefined,
+            };
+
+            const res = await blogApi.createComment(payload);
+            const data = res?.data || res?.comment || res;
+
+            const createdAt = data?.created_at || new Date().toISOString();
+            const uiComment = {
+                id: data?.id || Date.now(),
+                post_id: Number(postId),
+                name: data?.name || payload.name,
+                comment: data?.comment || data?.comment_text || payload.comment_text,
+                image: resolveImageUrl(data?.image || payload.image),
+                created_at: createdAt,
+            };
+
+            addComment?.(uiComment);
+            setComment("");
+            toast.success('Comment posted');
+        } catch (err) {
+            toast.error(err?.message || 'Failed to post comment');
         }
     };
     return (
@@ -427,7 +536,7 @@ function Comment({ setDialogState, postComments }) {
                             value={comment}
                             onFocus={() => {
                                 setIsError(false);
-                                setDialogState(true);
+                                if (!isAuthenticated) setDialogState(true);
                             }}
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="What are your thoughts?"
@@ -440,7 +549,7 @@ function Comment({ setDialogState, postComments }) {
                         )}
                         <div className="flex justify-end">
                             <button type="submit"
-                                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                                className="px-8 py-2 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors"
                             >
                                 Send
                             </button>
@@ -454,7 +563,7 @@ function Comment({ setDialogState, postComments }) {
                         <div className="flex space-x-4">
                             <div className="flex-shrink-0">
                                 <img
-                                    src={(comment.image && comment.image.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'}
+                                    src={resolveImageUrl(comment.image)}
                                     alt={comment.name}
                                     className="rounded-full w-12 h-12 object-cover"
                                     onError={(e) => {
@@ -465,7 +574,7 @@ function Comment({ setDialogState, postComments }) {
                             <div className="flex-grow">
                                 <div className="flex flex-col items-start justify-between">
                                     <h4 className="font-semibold">{comment.name}</h4>
-                                    <span className="text-sm text-gray-500">{comment.date}</span>
+                                    <span className="text-sm text-gray-500">{formatDateTimeAt(comment.created_at || Date.now())}</span>
                                 </div>
                             </div>
                         </div>
@@ -483,7 +592,7 @@ function Comment({ setDialogState, postComments }) {
 function AuthorBio({ author = { name: "Admin", image: null, id: 1, username: "admin" } }) {
     // Ensure author is always an object
     const safeAuthor = author && typeof author === 'object' ? author : { name: author || "Admin", image: null, id: 1, username: "admin" };
-    
+
     return (
         <div className="bg-[#EFEEEB] rounded-3xl p-6">
             <div className="flex items-center mb-4">

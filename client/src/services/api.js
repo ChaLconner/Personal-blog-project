@@ -1,13 +1,9 @@
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
 
-// Production URL for Render deployment
-const API_BASE_URL = 'https://personal-blog-project-server.onrender.com';
-
-// Debug: Log API URL in development
-if (import.meta.env.DEV) {
-  console.log('🌐 API_BASE_URL:', API_BASE_URL);
-  console.log('🔧 VITE_API_URL:', import.meta.env.VITE_API_URL);
-}
+// Resolve API base URL: prefer VITE_API_URL, then localhost in dev, else Render in prod
+const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim())
+  || (import.meta.env.DEV ? 'http://localhost:3001' : 'https://personal-blog-project-server.onrender.com');
 
 // Simple cache for storing API responses
 const cache = new Map();
@@ -23,8 +19,60 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 second timeout (increased from 10s)
+  timeout: 30000, // 30 second default timeout
 });
+
+// Supabase client for realtime notifications (client-side)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || null;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || null;
+const supabaseClient = (SUPABASE_URL && SUPABASE_ANON_KEY) ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// Map of active notification channels by userId
+const notificationChannels = new Map();
+
+const subscribeNotifications = async (userId, onInsert) => {
+  if (!supabaseClient) {
+    console.warn('Supabase client not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+    return null;
+  }
+  if (!userId) return null;
+  if (notificationChannels.has(userId)) return notificationChannels.get(userId);
+
+  // Use Postgres change feed to listen for INSERTs on notifications for this user
+  try {
+    const channel = supabaseClient
+      .channel(`notifications_user_${userId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
+        try {
+          // payload.new contains the inserted row
+          if (onInsert && typeof onInsert === 'function') {
+            onInsert(payload.new);
+          }
+        } catch (err) {
+          console.error('Error in notifications insert handler:', err);
+        }
+      })
+      .subscribe();
+
+    notificationChannels.set(userId, channel);
+    return channel;
+  } catch (err) {
+    console.error('Failed to subscribe to notifications:', err);
+    return null;
+  }
+};
+
+const unsubscribeNotifications = async (userId) => {
+  try {
+    const channel = notificationChannels.get(userId);
+    if (!channel || !supabaseClient) return;
+    // Unsubscribe and remove
+    await channel.unsubscribe();
+    notificationChannels.delete(userId);
+  } catch (err) {
+    console.error('Failed to unsubscribe notifications:', err);
+  }
+};
 
 // Request interceptor - เพิ่ม authentication token
 api.interceptors.request.use(
@@ -55,8 +103,14 @@ api.interceptors.response.use(
         error.message?.includes('Extension context invalidated')) {
       return Promise.reject(new Error('Network request failed'));
     }
-    
-    console.error('API Error:', error.response?.data || error.message);
+    // Detect axios timeout/errors that have no response so retry logic can handle them
+    const isTimeout = error?.code === 'ECONNABORTED' || /timeout of \d+ms exceeded/.test(error?.message || '');
+    const isNetworkLevel = !error?.response;
+
+    // Don't spam console for expected network/timeouts that will be retried
+    if (!(isTimeout || isNetworkLevel)) {
+      console.error('API Error:', error.response?.data || error.message);
+    }
     
     // Handle different error types
     if (error.response) {
@@ -73,7 +127,10 @@ api.interceptors.response.use(
           throw new Error(data.message || `HTTP ${status} error`);
       }
     } else if (error.request) {
-      // Network error
+      // Network error (no response). If this is a timeout we'll let callers/retry-helpers handle it
+      if (isTimeout) {
+        return Promise.reject(error);
+      }
       throw new Error('Network error: Unable to connect to server');
     } else {
       // Other error
@@ -81,6 +138,41 @@ api.interceptors.response.use(
     }
   }
 );
+
+// Small helper to retry transient network errors with exponential backoff
+const requestWithRetries = async (fn, { attempts = 3, initialDelay = 500 } = {}) => {
+  let lastError;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fn();
+      return res;
+    } catch (err) {
+      lastError = err;
+      // If last attempt, rethrow after logging
+      if (i === attempts - 1) break;
+
+      // Determine if error is retryable: network-level (no response) or axios timeout
+      const isNetworkError = !err || !err.response;
+      const isTimeout = err?.code === 'ECONNABORTED' || /timeout of \d+ms exceeded/.test(err?.message || '');
+      if (!(isNetworkError || isTimeout)) {
+        // Non-retryable (server responded with error) — rethrow
+        throw err;
+      }
+
+      // Exponential backoff before retry
+      const delay = initialDelay * Math.pow(2, i);
+      if (import.meta.env && import.meta.env.DEV) {
+        // Only verbose in development
+        console.warn(`Request failed (attempt ${i + 1}/${attempts}), retrying in ${delay}ms:`, err?.message || err);
+      }
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  // Final failure — log and throw
+  console.error('Request failed after retries:', lastError?.message || lastError);
+  throw lastError;
+};
 
 // Authentication functions
 const auth = {
@@ -299,6 +391,31 @@ export const blogApi = {
     }
   },
 
+  // Toggle like/unlike for a post
+  toggleLike: async (postId, action) => {
+    try {
+      if (!postId) throw new Error('Post ID is required');
+      if (!['like', 'unlike'].includes(action)) throw new Error('Invalid like action');
+      const response = await api.put(`/likes/${postId}/toggle`, { action });
+      return response.data;
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      throw error;
+    }
+  },
+
+  // Check whether current user has liked a post
+  hasLiked: async (postId) => {
+    try {
+      if (!postId) throw new Error('Post ID is required');
+      const response = await api.get(`/likes/${postId}/has-liked`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking hasLiked:', error);
+      return { success: false, hasLiked: false, error: error?.message };
+    }
+  },
+
   // Get all comments with optional post filter
   getComments: async (params = {}) => {
     try {
@@ -492,11 +609,12 @@ export const blogApi = {
   // Notification functions
   getNotifications: async (userId) => {
     try {
-      const response = await api.get(`/notifications/${userId}`);
-      return response.data;
+  // Use a shorter per-request timeout and retry transient errors
+  const response = await requestWithRetries(() => api.get(`/notifications/${userId}`, { timeout: 8000 }), { attempts: 3, initialDelay: 400 });
+  return response.data;
     } catch (error) {
-      console.error('❌ Error fetching notifications:', error);
-      return { success: false, data: [], error: error.message };
+  console.error('❌ Error fetching notifications:', error);
+  return { success: false, data: [], error: error.message };
     }
   },
 
@@ -713,6 +831,15 @@ export const blogApi = {
         console.error('Error deleting notification:', error);
         return { success: false, error: error.message };
       }
+    },
+
+    // Realtime subscription helpers (Supabase)
+    subscribe: async (userId, onInsert) => {
+      return subscribeNotifications(userId, onInsert);
+    },
+
+    unsubscribe: async (userId) => {
+      return unsubscribeNotifications(userId);
     },
 
     // Create test notification (development only)

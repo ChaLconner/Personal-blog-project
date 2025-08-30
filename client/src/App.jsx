@@ -47,7 +47,7 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/post/:postId" element={<ViewPostPage />} />
           <Route path="*" element={<NotFoundPage />} />
-
+          
           {/* เส้นทางที่เฉพาะผู้ที่ยังไม่ล็อกอินเข้าถึงได้ */}
           <Route
             path="/signup"

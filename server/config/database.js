@@ -306,16 +306,37 @@ export const dbService = {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      // Transform data to match frontend expectations
-      const transformedData = (data || []).map(comment => ({
-        id: comment.id,
-        post_id: comment.post_id,
-        name: 'Anonymous',
-        comment: comment.comment_text,
-        image: 'https://via.placeholder.com/48x48?text=U',
-        created_at: comment.created_at,
-        user: null
-      }));
+      // Enrich with user profile (name/avatar) if user_id is present
+      const comments = data || [];
+      const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+      let usersMap = new Map();
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, username, profile_pic')
+          .in('id', userIds);
+
+        if (!usersError && Array.isArray(usersData)) {
+          usersMap = new Map(usersData.map(u => [u.id, u]));
+        }
+      }
+
+      // Transform data to match frontend expectations (with user info)
+      const transformedData = comments.map(comment => {
+        const u = comment.user_id ? usersMap.get(comment.user_id) : null;
+        const displayName = (u?.name && u.name.trim()) || (u?.username && u.username.trim()) || 'Anonymous';
+        const avatar = (u?.profile_pic && typeof u.profile_pic === 'string' && u.profile_pic.trim())
+          || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+        return {
+          id: comment.id,
+          post_id: comment.post_id,
+          name: displayName,
+          comment: comment.comment_text,
+          image: avatar,
+          created_at: comment.created_at,
+          user: u ? { id: comment.user_id, name: u.name, username: u.username, profile_pic: u.profile_pic } : null,
+        };
+      });
 
       return transformedData;
     } catch (error) {
@@ -335,16 +356,35 @@ export const dbService = {
         throw new Error(`Error fetching comments: ${error.message}`);
       }
 
-      // Transform data to match frontend expectations
-      const transformedData = (data || []).map(comment => ({
-        id: comment.id,
-        post_id: comment.post_id,
-        name: 'Anonymous',
-        comment: comment.comment_text,
-        image: 'https://via.placeholder.com/48x48?text=U',
-        created_at: comment.created_at,
-        user: null
-      }));
+      const comments = data || [];
+      const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
+      let usersMap = new Map();
+      if (userIds.length > 0) {
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, username, profile_pic')
+          .in('id', userIds);
+
+        if (!usersError && Array.isArray(usersData)) {
+          usersMap = new Map(usersData.map(u => [u.id, u]));
+        }
+      }
+
+      // Transform data to match frontend expectations (with user info)
+      const transformedData = comments.map(comment => {
+        const u = comment.user_id ? usersMap.get(comment.user_id) : null;
+        const displayName = (u?.name && u.name.trim()) || (u?.username && u.username.trim()) || 'Anonymous';
+        const avatar = (u?.profile_pic && typeof u.profile_pic === 'string' && u.profile_pic.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+        return {
+          id: comment.id,
+          post_id: comment.post_id,
+          name: displayName,
+          comment: comment.comment_text,
+          image: avatar,
+          created_at: comment.created_at,
+          user: u ? { id: comment.user_id, name: u.name, username: u.username, profile_pic: u.profile_pic } : null,
+        };
+      });
 
       return transformedData;
     } catch (error) {
@@ -377,15 +417,32 @@ export const dbService = {
         throw new Error(`Error creating comment: ${error.message}`);
       }
 
+    // Enrich with user profile if available
+    let displayName = commentData?.name || 'Anonymous';
+    let avatar = commentData?.image || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+      let userObj = null;
+      if (data.user_id) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id, name, username, profile_pic')
+          .eq('id', data.user_id)
+          .single();
+        if (userData) {
+          displayName = (userData.name && userData.name.trim()) || (userData.username && userData.username.trim()) || displayName;
+      avatar = (userData.profile_pic && typeof userData.profile_pic === 'string' && userData.profile_pic.trim()) || avatar;
+          userObj = { id: userData.id, name: userData.name, username: userData.username, profile_pic: userData.profile_pic };
+        }
+      }
+
       // Transform data to match frontend expectations
       const transformedData = {
         id: data.id,
         post_id: data.post_id,
-        name: commentData.name || 'Anonymous',
+        name: displayName,
         comment: data.comment_text,
-        image: commentData.image || 'https://via.placeholder.com/48x48?text=U',
+        image: avatar,
         created_at: data.created_at,
-        user: null
+        user: userObj,
       };
 
       return transformedData;
@@ -466,4 +523,74 @@ export const dbService = {
       throw error;
     }
   },
+
+  // Likes (per-user like tracking)
+  async toggleUserLike(postId, userId, action) {
+    try {
+      if (!postId || isNaN(postId) || postId <= 0) {
+        throw new Error("Invalid post ID provided");
+      }
+      if (!userId) {
+        throw new Error("User ID is required for like action");
+      }
+      if (!['like', 'unlike'].includes(action)) {
+        throw new Error("Invalid action for like toggle");
+      }
+
+      // Check if user already liked this post
+      const { data: existingLike, error: likeError } = await supabase
+        .from("post_likes")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (likeError) throw new Error(`Error checking like: ${likeError.message}`);
+
+      let likesCount = 0;
+      if (action === 'like') {
+        if (existingLike) {
+          // Already liked, do nothing
+        } else {
+          // Insert like
+          const { error: insertError } = await supabase
+            .from("post_likes")
+            .insert([{ post_id: postId, user_id: userId }]);
+          if (insertError) throw new Error(`Error liking post: ${insertError.message}`);
+        }
+      } else if (action === 'unlike') {
+        if (existingLike) {
+          // Remove like
+          const { error: deleteError } = await supabase
+            .from("post_likes")
+            .delete()
+            .eq("id", existingLike.id);
+          if (deleteError) throw new Error(`Error unliking post: ${deleteError.message}`);
+        } else {
+          // Not liked, do nothing
+        }
+      }
+
+      // Update likes_count in posts table
+      const { count, error: countError } = await supabase
+        .from("post_likes")
+        .select("id", { count: "exact", head: true })
+        .eq("post_id", postId);
+      if (countError) throw new Error(`Error counting likes: ${countError.message}`);
+
+      likesCount = count || 0;
+      const { error: updateError } = await supabase
+        .from("posts")
+        .update({ likes_count: likesCount })
+        .eq("id", postId);
+      if (updateError) throw new Error(`Error updating likes_count: ${updateError.message}`);
+
+      return likesCount;
+    } catch (error) {
+      console.error("Database error in toggleUserLike:", error);
+      throw error;
+    }
+  },
 };
+
+// Also export raw supabase client for advanced queries in routes when needed
+export const rawSupabase = supabase;
