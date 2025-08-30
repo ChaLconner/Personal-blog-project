@@ -1,8 +1,20 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+// Rate limiting (basic, can be tuned per route)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
 
 // Load environment variables first
 dotenv.config();
@@ -26,6 +38,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+app.use(helmet());
+app.use(compression());
 app.use(cors({
   origin: [
     'http://localhost:5173',
@@ -38,6 +52,19 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Response time logging
+app.use((req, res, next) => {
+  const start = process.hrtime();
+  res.on('finish', () => {
+    const diff = process.hrtime(start);
+    const ms = (diff[0] * 1e3 + diff[1] / 1e6).toFixed(2);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${ms}ms`);
+    }
+  });
+  next();
+});
 
 // Request logging middleware (only in development)
 if (process.env.NODE_ENV === 'development') {

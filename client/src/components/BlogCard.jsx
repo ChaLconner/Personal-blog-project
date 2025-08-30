@@ -1,45 +1,48 @@
+import { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatShortDate } from "../utils/dateFormatter";
 
 function BlogCard({ id, image, category, title, description, author, date }) {
   const navigate = useNavigate();
-  
-  // Handle image URL - support both full URLs and relative paths
-  const getImageUrl = () => {
-    if (!image || image.trim() === '') {
-      return 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=300&fit=crop&auto=format&q=60';
+
+  // Memoize computed image URL to avoid recalculation on re-renders
+  const imageUrl = useMemo(() => {
+    if (!image || (typeof image === 'string' && image.trim() === '')) {
+      return 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
     }
-    
-    // If it's already a full URL, return as is
-    if (image.startsWith('http')) {
+
+    if (typeof image === 'string' && image.startsWith('http')) {
       return image;
     }
-    
-    // If it's a relative path (uploaded file), prepend server URL
-    if (image.startsWith('/uploads/')) {
+
+    if (typeof image === 'string' && image.startsWith('/uploads/')) {
       return `https://personal-blog-project-server.onrender.com${image}`;
     }
-    
-    // Default fallback
+
     return image;
-  };
-  
+  }, [image]);
+
+  const handleNavigate = useCallback(() => navigate(`/post/${id}`), [navigate, id]);
+
   return (
     <div className="flex flex-col gap-4">
       <button
-        onClick={() => navigate(`/post/${id}`)}
+        onClick={handleNavigate}
         className="relative h-[212px] sm:h-[360px] cursor-pointer overflow-hidden rounded-md group"
         type="button"
       >
         <img
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          src={getImageUrl()}
+          src={imageUrl}
+          srcSet={`${imageUrl} 1x, ${imageUrl}?dpr=2 2x`}
+          loading="lazy"
+          decoding="async"
           alt={title}
           onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=300&fit=crop&auto=format&q=60';
+            e.target.onerror = null;
+            e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
           }}
         />
-        {/* Overlay for better readability */}
         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
       </button>
       <div className="flex flex-col">
@@ -49,7 +52,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
           </span>
         </div>
         <button
-          onClick={() => navigate(`/post/${id}`)}
+          onClick={handleNavigate}
           className="cursor-pointer text-start"
           type="button"
         >
@@ -65,7 +68,10 @@ function BlogCard({ id, image, category, title, description, author, date }) {
             className="w-8 h-8 rounded-full mr-2"
             src={(author?.image && author.image.trim && author.image.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'}
             alt={`${author?.name || author} profile picture`}
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
+              e.target.onerror = null;
               e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
             }}
           />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 import BlogCard from "./BlogCard";
@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { blogApi } from "@/services/api";
 import { formatShortDate } from "@/utils/dateFormatter";
+import useDebounce from '@/hooks/useDebounce';
 
 export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -23,6 +24,7 @@ export default function ArticleSection() {
     const [isLoading, setIsLoading] = useState(false);
     const [isCategoryChanging, setIsCategoryChanging] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState("");
+    const debouncedSearch = useDebounce(searchKeyword, 300);
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [error, setError] = useState(null);
@@ -156,14 +158,14 @@ export default function ArticleSection() {
     }, [page, category]);
 
     useEffect(() => {
-        if (searchKeyword.length > 0) {
+        if (debouncedSearch.length > 0) {
             setIsLoading(true);
-            const fetchSuggestions = async () => {
+                    const fetchSuggestions = async () => {
                     try {
                         const response = await blogApi.getPosts({
-                            search: searchKeyword,
-                            limit: 5
-                        });
+                                search: debouncedSearch,
+                                limit: 5
+                            });
 
                         // Normalize suggestions shape
                         const postsData = (response && response.success && Array.isArray(response.posts))
@@ -182,9 +184,9 @@ export default function ArticleSection() {
         } else {
             setSuggestions([]); // Clear suggestions if keyword is empty
         }
-    }, [searchKeyword]);
+    }, [debouncedSearch]);
 
-    const handleCategoryChange = (newCategory) => {
+    const handleCategoryChange = useCallback((newCategory) => {
         if (newCategory !== category) {
             // Clear error state
             setError(null);
@@ -199,11 +201,9 @@ export default function ArticleSection() {
                 blogApi.clearCache();
             }
         }
-    };
+    }, [category]);
 
-    const handleLoadMore = () => {
-        setPage((prevPage) => prevPage + 1);
-    };
+    const handleLoadMore = useCallback(() => setPage((prevPage) => prevPage + 1), []);
 
     const navigate = useNavigate();
 
