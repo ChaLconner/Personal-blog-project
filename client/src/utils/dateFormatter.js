@@ -6,26 +6,21 @@
 // Central timezone used for displaying Supabase/Postgres timestamps
 const TIMEZONE = 'Asia/Bangkok';
 
+// Compact long date like "August 30, 2025"
 export const formatDate = (date) => {
   if (!date) return 'Unknown date';
-  
   try {
-  const dateObj = normalizeToDate(date);
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return 'Invalid date';
-    }
-    
-    // Format using centralized timezone
-    return dateObj.toLocaleDateString('en-US', {
+    const d = normalizeToDate(date);
+    if (isNaN(d.getTime())) return 'Invalid date';
+
+    return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       timeZone: TIMEZONE
     });
-  } catch (error) {
-    console.error('Error formatting date:', error);
+  } catch (err) {
+    console.error('Error formatting date:', err);
     return 'Invalid date';
   }
 };
@@ -37,36 +32,35 @@ export const formatDate = (date) => {
  */
 export const formatRelativeDate = (date) => {
   if (!date) return 'Unknown time';
-  
   try {
-  const dateObj = normalizeToDate(date);
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return 'Invalid date';
-    }
-    
+    const d = normalizeToDate(date);
+    if (isNaN(d.getTime())) return 'Invalid time';
+
     const now = new Date();
-    const diffInMs = now - dateObj;
-    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    const diffInDays = Math.floor(diffInHours / 24);
-    const diffInWeeks = Math.floor(diffInDays / 7);
-    const diffInMonths = Math.floor(diffInDays / 30);
-    const diffInYears = Math.floor(diffInDays / 365);
-    
-  if (diffInMinutes < 1) return 'Just now';
-  if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
-  if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-  if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-  if (diffInWeeks < 4) return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
-  if (diffInMonths < 12) return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
-  return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
-  } catch (error) {
-    console.error('Error formatting relative date:', error);
+    const diff = now.getTime() - d.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    // Use short forms for compact dashboard display
+    if (seconds < 10) return 'Just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    if (weeksInRange(days)) return `${Math.floor(days / 7)}w ago`;
+    if (months < 12) return `${months}mo ago`;
+    return `${years}y ago`;
+  } catch (err) {
+    console.error('Error formatting relative date:', err);
     return 'Unknown time';
   }
 };
+
+const weeksInRange = (days) => days >= 7 && days < 30;
 
 /**
  * Format date for short display (e.g., "Jan 15, 2024")
@@ -77,15 +71,11 @@ export const formatShortDate = (date) => {
   if (!date) return 'Unknown';
   
   try {
-  const dateObj = normalizeToDate(date);
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return 'Invalid';
-    }
-    
-    // Use centralized timezone for consistent display in Thailand
-    return dateObj.toLocaleDateString('en-US', {
+    const d = normalizeToDate(date);
+    if (isNaN(d.getTime())) return 'Invalid';
+
+    // Compact short date: "Aug 30, 2025"
+    return d.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -104,25 +94,25 @@ export const formatShortDate = (date) => {
 export const formatDateTimeAt = (date) => {
   if (!date) return 'Unknown time';
   try {
-  const d = normalizeToDate(date);
-  if (isNaN(d.getTime())) return 'Invalid time';
+    const d = normalizeToDate(date);
+    if (isNaN(d.getTime())) return 'Invalid time';
 
-  // Format components explicitly in Asia/Bangkok timezone
-  const datePart = d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: TIMEZONE
-  });
+    // Format like "30 Aug 2025 at 13:45"
+    const datePart = d.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: TIMEZONE
+    });
 
-  const timePart = d.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: TIMEZONE
-  });
+    const timePart = d.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: TIMEZONE
+    });
 
-  return `${datePart} at ${timePart}`;
+    return `${datePart} at ${timePart}`;
   } catch (err) {
     console.error('Error formatting date-time:', err);
     return 'Unknown time';

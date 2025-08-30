@@ -126,7 +126,7 @@ export default function AdminProfilePage() {
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Admin Profile</h2>
                     <Button 
-                        className="px-8 py-2 rounded-full"
+                        className="px-8 py-2 rounded-full text-[#FFFFFF] bg-[#26231E]"
                         onClick={handleSubmit}
                         disabled={loading}
                     >

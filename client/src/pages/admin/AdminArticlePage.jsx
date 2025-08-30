@@ -117,10 +117,10 @@ export default function AdminArticleManagementPage() {
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Article management</h2>
                     <Button
-                        className="px-8 py-2 rounded-full"
+                        className="text-[#FFFFFF] px-8 py-2 rounded-full bg-[#26231E]"
                         onClick={() => navigate("/admin/create-article")}
                     >
-                        <PenSquare className="mr-2 h-4 w-4" /> Create article
+                        <span className="mr-2 text-lg font-bold">+</span> Create article
                     </Button>
                 </div>
 
@@ -176,24 +176,24 @@ export default function AdminArticleManagementPage() {
                                 <TableCell className="text-sm text-gray-600">{article.author || 'Admin'}</TableCell>
                                 <TableCell>{article.category || 'Uncategorized'}</TableCell>
                                 <TableCell className="text-center">{(() => {
-                                        // Debug logging เพื่อตรวจสอบสถานะ
-                                        const status = article.status || 'published';
-                                        const isPublished = status === 'published';
-                                        const isDraft = status === 'draft';
-                                        
-                                        return (
-                                            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium bg-ui-surface ${
-                                                isPublished ? 'text-[#12B279]' : 'text-[#75716B]'
-                                            }`}>
-                                                <span 
-                                                    className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${
-                                                        isPublished ? 'bg-[#12B279]' : 'bg-[#75716B]'
-                                                    }`}
-                                                />
-                                                {isDraft ? 'Draft' : 'Published'}
-                                            </span>
-                                        );
-                                    })()}
+                                    // Debug logging เพื่อตรวจสอบสถานะ
+                                    const status = article.status || 'published';
+                                    const isPublished = status === 'published';
+                                    const isDraft = status === 'draft';
+                                    
+                                    return (
+                                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium bg-ui-surface ${
+                                            isPublished ? 'text-[#12B279]' : 'text-[#75716B]'
+                                        }`}>
+                                            <span 
+                                                className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${
+                                                    isPublished ? 'bg-[#12B279]' : 'bg-[#75716B]'
+                                                }`}
+                                            />
+                                            {isDraft ? 'Draft' : 'Published'}
+                                        </span>
+                                    );
+                                })()}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Button 

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { blogApi } from "@/services/api";
+import { formatShortDate } from "@/utils/dateFormatter";
 
 export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -87,17 +88,10 @@ export default function ArticleSection() {
                     });
                 });
                 
-                // Handle both success and error cases from API
-                if (!response || !response.success) {
-                    console.warn('⚠️ API returned unsuccessful response:', response);
-                    if (page === 1) {
-                        setPosts([]); // Clear posts on failed first load
-                    }
-                    setHasMore(false);
-                    return;
-                }
-
-                const postsData = response.posts || [];
+                // Normalize response shape to avoid runtime crashes
+                const postsData = (response && response.success && Array.isArray(response.posts))
+                    ? response.posts
+                    : [];
 
                 setPosts((prevPosts) => {
                     if (page === 1) {
@@ -165,19 +159,23 @@ export default function ArticleSection() {
         if (searchKeyword.length > 0) {
             setIsLoading(true);
             const fetchSuggestions = async () => {
-                try {
-                    const response = await blogApi.getPosts({
-                        search: searchKeyword,
-                        limit: 5
-                    });
-                    // Handle the response structure properly
-                    const postsData = response.success ? response.posts : [];
-                    setSuggestions(postsData || []); // Ensure it's always an array
-                    setIsLoading(false);
-                } catch {
-                    setSuggestions([]); // Set empty array on error
-                    setIsLoading(false);
-                }
+                    try {
+                        const response = await blogApi.getPosts({
+                            search: searchKeyword,
+                            limit: 5
+                        });
+
+                        // Normalize suggestions shape
+                        const postsData = (response && response.success && Array.isArray(response.posts))
+                            ? response.posts
+                            : [];
+
+                        setSuggestions(postsData);
+                        setIsLoading(false);
+                    } catch {
+                        setSuggestions([]); // Set empty array on error
+                        setIsLoading(false);
+                    }
             };
 
             fetchSuggestions();
@@ -324,12 +322,8 @@ export default function ArticleSection() {
                             title={blog.title}
                             description={blog.description}
                             author={blog.author}
-                            date={new Date(blog.date).toLocaleDateString("en-GB", {
-                                day: "numeric",
-                                month: "long", 
-                                year: "numeric",
-                            })}
-                            onClick={() => blog.id && navigate(`/Post/${blog.id}`)}
+                            date={formatShortDate(blog.date)}
+                            onClick={() => blog.id && navigate(`/post/${blog.id}`)}
                             style={{ cursor: "pointer" }}
                         />
                     ))}

@@ -41,72 +41,60 @@ const requireAdmin = async (req, res, next) => {
 // Get all posts for admin (with additional info)
 adminRouter.get('/posts', requireAdmin, async (req, res) => {
   try {
+    // Support optional pagination to avoid fetching huge payloads
+    const limit = Math.min(parseInt(req.query.limit) || 100, 1000);
+    const offset = parseInt(req.query.offset) || 0;
+
+    // Fetch posts with joined category and status in one query to avoid N+1
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*')
-      .order('date', { ascending: false });
+      .select(`
+        id,
+        title,
+        description,
+        content,
+        image,
+        author,
+        date,
+        likes_count,
+        category_id,
+        status_id,
+        categories(id, name),
+        statuses(id, status)
+      `)
+      .order('date', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error('❌ Error fetching posts:', error);
-      return res.status(500).json({ error: "Error fetching posts" });
+      console.error('❌ Error fetching posts (admin):', error);
+      return res.status(500).json({ error: 'Error fetching posts' });
     }
 
-    // Transform the data to match frontend expectations
-    const transformedPosts = [];
-    
-    for (const post of posts) {
-      // Get category name if category_id exists
-      let categoryName = 'Uncategorized';
-      if (post.category_id) {
-        const { data: categoryData } = await supabase
-          .from('categories')
-          .select('name')
-          .eq('id', post.category_id)
-          .single();
-        
-        if (categoryData) {
-          categoryName = categoryData.name;
-        }
-      }
-
-      // Get status if status_id exists
-      let statusName = 'published';
-      if (post.status_id) {
-        const { data: statusData } = await supabase
-          .from('statuses')
-          .select('status')
-          .eq('id', post.status_id)
-          .single();
-        
-        if (statusData) {
-          statusName = statusData.status;
-        }
-      }
-
-      transformedPosts.push({
-        id: post.id,
-        title: post.title,
-        description: post.description,
-        content: post.content,
-        image: post.image,
-        author: post.author || 'Admin', // เพิ่ม author
-        date: post.date,
-        likes_count: post.likes_count,
-        category: categoryName,
-        category_id: post.category_id,
-        status: statusName,
-        status_id: post.status_id
-      });
-    }
+    const transformedPosts = (posts || []).map(post => ({
+      id: post.id,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      image: post.image,
+      author: post.author || 'Admin',
+      date: post.date,
+      likes_count: post.likes_count || 0,
+      category: post.categories?.name || (post.category_id ? 'Uncategorized' : null),
+      category_id: post.category_id,
+      status: post.statuses?.status || (post.status_id ? 'published' : null),
+      status_id: post.status_id
+    }));
 
     res.json({
       success: true,
       data: transformedPosts,
-      total: transformedPosts.length
+      total: transformedPosts.length,
+      limit,
+      offset
     });
   } catch (error) {
     console.error('❌ Admin posts error:', error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -422,25 +410,32 @@ adminRouter.delete('/posts/:id', requireAdmin, async (req, res) => {
 // Get all comments for admin
 adminRouter.get('/comments', requireAdmin, async (req, res) => {
   try {
+    // Pagination to avoid returning extremely large sets which can timeout
+    const limit = Math.min(parseInt(req.query.limit) || 200, 2000);
+    const offset = parseInt(req.query.offset) || 0;
+
     const { data: comments, error } = await supabase
       .from('comments')
       .select(`
         *,
-        blog_posts(title)
+        posts(title)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
-      return res.status(500).json({ error: "Error fetching comments" });
+      return res.status(500).json({ error: 'Error fetching comments' });
     }
 
     res.json({
       success: true,
       data: comments,
-      total: comments.length
+      total: comments.length,
+      limit,
+      offset
     });
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -474,50 +469,78 @@ adminRouter.delete('/comments/:id', requireAdmin, async (req, res) => {
 // Get dashboard stats
 adminRouter.get('/stats', requireAdmin, async (req, res) => {
   try {
-    // Get posts count
-    const { count: totalPosts, error: postsError } = await supabase
-      .from('blog_posts')
-      .select('*', { count: 'exact', head: true });
+    // Collect warnings for partial failures rather than failing the whole endpoint
+    const warnings = [];
 
-    if (postsError) {
-      return res.status(500).json({ error: "Error fetching posts stats" });
+    // Get posts count
+    let totalPosts = 0;
+    try {
+      const { count, error: postsError } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true });
+      if (postsError) {
+        console.error('Error fetching posts count:', postsError);
+        warnings.push('Could not fetch total posts count');
+      } else {
+        totalPosts = count || 0;
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching posts count:', err);
+      warnings.push('Unexpected error fetching total posts count');
     }
 
     // Get comments count
-    const { count: totalComments, error: commentsError } = await supabase
-      .from('comments')
-      .select('*', { count: 'exact', head: true });
-
-    if (commentsError) {
-      return res.status(500).json({ error: "Error fetching comments stats" });
+    let totalComments = 0;
+    try {
+      const { count, error: commentsError } = await supabase
+        .from('comments')
+        .select('*', { count: 'exact', head: true });
+      if (commentsError) {
+        console.error('Error fetching comments count:', commentsError);
+        warnings.push('Could not fetch total comments count');
+      } else {
+        totalComments = count || 0;
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching comments count:', err);
+      warnings.push('Unexpected error fetching total comments count');
     }
 
-    // Get total likes
-    const { data: likesData, error: likesError } = await supabase
-      .from('blog_posts')
-      .select('likes');
+    // Get total likes (resilient: fallback to 0 on error)
+    let totalLikes = 0;
+    try {
+      const { data: likesData, error: likesError } = await supabase
+        .from('posts')
+        .select('likes_count');
 
-    if (likesError) {
-      return res.status(500).json({ error: "Error fetching likes stats" });
+      if (likesError) {
+        console.error('Error fetching likes stats:', likesError);
+        warnings.push('Could not fetch likes totals');
+      } else {
+        totalLikes = (likesData || []).reduce((sum, post) => sum + (post.likes_count || 0), 0);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching likes stats:', err);
+      warnings.push('Unexpected error fetching likes totals');
     }
 
-    const totalLikes = (likesData || []).reduce((sum, post) => sum + (post.likes || 0), 0);
+    // Get categories (best-effort)
+    let categories = [];
+    try {
+      const { data: categoryRows, error: categoryRowsError } = await supabase
+        .from('categories')
+        .select('name');
 
-    // Get categories
-    const { data: categoriesData, error: categoriesError } = await supabase
-      .from('blog_posts')
-      .select('category')
-      .not('category', 'is', null);
-
-    if (categoriesError) {
-      return res.status(500).json({ error: "Error fetching categories stats" });
+      if (categoryRowsError) {
+        console.error('Error fetching categories stats:', categoryRowsError);
+        warnings.push('Could not fetch category list');
+      } else {
+        categories = (categoryRows || []).map(c => c.name).filter(Boolean);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching categories:', err);
+      warnings.push('Unexpected error fetching categories');
     }
-
-    const categories = [...new Set(
-      (categoriesData || [])
-        .map(item => item.category)
-        .filter(category => category && category.trim().length > 0)
-    )];
 
     res.json({
       success: true,
@@ -526,7 +549,8 @@ adminRouter.get('/stats', requireAdmin, async (req, res) => {
         totalComments: totalComments || 0,
         totalLikes: totalLikes || 0,
         totalCategories: categories.length,
-        categories
+        categories,
+        warnings
       }
     });
   } catch (error) {
@@ -674,9 +698,9 @@ adminRouter.delete('/categories/:id', requireAdmin, async (req, res) => {
 
     // Check if category is being used by any posts
     const { data: posts, error: postError } = await supabase
-      .from('blog_posts')
+      .from('posts')
       .select('id')
-      .eq('category', categoryId)
+      .eq('category_id', categoryId)
       .limit(1);
 
     if (postError) {
