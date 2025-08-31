@@ -1,7 +1,7 @@
 import { Suspense, lazy } from "react";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import { PageLoadingSpinner } from "@/components/LoadingSpinner";
 
 // Lazy load heavy components
 const HeroSection = lazy(() => import("@/components/HeroSection"));
@@ -12,10 +12,10 @@ export default function HomePage() {
         <div className="flex flex-col min-h-screen">
             <NavBar />
             <div className="flex-grow">
-                <Suspense fallback={<LoadingSpinner />}>
+                <Suspense fallback={<PageLoadingSpinner />}>
                     <HeroSection />
                 </Suspense>
-                <Suspense fallback={<LoadingSpinner />}>
+                <Suspense fallback={<PageLoadingSpinner />}>
                     <ArticlesSection />
                 </Suspense>
             </div>

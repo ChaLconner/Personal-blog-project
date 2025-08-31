@@ -1,117 +1,42 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import NavBar from "@/components/NavBar";
-import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
 import { toast } from "sonner";
 
-// Helper to show toast without overlap (must be outside component)
-let lastToastId = null;
-function showToast(type, content, options = {}) {
-    if (lastToastId) {
-        toast.dismiss(lastToastId);
-    }
-    lastToastId = toast[type](content, options);
-}
+// Simple local validators (avoid depending on a missing utils/validation file)
+const validateEmail = (email) => /\S+@\S+\.\S+/.test(String(email).toLowerCase());
+const validatePassword = (password) => typeof password === 'string' && password.trim().length >= 6;
 
-export default function LoginPage() {
+function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({ email: false, password: false });
-    const [isWakingServer, setIsWakingServer] = useState(false);
-    const wakeTimeoutRef = useRef(null);
-    const [, setError] = useState("");
-    const [requiresVerification, setRequiresVerification] = useState(false);
     const [validationErrors, setValidationErrors] = useState({});
+    const [, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isWakingServer, setIsWakingServer] = useState(false);
+    const [requiresVerification, setRequiresVerification] = useState(false);
 
+    const passwordCheckTimeoutRef = useRef(null);
+    const wakeTimeoutRef = useRef(null);
     const navigate = useNavigate();
-    const location = useLocation();
-    const { login, resendVerification, isAuthenticated, state } = useAuth();
+    const { login, resendVerification } = useAuth();
 
-    // ถ้าผู้ใช้ล็อกอินแล้ว redirect ทันที
+    // Cleanup debounce timer on unmount
     useEffect(() => {
-        if (isAuthenticated && !state.getUserLoading) {
-            // เพิ่มการ delay เล็กน้อยเพื่อให้ toast แสดงให้เห็น
-            const timeoutId = setTimeout(() => {
-                // Get the page user was trying to visit from URL params or location state
-                const getRedirectPath = () => {
-                    // Check URL parameters first (from query string)
-                    const urlParams = new URLSearchParams(location.search);
-                    const redirectParam = urlParams.get('redirect') || urlParams.get('from');
+        return () => {
+            if (passwordCheckTimeoutRef.current) {
+                clearTimeout(passwordCheckTimeoutRef.current);
+            }
+            if (wakeTimeoutRef.current) {
+                clearTimeout(wakeTimeoutRef.current);
+            }
+        };
+    }, []);
 
-                    if (redirectParam) {
-                        // Decode and validate the redirect path
-                        try {
-                            const decodedPath = decodeURIComponent(redirectParam);
-                            // Ensure it's a valid internal path
-                            if (decodedPath.startsWith('/')) {
-                                return decodedPath;
-                            }
-                        } catch {
-                            // Invalid redirect params will be ignored and fallback path will be used
-                        }
-                    }
-
-                    // Check location state (from navigation)
-                    const fromState = location.state?.from?.pathname;
-                    if (fromState) {
-                        return fromState;
-                    }
-
-                // Check document.referrer for article pages
-
-                try {
-                    const referrer = document.referrer;
-                    if (referrer) {
-                        const referrerUrl = new URL(referrer);
-                        if (referrerUrl.origin === window.location.origin) {
-                            const path = referrerUrl.pathname;
-                            if (path.startsWith('/post/') || path.startsWith('/Post/')) {
-                                return path;
-                            }
-                        }
-                    }
-                } catch {
-                    // Log errors when parsing referrer to aid debugging in some browsers/environments
-                }
-
-                    // Default to home page
-                    return "/";
-                };
-
-                const redirectPath = getRedirectPath();
-                navigate(redirectPath, { replace: true });
-            }, 300); // delay 300ms เพื่อให้เห็น success toast
-
-            return () => clearTimeout(timeoutId);
-        }
-    }, [isAuthenticated, state.getUserLoading, navigate, location.search, location.state?.from?.pathname]);
-
-    // Validation functions
-
-
-    const validateEmail = (email) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    };
-
-    const validatePassword = (password) => {
-        return password.length >= 6;
-    };
-
-    // Real-time email existence check
+    // Check if email exists
     const checkEmailExists = async (emailToCheck) => {
-        if (!validateEmail(emailToCheck)) {
-            setFieldErrors(prev => ({ ...prev, email: true }));
-            showToast(
-                'error',
-                <div>
-                    Please enter a valid email address
-                </div>,
-                { position: 'bottom-right', duration: 4000 }
-            );
-            return;
-        }
         try {
             const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001');
             let exists = false;
@@ -136,25 +61,15 @@ export default function LoginPage() {
             }
             if (!exists) {
                 setFieldErrors(prev => ({ ...prev, email: true }));
-                showToast(
-                    'error',
-                    <div>
-                        Your password is incorrect or this email doesn’t exist<br />Please try another password or email
-                    </div>,
-                    { position: 'bottom-right', duration: 4000 }
-                );
+                toast.dismiss();
+                toast.error("Your password is incorrect or this email doesn’t exist. Please try another password or email", { duration: 4000 });
             } else {
                 setFieldErrors(prev => ({ ...prev, email: false }));
             }
         } catch {
             setFieldErrors(prev => ({ ...prev, email: true }));
-            showToast(
-                'error',
-                <div>
-                    Your password is incorrect or this email doesn’t exist<br />Please try another password or email
-                </div>,
-                { position: 'bottom-right', duration: 4000 }
-            );
+                toast.dismiss();
+                toast.error("Your password is incorrect or this email doesn’t exist. Please try another password or email", { duration: 4000 });
         }
     };
 
@@ -173,29 +88,17 @@ export default function LoginPage() {
             const data = await res.json();
             if (!res.ok || !data.success || !data.access_token) {
                 setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
-                showToast(
-                    'error',
-                    <div>
-                        Your password is incorrect or this email doesn’t exist, Please try another password or email
-                    </div>,
-                    { position: 'bottom-right', duration: 4000 }
-                );
+                toast.dismiss();
+                toast.error("Your email doesn’t exist. Please try another email", { duration: 4000 });
             } else {
                 setFieldErrors(prev => ({ ...prev, password: false, email: prev.email }));
             }
         } catch {
             setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
-            showToast(
-                'error',
-                <div>
-                    Your password is incorrect or this email doesn’t exist, Please try another password or email
-                </div>,
-                { position: 'bottom-right', duration: 4000 }
-            );
+            toast.dismiss();
+            toast.error("Your password is incorrect or this email doesn’t exist", { duration: 4000 });
         }
     };
-
-    // (Removed duplicate/broken checkCredentials and showToast)
 
     const validateForm = () => {
         const errors = {};
@@ -212,10 +115,11 @@ export default function LoginPage() {
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     };
-    // Restore handleSignupClick
+
     const handleSignupClick = () => {
         navigate("/signup");
     };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
@@ -224,10 +128,8 @@ export default function LoginPage() {
         if (!validateForm()) {
             if (!validateEmail(email)) {
                 setFieldErrors(prev => ({ ...prev, email: true }));
-                showToast('error', "Your password is incorrect or this email doesn't exist", {
-                    position: "bottom-right",
-                    duration: 4000,
-                });
+                toast.dismiss();
+                toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
             }
             return;
         }
@@ -245,10 +147,7 @@ export default function LoginPage() {
             clearTimeout(wakeTimeoutRef.current);
             setIsWakingServer(false);
             if (result.success) {
-                showToast('success', "Login successful! Welcome back!", {
-                    position: "bottom-right",
-                    duration: 1500,
-                });
+                toast.success("Login successful! Welcome back!", { duration: 1500 });
             } else if (result.error) {
                 setError(result.error);
                 const authErrorMessage = result.error.toLowerCase();
@@ -260,21 +159,13 @@ export default function LoginPage() {
                     authErrorMessage.includes('password') ||
                     authErrorMessage.includes('email')
                 ) {
-                    showToast('error', "Your password is incorrect or this email doesn't exist", {
-                        position: "bottom-right",
-                        duration: 4000,
-                    });
+                    toast.dismiss();
+                    toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
                 } else if (result.requiresVerification) {
                     setRequiresVerification(true);
-                    showToast('error', "Please verify your email before logging in", {
-                        position: "bottom-right",
-                        duration: 4000,
-                    });
+                    toast.error("Please verify your email before logging in", { duration: 4000 });
                 } else {
-                    showToast('error', result.error, {
-                        position: "bottom-right",
-                        duration: 4000,
-                    });
+                    toast.error(result.error, { duration: 4000 });
                 }
                 setRequiresVerification(Boolean(result.requiresVerification));
             }
@@ -284,10 +175,8 @@ export default function LoginPage() {
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
             setRequiresVerification(false);
-            showToast('error', "Your password is incorrect or this email doesn't exist", {
-                position: "bottom-right",
-                duration: 4000,
-            });
+            toast.dismiss();
+            toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
         } finally {
             setIsLoading(false);
         }
@@ -350,9 +239,14 @@ export default function LoginPage() {
                                     }
                                 }}
                                 onBlur={() => {
-                                    // Only check password if email is valid and not in error state
+                                    // Debounce password+email check after blur
+                                    if (passwordCheckTimeoutRef.current) {
+                                        clearTimeout(passwordCheckTimeoutRef.current);
+                                    }
                                     if (!fieldErrors.email && !validationErrors.email && email && validateEmail(email)) {
-                                        checkCredentials(email, password);
+                                        passwordCheckTimeoutRef.current = setTimeout(() => {
+                                            checkCredentials(email, password);
+                                        }, 600); // 600ms delay after blur
                                     }
                                 }}
                                 required
@@ -371,9 +265,9 @@ export default function LoginPage() {
                                     onClick={async () => {
                                         const res = await resendVerification(email);
                                         if (res.success) {
-                                            showToast('success', res.message, { position: "bottom-right" });
+                                            toast.success(res.message, { duration: 4000 });
                                         } else {
-                                            showToast('error', res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { position: "bottom-right" });
+                                            toast.error(res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { duration: 4000 });
                                         }
                                     }}
                                 >
@@ -408,3 +302,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+export default LoginPage;
