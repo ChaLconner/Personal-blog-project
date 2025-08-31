@@ -4,10 +4,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
 import { toast } from "sonner";
 
+// Helper to show toast without overlap (must be outside component)
+let lastToastId = null;
+function showToast(type, content, options = {}) {
+    if (lastToastId) {
+        toast.dismiss(lastToastId);
+    }
+    lastToastId = toast[type](content, options);
+}
+
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState({ email: false, password: false });
     const [isWakingServer, setIsWakingServer] = useState(false);
     const wakeTimeoutRef = useRef(null);
     const [, setError] = useState("");
@@ -47,14 +57,13 @@ export default function LoginPage() {
                 }
 
                 // Check document.referrer for article pages
+
                 try {
                     const referrer = document.referrer;
                     if (referrer) {
                         const referrerUrl = new URL(referrer);
-                        // If same origin, use the path
                         if (referrerUrl.origin === window.location.origin) {
                             const path = referrerUrl.pathname;
-                            // If it's an article page, return to it
                             if (path.startsWith('/post/') || path.startsWith('/Post/')) {
                                 return path;
                             }
@@ -74,6 +83,8 @@ export default function LoginPage() {
     }, [isAuthenticated, state.getUserLoading, navigate, location.search, location.state?.from?.pathname]);
 
     // Validation functions
+
+
     const validateEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
@@ -83,35 +94,136 @@ export default function LoginPage() {
         return password.length >= 6;
     };
 
+    // Real-time email existence check
+    const checkEmailExists = async (emailToCheck) => {
+        if (!validateEmail(emailToCheck)) {
+            setFieldErrors(prev => ({ ...prev, email: true }));
+            showToast(
+                'error',
+                <div>
+                    Please enter a valid email address
+                </div>,
+                { position: 'bottom-right', duration: 4000 }
+            );
+            return;
+        }
+        try {
+            const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001');
+            let exists = false;
+            let res, data;
+            try {
+                res = await fetch(apiUrl + '/auth/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailToCheck })
+                });
+                data = await res.json();
+                exists = !!(data && data.exists);
+            } catch {
+                // fallback to login with dummy password
+                res = await fetch(apiUrl + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailToCheck, password: '___dummy___' })
+                });
+                data = await res.json();
+                exists = !(data && (data.error?.toLowerCase().includes('not found') || data.error?.toLowerCase().includes('email')));
+            }
+            if (!exists) {
+                setFieldErrors(prev => ({ ...prev, email: true }));
+                showToast(
+                    'error',
+                    <div>
+                        Your password is incorrect or this email doesn’t exist<br />Please try another password or email
+                    </div>,
+                    { position: 'bottom-right', duration: 4000 }
+                );
+            } else {
+                setFieldErrors(prev => ({ ...prev, email: false }));
+            }
+        } catch {
+            setFieldErrors(prev => ({ ...prev, email: true }));
+            showToast(
+                'error',
+                <div>
+                    Your password is incorrect or this email doesn’t exist<br />Please try another password or email
+                </div>,
+                { position: 'bottom-right', duration: 4000 }
+            );
+        }
+    };
+
+    // Real-time password+email check (as before)
+    const checkCredentials = async (emailToCheck, passwordToCheck) => {
+        if (!validateEmail(emailToCheck) || !validatePassword(passwordToCheck)) return;
+        try {
+            const res = await fetch(
+                (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/auth/login',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailToCheck, password: passwordToCheck })
+                }
+            );
+            const data = await res.json();
+            if (!res.ok || !data.success || !data.access_token) {
+                setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
+                showToast(
+                    'error',
+                    <div>
+                        Your password is incorrect or this email doesn’t exist, Please try another password or email
+                    </div>,
+                    { position: 'bottom-right', duration: 4000 }
+                );
+            } else {
+                setFieldErrors(prev => ({ ...prev, password: false, email: prev.email }));
+            }
+        } catch {
+            setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
+            showToast(
+                'error',
+                <div>
+                    Your password is incorrect or this email doesn’t exist, Please try another password or email
+                </div>,
+                { position: 'bottom-right', duration: 4000 }
+            );
+        }
+    };
+
+    // (Removed duplicate/broken checkCredentials and showToast)
+
     const validateForm = () => {
         const errors = {};
-        
         if (!email.trim()) {
             errors.email = "Email is required";
         } else if (!validateEmail(email)) {
             errors.email = "Email must be a valid email";
         }
-
         if (!password.trim()) {
             errors.password = "Password is required";
         } else if (!validatePassword(password)) {
             errors.password = "Password must be at least 6 characters";
         }
-
         setValidationErrors(errors);
         return Object.keys(errors).length === 0;
     };
-
+    // Restore handleSignupClick
     const handleSignupClick = () => {
         navigate("/signup");
     };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
         setValidationErrors({});
 
         if (!validateForm()) {
+            if (!validateEmail(email)) {
+                setFieldErrors(prev => ({ ...prev, email: true }));
+                showToast('error', "Your password is incorrect or this email doesn't exist", {
+                    position: "bottom-right",
+                    duration: 4000,
+                });
+            }
             return;
         }
 
@@ -128,7 +240,7 @@ export default function LoginPage() {
             clearTimeout(wakeTimeoutRef.current);
             setIsWakingServer(false);
             if (result.success) {
-                toast.success("Login successful! Welcome back!", {
+                showToast('success', "Login successful! Welcome back!", {
                     position: "bottom-right",
                     duration: 1500,
                 });
@@ -143,18 +255,18 @@ export default function LoginPage() {
                     authErrorMessage.includes('password') ||
                     authErrorMessage.includes('email')
                 ) {
-                    toast.error("Your password is incorrect or this email doesn't exist", {
+                    showToast('error', "Your password is incorrect or this email doesn't exist", {
                         position: "bottom-right",
                         duration: 4000,
                     });
                 } else if (result.requiresVerification) {
                     setRequiresVerification(true);
-                    toast.error("Please verify your email before logging in", {
+                    showToast('error', "Please verify your email before logging in", {
                         position: "bottom-right",
                         duration: 4000,
                     });
                 } else {
-                    toast.error(result.error, {
+                    showToast('error', result.error, {
                         position: "bottom-right",
                         duration: 4000,
                     });
@@ -167,7 +279,7 @@ export default function LoginPage() {
             const errorMessage = error.message || "Login failed. Please try again.";
             setError(errorMessage);
             setRequiresVerification(false);
-            toast.error("Your password is incorrect or this email doesn't exist", {
+            showToast('error', "Your password is incorrect or this email doesn't exist", {
                 position: "bottom-right",
                 duration: 4000,
             });
@@ -190,18 +302,21 @@ export default function LoginPage() {
                                 id="email"
                                 placeholder="Email"
                                 className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.email 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                    fieldErrors.email
+                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
+                                        : validationErrors.email
+                                            ? "border-red-500 focus:border-red-500"
+                                            : "border-[#DAD6D1] "
                                 }`}
                                 value={email}
                                 onChange={(e) => {
                                     setEmail(e.target.value);
-                                    // Clear validation error when user starts typing
+                                    setFieldErrors(prev => ({ ...prev, email: false }));
                                     if (validationErrors.email) {
                                         setValidationErrors(prev => ({...prev, email: ""}));
                                     }
                                 }}
+                                onBlur={() => checkEmailExists(email)}
                                 required
                             />
                             {validationErrors.email && (
@@ -215,16 +330,24 @@ export default function LoginPage() {
                                 id="password"
                                 placeholder="Password"
                                 className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.password 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
+                                    fieldErrors.password
+                                        ? "border-[#EB5164] text-[#EB5164] focus:border-[#EB5164]"
+                                        : validationErrors.password
+                                            ? "border-red-500 focus:border-red-500"
+                                            : "border-[#DAD6D1]"
                                 }`}
                                 value={password}
                                 onChange={(e) => {
                                     setPassword(e.target.value);
-                                    // Clear validation error when user starts typing
+                                    setFieldErrors(prev => ({ ...prev, password: false }));
                                     if (validationErrors.password) {
                                         setValidationErrors(prev => ({...prev, password: ""}));
+                                    }
+                                }}
+                                onBlur={() => {
+                                    // Only check password if email is valid and not in error state
+                                    if (!fieldErrors.email && !validationErrors.email && email && validateEmail(email)) {
+                                        checkCredentials(email, password);
                                     }
                                 }}
                                 required
@@ -243,9 +366,9 @@ export default function LoginPage() {
                                     onClick={async () => {
                                         const res = await resendVerification(email);
                                         if (res.success) {
-                                            toast.success(res.message, { position: "bottom-right" });
+                                            showToast('success', res.message, { position: "bottom-right" });
                                         } else {
-                                            toast.error(res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { position: "bottom-right" });
+                                            showToast('error', res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { position: "bottom-right" });
                                         }
                                     }}
                                 >
@@ -262,7 +385,7 @@ export default function LoginPage() {
                             >
                                 {isLoading
                                     ? isWakingServer
-                                        ? "Waking up server..."
+                                        ? "Log in"
                                         : "Logging in..."
                                     : "Log in"}
                             </button>
