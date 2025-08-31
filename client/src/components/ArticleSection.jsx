@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 import BlogCard from "./BlogCard";
@@ -12,6 +12,15 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { blogApi } from "@/services/api";
+import { formatShortDate } from "@/utils/dateFormatter";
+import useDebounce from '@/hooks/useDebounce';
+
+// Simple skeleton loader for posts
+function PostSkeleton() {
+    return (
+        <div className="animate-pulse bg-gray-200 rounded-xl h-44 w-full mb-4" />
+    );
+}
 
 export default function ArticleSection() {
     const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -20,8 +29,11 @@ export default function ArticleSection() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [showSkeleton, setShowSkeleton] = useState(false);
+    const firstLoadRef = useRef(true);
     const [isCategoryChanging, setIsCategoryChanging] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState("");
+    const debouncedSearch = useDebounce(searchKeyword, 300);
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [error, setError] = useState(null);
@@ -63,130 +75,120 @@ export default function ArticleSection() {
     };
 
     useEffect(() => {
+        let skeletonTimeout;
         const fetchPosts = async () => {
             if (page === 1) {
                 setIsLoading(true);
+                setShowSkeleton(true);
+                // Hide skeleton after 600ms if posts not loaded
+                skeletonTimeout = setTimeout(() => setShowSkeleton(false), 600);
             }
 
             try {
                 let categoryParam;
-                let requestLimit = 6; // Default limit
-
+                let requestLimit = 6;
                 if (category === "Highlight") {
-                    categoryParam = null; // Show all posts for Highlight
-                    requestLimit = 12; // Request more to ensure we get at least 6 unique after dedup
+                    categoryParam = null;
+                    requestLimit = 12;
                 } else {
-                    categoryParam = category; // Use exact category name
+                    categoryParam = category;
                 }
 
+                // Use a shorter timeout for first load
                 const response = await retryApiCall(async () => {
                     return await blogApi.getPosts({
                         category: categoryParam,
                         limit: requestLimit,
-                        offset: (page - 1) * 6, // Keep offset calculation consistent
+                        offset: (page - 1) * 6,
+                        timeout: page === 1 ? 8000 : 15000,
                     });
                 });
-                
-                // Handle both success and error cases from API
-                if (!response || !response.success) {
-                    console.warn('⚠️ API returned unsuccessful response:', response);
-                    if (page === 1) {
-                        setPosts([]); // Clear posts on failed first load
-                    }
-                    setHasMore(false);
-                    return;
-                }
 
-                const postsData = response.posts || [];
+                const postsData = (response && response.success && Array.isArray(response.posts))
+                    ? response.posts
+                    : [];
 
                 setPosts((prevPosts) => {
                     if (page === 1) {
-                        // For new category, replace all posts and remove any duplicates
                         let newPosts = removeDuplicatePosts(postsData);
-
-                        // For Highlight, ensure we show exactly 6 posts on first load
                         if (category === "Highlight" && newPosts.length > 6) {
                             newPosts = newPosts.slice(0, 6);
                         }
-
                         return newPosts;
                     } else {
-                        // For load more, combine and remove duplicates
                         const allPosts = [...prevPosts, ...postsData];
-
                         let uniquePosts = removeDuplicatePosts(allPosts);
-
-                        // For Highlight pagination, limit to 6 posts per page increment
                         if (category === "Highlight") {
                             const targetCount = page * 6;
                             if (uniquePosts.length > targetCount) {
                                 uniquePosts = uniquePosts.slice(0, targetCount);
                             }
                         }
-
                         return uniquePosts;
                     }
                 });
 
-                // Determine if there are more posts available
                 if (category === "Highlight") {
-                    // For Highlight, check if we have more unique posts available
                     const uniqueFromResponse = removeDuplicatePosts(postsData);
                     setHasMore(uniqueFromResponse.length >= 6 || postsData.length === requestLimit);
                 } else {
                     setHasMore(postsData.length === 6);
                 }
             } catch (error) {
-                console.error("❌ Error fetching posts:", error.message);
-                console.error("Error details:", error);
-                
-                // Set error state
                 setError(error.message);
-                
-                // On error, clear posts if it's the first page
                 if (page === 1) {
                     setPosts([]);
                 }
                 setHasMore(false);
-                
-                // Clear error after 5 seconds
                 setTimeout(() => setError(null), 5000);
-                
             } finally {
                 setIsLoading(false);
                 setIsCategoryChanging(false);
+                setShowSkeleton(false);
+                if (skeletonTimeout) clearTimeout(skeletonTimeout);
             }
         };
 
         fetchPosts();
+        // Prefetch on first load only
+        if (firstLoadRef.current) {
+            firstLoadRef.current = false;
+            setTimeout(() => {
+                blogApi.getPosts({ category: null, limit: 12, offset: 0, timeout: 6000 });
+            }, 0);
+        }
     }, [page, category]);
 
     useEffect(() => {
-        if (searchKeyword.length > 0) {
+        if (debouncedSearch.length > 0) {
             setIsLoading(true);
-            const fetchSuggestions = async () => {
-                try {
-                    const response = await blogApi.getPosts({
-                        search: searchKeyword,
-                        limit: 5
-                    });
-                    // Handle the response structure properly
-                    const postsData = response.success ? response.posts : [];
-                    setSuggestions(postsData || []); // Ensure it's always an array
-                    setIsLoading(false);
-                } catch {
-                    setSuggestions([]); // Set empty array on error
-                    setIsLoading(false);
-                }
+                    const fetchSuggestions = async () => {
+                    try {
+                        const response = await blogApi.getPosts({
+                                search: debouncedSearch,
+                                limit: 5
+                            });
+
+                        // Normalize suggestions shape
+                        const postsData = (response && response.success && Array.isArray(response.posts))
+                            ? response.posts
+                            : [];
+
+                        setSuggestions(postsData);
+                        setIsLoading(false);
+                    } catch {
+                        setSuggestions([]); // Set empty array on error
+                        setIsLoading(false);
+                    }
             };
 
             fetchSuggestions();
         } else {
             setSuggestions([]); // Clear suggestions if keyword is empty
         }
-    }, [searchKeyword]);
+    }, [debouncedSearch]);
 
-    const handleCategoryChange = (newCategory) => {
+    const handleCategoryChange = useCallback((newCategory) => {
         if (newCategory !== category) {
             // Clear error state
             setError(null);
@@ -201,11 +203,9 @@ export default function ArticleSection() {
                 blogApi.clearCache();
             }
         }
-    };
+    }, [category]);
 
-    const handleLoadMore = () => {
-        setPage((prevPage) => prevPage + 1);
-    };
+    const handleLoadMore = useCallback(() => setPage((prevPage) => prevPage + 1), []);
 
     const navigate = useNavigate();
 
@@ -233,7 +233,7 @@ export default function ArticleSection() {
                         ))}
                     </div>
 
-                    <div className="relative w-full md:w-auto">
+                    <div className="relative w-full md:w-1/4">
                         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
                         <Input
                             className="w-full"
@@ -306,36 +306,38 @@ export default function ArticleSection() {
 
                 {/* Blog Cards */}
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
-                    {/* Show loading when category is changing and no posts */}
-                    {isCategoryChanging && posts.length === 0 && (
-                        <div className="col-span-full text-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                            <p className="text-muted-foreground">Loading {category} posts...</p>
+                    {/* Show skeletons on first load */}
+                    {showSkeleton && posts.length === 0 && (
+                        <>
+                            {[...Array(4)].map((_, i) => (
+                                <PostSkeleton key={i} />
+                            ))}
+                        </>
+                    )}
+                    {/* Show loading only when category is changing and no posts */}
+                    {isCategoryChanging && posts.length === 0 && !showSkeleton && (
+                        <div className="col-span-full text-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
+                            <p className="text-muted-foreground text-lg">Loading {category} posts...</p>
                         </div>
                     )}
-
                     {/* Show posts */}
                     {posts.map((blog) => (
                         <BlogCard
                             id={blog.id}
-                            key={blog.id} // Use only ID as key since we ensure uniqueness
+                            key={blog.id}
                             image={blog.image}
                             category={blog.category}
                             title={blog.title}
                             description={blog.description}
                             author={blog.author}
-                            date={new Date(blog.date).toLocaleDateString("en-GB", {
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                            })}
-                            onClick={() => blog.id && navigate(`/Post/${blog.id}`)}
+                            date={formatShortDate(blog.date)}
+                            onClick={() => blog.id && navigate(`/post/${blog.id}`)}
                             style={{ cursor: "pointer" }}
                         />
                     ))}
-
                     {/* Show "No posts found" when not loading and no posts */}
-                    {!isCategoryChanging && !isLoading && posts.length === 0 && (
+                    {!isCategoryChanging && !isLoading && posts.length === 0 && !showSkeleton && (
                         <div className="col-span-full text-center py-8">
                             <p className="text-muted-foreground">No posts found for {category} category.</p>
                         </div>

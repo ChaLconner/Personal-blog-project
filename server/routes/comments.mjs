@@ -1,5 +1,7 @@
 import express from 'express';
 import { dbService } from '../config/database.js';
+import optionalProtectUser from '../middlewares/optionalProtectUser.mjs';
+import { createCommentNotification } from '../utils/notificationHelpers.mjs';
 
 const router = express.Router();
 
@@ -37,9 +39,10 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/comments - Create new comment
-router.post('/', async (req, res) => {
+// Allow optional auth so logged-in users' user_id/name/profile_pic are stored
+router.post('/', optionalProtectUser, async (req, res) => {
   try {
-    const { post_id, comment_text, name, email } = req.body;
+  const { post_id, comment_text, name, email, user_id, image } = req.body;
     
     // Validate required fields
     if (!post_id || !comment_text) {
@@ -49,17 +52,34 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Create comment data
+    // Build comment data and prefer authenticated user info when available
     const commentData = {
       post_id: parseInt(post_id),
       comment_text: comment_text.trim(),
-      name: name || 'Anonymous',
+      user_id: req.user?.id || user_id || null,
+      name: (req.user && (req.user.name || req.user.username)) || name || 'Anonymous',
       email: email || null,
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'
+      image: (req.user && req.user.profile_pic) || image || 'https://images.unsplash.com/photo-1472099645785-5658ab4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'
     };
     
     // Create comment using database service
     const newComment = await dbService.createComment(commentData);
+    // Fire notification to post author if applicable
+    try {
+      // Attempt to fetch post to get author id and title (best-effort)
+      const post = await dbService.getPostById(parseInt(commentData.post_id));
+      if (post && post.author && post.id) {
+        // post.author may be a name string or object depending on schema; try to extract author id if available
+        const postAuthorId = post.author && typeof post.author === 'object' ? post.author.id : post.authorId || post.author || null;
+        // Only call createCommentNotification if we have a numeric author id
+        if (postAuthorId && commentData.user_id && post.id) {
+          await createCommentNotification(commentData.user_id, post.id, post.title || post.description || 'your post', postAuthorId);
+        }
+      }
+    } catch (notifErr) {
+      // Log but don't block comment creation
+      console.error('Error attempting to create comment notification:', notifErr);
+    }
     
     res.status(201).json({
       success: true,

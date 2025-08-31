@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { blogApi } from '@/services/api';
 import { useAuth } from '@/contexts/authContext.js';
+import { formatShortDate, formatRelativeDate } from '@/utils/dateFormatter';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState(null);
@@ -45,13 +46,8 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg">Loading dashboard...</div>
-      </div>
-    );
-  }
+  // Render immediately and show inline loaders while fetching
+  // This removes the blocking fullscreen loader while preserving behavior
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -88,27 +84,37 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">Total Posts</h3>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalPosts}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">Total Comments</h3>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalComments}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">Total Likes</h3>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalLikes}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">Categories</h3>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalCategories}</p>
-            </div>
+        {/* Warnings banner (subtle) */}
+        {stats?.warnings && stats.warnings.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded">
+            <strong className="block font-medium">Partial data</strong>
+            <ul className="mt-1 text-sm list-disc pl-5">
+              {stats.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
           </div>
         )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">Total Posts</h3>
+            <p className="text-3xl font-bold text-gray-900">{loading ? '—' : stats?.totalPosts ?? '0'}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">Total Comments</h3>
+            <p className="text-3xl font-bold text-gray-900">{loading ? '—' : stats?.totalComments ?? '0'}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">Total Likes</h3>
+            <p className="text-3xl font-bold text-gray-900">{loading ? '—' : stats?.totalLikes ?? '0'}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-sm font-medium text-gray-500">Categories</h3>
+            <p className="text-3xl font-bold text-gray-900">{loading ? '—' : stats?.totalCategories ?? '0'}</p>
+          </div>
+        </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -148,37 +154,53 @@ export default function AdminDashboardPage() {
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Recent Posts</h2>
             </div>
-            <div className="p-6">
-              {recentPosts.length > 0 ? (
-                <div className="space-y-4">
-                  {recentPosts.map((post) => (
-                    <div key={post.id} className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{post.title}</h3>
-                        <p className="text-sm text-gray-600">{post.category || 'Uncategorized'}</p>
-                        <p className="text-xs text-gray-500">{post.date}</p>
+              <div className="p-6">
+                {loading ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex justify-between items-start animate-pulse">
+                        <div>
+                          <div className="h-4 w-48 bg-gray-200 rounded mb-2" />
+                          <div className="h-3 w-32 bg-gray-200 rounded mb-1" />
+                          <div className="h-3 w-20 bg-gray-200 rounded" />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="h-6 w-16 bg-gray-200 rounded" />
+                          <div className="h-6 w-12 bg-gray-200 rounded" />
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => navigate(`/admin/edit-article/${post.id}`)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => navigate(`/post/${post.id}`)}
-                          className="text-green-600 hover:text-green-800 text-sm"
-                        >
-                          View
-                        </button>
+                    ))}
+                  </div>
+                ) : recentPosts.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentPosts.map((post) => (
+                      <div key={post.id} className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{post.title}</h3>
+                          <p className="text-sm text-gray-600">{post.category || 'Uncategorized'}</p>
+                          <p className="text-xs text-gray-500">{formatShortDate(post.date)}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/edit-article/${post.id}`)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => navigate(`/post/${post.id}`)}
+                            className="text-green-600 hover:text-green-800 text-sm"
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500">No posts yet.</p>
-              )}
-            </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">No posts yet.</p>
+                )}
+              </div>
           </div>
 
           {/* Recent Comments */}
@@ -187,14 +209,27 @@ export default function AdminDashboardPage() {
               <h2 className="text-lg font-semibold text-gray-900">Recent Comments</h2>
             </div>
             <div className="p-6">
-              {recentComments.length > 0 ? (
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="border-b border-gray-100 pb-3 last:border-b-0 animate-pulse">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="h-4 w-40 bg-gray-200 rounded" />
+                        <div className="h-3 w-20 bg-gray-200 rounded" />
+                      </div>
+                      <div className="h-3 w-full bg-gray-200 rounded mb-1" />
+                      <div className="h-3 w-5/6 bg-gray-200 rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : recentComments.length > 0 ? (
                 <div className="space-y-4">
                   {recentComments.map((comment) => (
                     <div key={comment.id} className="border-b border-gray-100 pb-3 last:border-b-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium text-sm text-gray-900">{comment.name}</h4>
                         <span className="text-xs text-gray-500">
-                          {new Date(comment.created_at).toLocaleDateString()}
+                          {formatRelativeDate(comment.created_at)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 line-clamp-2">{comment.comment}</p>

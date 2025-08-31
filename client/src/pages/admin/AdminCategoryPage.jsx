@@ -85,7 +85,7 @@ export default function AdminCategoryManagementPage() {
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-semibold">Category management</h2>
                     <Button
-                        className="px-8 py-2 rounded-full"
+                        className="px-8 py-2 rounded-full text-[#FFFFFF] bg-[#26231E]"
                         onClick={() => navigate("/admin/create-category")}
                     >
                         <PenSquare className="mr-2 h-4 w-4" /> Create category

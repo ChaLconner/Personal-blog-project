@@ -317,7 +317,7 @@ export default function ProfilePage() {
                     {getUserInitials(state.user)}
                   </AvatarFallback>
                 </Avatar>
-                <label className="bg-background px-8 py-2 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer">
+                <label className="bg-[#FFFFFF] px-8 py-2 rounded-full text-foreground border-[1px] border-[#75716B] hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer">
                   Upload profile picture
                   <input
                     type="file"

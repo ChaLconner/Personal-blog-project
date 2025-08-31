@@ -173,17 +173,29 @@ export default function SignUpPage() {
                                 id="email"
                                 name="email"
                                 placeholder="Email"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.email 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
-                                }`}
+                                className={`border rounded w-full py-2 px-3 bg-white transition-colors
+                                    ${validationErrors.email && validationErrors.email === "Email must be a valid email"
+                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
+                                        : validationErrors.email
+                                            ? "border-red-500 focus:border-red-500"
+                                            : "border-[#DAD6D1] focus:border-blue-500"}
+                                `}
                                 value={formData.email}
                                 onChange={handleInputChange}
+                                onBlur={() => {
+                                    if (!formData.email.trim() || !validateEmail(formData.email)) {
+                                        setValidationErrors(prev => ({
+                                            ...prev,
+                                            email: !formData.email.trim()
+                                                ? "Email is required"
+                                                : "Email must be a valid email"
+                                        }));
+                                    }
+                                }}
                                 required
                             />
                             {validationErrors.email && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+                                <p className={`mt-1 text-[12px] ${validationErrors.email === "Email must be a valid email" ? "text-[#EB5164]" : "text-red-500"}`}>{validationErrors.email}</p>
                             )}
                         </div>
                         <div className="mb-6">
@@ -193,17 +205,29 @@ export default function SignUpPage() {
                                 id="password"
                                 name="password"
                                 placeholder="Password"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.password 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
-                                }`}
+                                className={`border rounded w-full py-2 px-3 bg-white transition-colors
+                                    ${validationErrors.password && validationErrors.password === "Password must be at least 6 characters"
+                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
+                                        : validationErrors.password
+                                            ? "border-red-500 focus:border-red-500"
+                                            : "border-[#DAD6D1] focus:border-blue-500"}
+                                `}
                                 value={formData.password}
                                 onChange={handleInputChange}
+                                onBlur={() => {
+                                    if (!formData.password.trim() || !validatePassword(formData.password)) {
+                                        setValidationErrors(prev => ({
+                                            ...prev,
+                                            password: !formData.password.trim()
+                                                ? "Password is required"
+                                                : "Password must be at least 6 characters"
+                                        }));
+                                    }
+                                }}
                                 required
                             />
                             {validationErrors.password && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
+                                <p className={`mt-1 text-[12px] ${validationErrors.password === "Password must be at least 6 characters" ? "text-[#EB5164]" : "text-red-500"}`}>{validationErrors.password}</p>
                             )}
                         </div>
 

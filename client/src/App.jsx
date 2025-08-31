@@ -5,7 +5,7 @@ import { AuthProvider } from "@/contexts/auth.jsx";
 import { useAuth } from "@/contexts/authContext.js";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthenticationRoute from "@/components/AuthenticationRoute";
-import LoadingSpinner, { PageLoadingSpinner } from "@/components/LoadingSpinner";
+import { PageLoadingSpinner } from "@/components/LoadingSpinner";
 
 // Lazy load all pages
 // Public pages
@@ -57,7 +57,7 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/post/:id" element={<ViewPostPage />} />
           <Route path="*" element={<NotFoundPage />} />
-
+          
           {/* เส้นทางที่เฉพาะผู้ที่ยังไม่ล็อกอินเข้าถึงได้ */}
           <Route
             path="/signup"
@@ -144,10 +144,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminDashboardPage />
-                </Suspense>
+        >
+          <AdminDashboardPage />
               </ProtectedRoute>
             }
           />
@@ -159,10 +157,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminCreateArticlePage />
-                </Suspense>
+        >
+          <AdminCreateArticlePage />
               </ProtectedRoute>
             }
           />
@@ -174,10 +170,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminArticlePage />
-                </Suspense>
+        >
+          <AdminArticlePage />
               </ProtectedRoute>
             }
           />
@@ -189,10 +183,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminEditArticlePage />
-                </Suspense>
+        >
+          <AdminEditArticlePage />
               </ProtectedRoute>
             }
           />
@@ -204,10 +196,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminCreateCategoryPage />
-                </Suspense>
+        >
+          <AdminCreateCategoryPage />
               </ProtectedRoute>
             }
           />
@@ -219,10 +209,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminCategoryPage />
-                </Suspense>
+        >
+          <AdminCategoryPage />
               </ProtectedRoute>
             }
           />
@@ -234,10 +222,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminEditCategoryPage />
-                </Suspense>
+        >
+          <AdminEditCategoryPage />
               </ProtectedRoute>
             }
           />
@@ -249,10 +235,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminNotificationPage />
-                </Suspense>
+        >
+          <AdminNotificationPage />
               </ProtectedRoute>
             }
           />
@@ -264,10 +248,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminProfilePage />
-                </Suspense>
+        >
+          <AdminProfilePage />
               </ProtectedRoute>
             }
           />
@@ -279,10 +261,8 @@ function AppContent() {
                 isAuthenticated={isAuthenticated}
                 userRole={state.user?.role}
                 requiredRole="admin"
-              >
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminResetPasswordPage />
-                </Suspense>
+        >
+          <AdminResetPasswordPage />
               </ProtectedRoute>
             }
           />

@@ -1,3 +1,9 @@
+// Simple in-memory cache for stats and categories
+const cache = {
+  stats: { value: null, ts: 0 },
+  categories: { value: null, ts: 0 },
+};
+const CACHE_TTL = 60 * 1000; // 1 minute
 import express from "express";
 import { dbService } from "../config/database.js";
 import { supabase } from "../config/database.js";
@@ -296,24 +302,31 @@ router.get("/categories", async (req, res) => {
 
     
     // Get categories using the existing dbService
+    const now = Date.now();
+    if (cache.categories.value && (now - cache.categories.ts) < CACHE_TTL) {
+      return res.json({
+        success: true,
+        categories: cache.categories.value
+      });
+    }
     const categories = await dbService.getCategories();
-    
-
-    
-    res.json({ 
-      success: true, 
-      categories: categories 
+    cache.categories = { value: categories, ts: now };
+    res.json({
+      success: true,
+      categories: categories
     });
-    
   } catch (error) {
     console.error("❌ Error fetching categories:", error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || "Failed to fetch categories",
-      categories: [] 
+      categories: []
     });
   }
 });
+
+    
+// (removed duplicate handler)
 
 // GET /api/blog/stats - Get blog statistics
 router.get("/stats", async (req, res) => {
@@ -321,23 +334,30 @@ router.get("/stats", async (req, res) => {
 
     
     // Get stats using the existing dbService
+    const now = Date.now();
+    if (cache.stats.value && (now - cache.stats.ts) < CACHE_TTL) {
+      return res.json({
+        success: true,
+        stats: cache.stats.value
+      });
+    }
     const stats = await dbService.getStats();
-    
-
-    
-    res.json({ 
-      success: true, 
-      stats: stats 
+    cache.stats = { value: stats, ts: now };
+    res.json({
+      success: true,
+      stats: stats
     });
-    
   } catch (error) {
     console.error("❌ Error fetching blog stats:", error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || "Failed to fetch stats",
-      stats: {} 
+      stats: {}
     });
   }
 });
+
+    
+// (removed duplicate handler)
 
 export default router;

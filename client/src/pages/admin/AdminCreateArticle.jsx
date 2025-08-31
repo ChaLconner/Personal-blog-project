@@ -215,7 +215,7 @@ export default function AdminCreateArticlePage() {
                     <h2 className="text-2xl font-semibold">Create article</h2>
                     <div className="space-x-2">
                         <Button 
-                            className="px-8 py-2 rounded-full" 
+                            className="px-8 py-2 rounded-full bg-[#FFFFFF]text-[#000000] border border-[#75716B]" 
                             variant="outline"
                             onClick={handleSaveAsDraft}
                             disabled={loading}
@@ -223,7 +223,7 @@ export default function AdminCreateArticlePage() {
                             {loading ? 'Saving...' : 'Save as draft'}
                         </Button>
                         <Button 
-                            className="px-8 py-2 rounded-full"
+                            className="px-8 py-2 rounded-full bg-[#26231E] text-[#FFFFFF]"
                             onClick={handleSaveAndPublish}
                             disabled={loading}
                         >
@@ -235,7 +235,7 @@ export default function AdminCreateArticlePage() {
                 <form className="space-y-7 max-w-4xl">
                     <div>
                         <label
-                            htmlFor="thumbnail"
+                            htmlFor="file-upload"
                             className="block text-gray-700 font-medium mb-2"
                         >
                             Thumbnail image
@@ -288,7 +288,7 @@ export default function AdminCreateArticlePage() {
                             </div>
                             <label
                                 htmlFor="file-upload"
-                                className={`px-8 py-2 bg-background rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`px-8 py-2 bg-[#FFFFFF] border-[#75716B] rounded-full text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <span>{uploading ? 'Uploading...' : 'Upload thumbnail image'}</span>
                                 <input
@@ -336,7 +336,7 @@ export default function AdminCreateArticlePage() {
                     <div>
                         <label htmlFor="category">Category</label>
                         <Select onValueChange={(value) => handleInputChange('category', value)}>
-                            <SelectTrigger className="max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
+                            <SelectTrigger id="category" className="max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
