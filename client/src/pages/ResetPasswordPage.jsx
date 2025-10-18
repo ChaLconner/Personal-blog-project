@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import NavBar from "@/components/NavBar";
 import { Footer } from "@/components/WebSection";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { User, Lock, X } from "lucide-react";
 import {
   AlertDialog,
@@ -30,15 +30,7 @@ export default function ResetPasswordPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { state, logout } = useAuth();
 
-  // Helper function to generate user initials (consistent with other pages)
-  const getUserInitials = (user) => {
-    if (!user) return "U";
-    const name = user?.name || user?.username || user?.email || "";
-    const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-    return initials || "U";
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
     const isValidPassword = password.trim() !== "";
     const isValidNewPassword = newPassword.trim() !== "" && newPassword.length >= 6;
@@ -54,21 +46,19 @@ export default function ResetPasswordPage() {
     if (isValidPassword && isValidNewPassword && isValidConfirmPassword) {
       setIsDialogOpen(true);
     }
-  };
+  }, [password, newPassword, confirmNewPassword]);
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = useCallback(async () => {
     try {
       setIsLoading(true);
       setIsDialogOpen(false);
-
 
       const response = await blogApi.auth.resetPassword({
         oldPassword: password,
         newPassword: newPassword,
       });
 
-  if (response.success) {
-
+      if (response.success) {
         toast.custom((t) => (
           <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
             <div>
@@ -98,7 +88,10 @@ export default function ResetPasswordPage() {
         } catch {
           // ignore logout errors
         }
-        navigate("/login?redirect=/profile", { replace: true });
+        // Check if user is admin and redirect to appropriate login page
+        const loginPath = state.user?.role === 'admin' ? "/admin/login" : "/login";
+        const redirectPath = state.user?.role === 'admin' ? "/admin" : "/profile";
+        navigate(`${loginPath}?redirect=${redirectPath}`, { replace: true });
       } else {
         throw new Error(response.error || 'Password reset failed');
       }
@@ -125,7 +118,23 @@ export default function ResetPasswordPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [password, newPassword, logout, navigate]);
+
+  const handleNavigateToProfile = useCallback(() => {
+    navigate("/profile");
+  }, [navigate]);
+
+  const handlePasswordChange = useCallback((e) => {
+    setPassword(e.target.value);
+  }, []);
+
+  const handleNewPasswordChange = useCallback((e) => {
+    setNewPassword(e.target.value);
+  }, []);
+
+  const handleConfirmPasswordChange = useCallback((e) => {
+    setConfirmNewPassword(e.target.value);
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -134,16 +143,14 @@ export default function ResetPasswordPage() {
         <div className="max-w-4xl w-full md:mx-auto overflow-hidden">
           {/* Desktop Header */}
           <div className="hidden md:flex items-center p-6">
-            <Avatar className="h-14 w-14">
-              <AvatarImage
-                src={state.user?.profile_pic}
-                alt="Profile"
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-gray-500 text-white">
-                {getUserInitials(state.user)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              src={state.user?.profile_pic}
+              name={state.user?.name}
+              username={state.user?.username}
+              email={state.user?.email}
+              size="xl"
+              alt="Profile"
+            />
             <div className="ml-4">
               <h1 className="text-2xl font-bold">{state.user?.name}</h1>
             </div>
@@ -156,7 +163,7 @@ export default function ResetPasswordPage() {
           <div className="md:hidden p-4">
             <div className="flex justify-start gap-12 items-center mb-4">
               <a
-                onClick={() => navigate("/profile")}
+                onClick={handleNavigateToProfile}
                 className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
               >
                 <User className="h-5 w-5 mb-1" />
@@ -168,16 +175,14 @@ export default function ResetPasswordPage() {
               </div>
             </div>
             <div className="flex items-center">
-              <Avatar className="h-10 w-10">
-                <AvatarImage
-                  src={state.user?.profile_pic}
-                  alt="Profile"
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-gray-500 text-white">
-                  {getUserInitials(state.user)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                src={state.user?.profile_pic}
+                name={state.user?.name}
+                username={state.user?.username}
+                email={state.user?.email}
+                size="md"
+                alt="Profile"
+              />
               <h2 className="ml-3 text-xl font-semibold">{state.user?.name}</h2>
             </div>
           </div>
@@ -188,7 +193,7 @@ export default function ResetPasswordPage() {
               <nav>
                 <div className="space-y-3">
                   <a
-                    onClick={() => navigate("/profile")}
+                    onClick={handleNavigateToProfile}
                     className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                   >
                     <User className="h-5 w-5 mb-1" />
@@ -217,7 +222,7 @@ export default function ResetPasswordPage() {
                     type="password"
                     placeholder="Current password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
                       !valid.password ? "border-red-500" : ""
                     }`}
@@ -240,7 +245,7 @@ export default function ResetPasswordPage() {
                     type="password"
                     placeholder="New password"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={handleNewPasswordChange}
                     className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
                       !valid.newPassword ? "border-red-500" : ""
                     }`}
@@ -263,7 +268,7 @@ export default function ResetPasswordPage() {
                     type="password"
                     placeholder="Confirm new password"
                     value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    onChange={handleConfirmPasswordChange}
                     className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
                       !valid.confirmNewPassword ? "border-red-500" : ""
                     }`}
@@ -296,7 +301,11 @@ export default function ResetPasswordPage() {
   );
 }
 
-function ResetPasswordModal({ dialogState, setDialogState, resetFunction, isLoading }) {
+const ResetPasswordModal = ({ dialogState, setDialogState, resetFunction, isLoading }) => {
+  const handleCancel = useCallback(() => {
+    setDialogState(false);
+  }, [setDialogState]);
+
   return (
     <AlertDialog open={dialogState} onOpenChange={setDialogState}>
       <AlertDialogContent className="bg-white rounded-md pt-16 pb-6 max-w-[22rem] sm:max-w-md flex flex-col items-center">
@@ -308,7 +317,7 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction, isLoad
         </AlertDialogDescription>
         <div className="flex flex-row gap-4">
           <button
-            onClick={() => setDialogState(false)}
+            onClick={handleCancel}
             className="bg-background px-10 py-4 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
           >
             Cancel
@@ -327,4 +336,4 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction, isLoad
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};

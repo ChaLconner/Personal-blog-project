@@ -50,19 +50,66 @@ DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName;
 
 const DropdownMenuContent = React.forwardRef(
-  ({ className, sideOffset = 4, ...props }, ref) => (
-    <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content
-        ref={ref}
-        sideOffset={sideOffset}
-        className={cn(
-          "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-          className
-        )}
-        {...props}
-      />
-    </DropdownMenuPrimitive.Portal>
-  )
+  ({ className, sideOffset = 4, ...props }, ref) => {
+    // Store original body style before dropdown opens
+    const originalBodyStyle = React.useRef({});
+    
+    return (
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          ref={ref}
+          sideOffset={sideOffset}
+          className={cn(
+            "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+            className
+          )}
+          {...props}
+          // Prevent body scroll lock and padding when dropdown opens
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            // Store original body style and prevent scroll lock
+            originalBodyStyle.current = {
+              overflow: document.body.style.overflow,
+              paddingRight: document.body.style.paddingRight,
+              width: document.body.style.width
+            };
+            // Ensure body maintains full width and scroll
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
+            document.body.style.width = '100%';
+            
+            // Also set attributes to prevent Radix UI from changing them
+            document.body.setAttribute('data-dropdown-open', 'true');
+            
+            // Fix aria-hidden issue by removing aria-hidden from focused elements
+            const focusedElement = document.activeElement;
+            if (focusedElement) {
+              let parent = focusedElement.parentElement;
+              while (parent) {
+                if (parent.hasAttribute('aria-hidden')) {
+                  parent.removeAttribute('aria-hidden');
+                }
+                parent = parent.parentElement;
+              }
+            }
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            // Restore original body style when dropdown closes
+            document.body.removeAttribute('data-dropdown-open');
+          }}
+          onEscapeKeyDown={() => {
+            // Restore original body style when dropdown closes
+            document.body.removeAttribute('data-dropdown-open');
+          }}
+          onPointerDownOutside={() => {
+            // Restore original body style when dropdown closes
+            document.body.removeAttribute('data-dropdown-open');
+          }}
+        />
+      </DropdownMenuPrimitive.Portal>
+    );
+  }
 );
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 

@@ -313,7 +313,9 @@ router.post('/', protectUser, async (req, res) => {
         message,
         post_id,
         read,
+        read_at,
         created_at,
+        updated_at,
         trigger_user:users!notifications_trigger_user_id_fkey(name, username, profile_pic),
         post:posts(id, title, slug)
       `)
@@ -328,11 +330,14 @@ router.post('/', protectUser, async (req, res) => {
       });
     }
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       data,
-      message: 'Notification created successfully' 
+      message: 'Notification created successfully'
     });
+    
+    // Log that notification was created for debugging
+    console.log(`✅ Created ${type} notification for user ${user_id}`);
   } catch (error) {
     console.error('Error in create notification:', error);
     res.status(500).json({ 

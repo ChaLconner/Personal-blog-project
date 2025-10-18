@@ -101,11 +101,13 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 ## API Service Architecture
 
 ### Centralized Service (`src/services/api.js`)
-- **Built-in caching**: 5-minute cache for GET requests
-- **Automatic token injection**: Reads from both `token` and `authToken` keys
-- **Error handling**: Browser extension interference filtering
-- **Timeout**: 30-second default
-- **Environment aware**: Different behaviors for dev/prod
+- **Built-in caching**: 5-minute cache for GET requests with cache key per URL+params
+- **Dual token management**: Backward compatible with both `token` and `authToken` keys
+- **Cache invalidation**: Automatic clearing on user actions (create/update/delete)
+- **Smart retries**: Network-level failures retried with exponential backoff
+- **Error normalization**: Consistent error structure with user-friendly messages
+- **Timeout management**: 30-second default with configurable per-request
+- **Environment aware**: Different behaviors for dev/prod with enhanced dev logging
 
 ### Critical API Patterns
 ```javascript
@@ -136,6 +138,48 @@ try {
 const { data, error } = await supabase.auth.getUser(token);
 // Then fetch additional user data from users table
 const { data: userData } = await supabase.from('users').select('*').eq('id', data.user.id);
+```
+
+### Notification System Architecture
+- **Real-time subscriptions**: Uses Supabase Postgres change feeds for live notifications
+- **Incremental fetch**: ETag and If-Modified-Since headers for efficient polling
+- **Dual transport**: Realtime for active users, polling for background updates
+- **Batched updates**: Server-side notification grouping
+
+```javascript
+// Client-side realtime subscription
+const channel = supabaseClient
+  .channel(`notifications_user_${userId}`)
+  .on('postgres_changes', { 
+    event: 'INSERT',
+    schema: 'public',
+    table: 'notifications',
+    filter: `user_id=eq.${userId}`,
+  }, payload => {
+    onInsert(payload.new);
+  })
+  .subscribe();
+```
+
+### Error Handling Strategy
+- **API Layer**: Centralized error handling in `api.js`
+- **Retry Logic**: Exponential backoff for transient failures
+- **Cache Fallback**: Returns cached data during API failures
+- **User Messaging**: Structured error responses with friendly messages
+
+```javascript
+// Retry pattern with exponential backoff
+const requestWithRetries = async (fn, { attempts = 3, initialDelay = 500 } = {}) => {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === attempts - 1) throw err;
+      const delay = initialDelay * Math.pow(2, i);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+};
 ```
 
 ### Middleware Pattern
@@ -364,6 +408,26 @@ npm run dev          # Development with nodemon
 - Check for TypeScript errors if using TS
 - Verify environment variables are set
 
+## Critical Development Patterns
+
+### API Service Patterns
+- Every GET endpoint needs caching configuration in `api.js`
+- Update endpoints must call `clearCache()` after successful changes
+- Network errors are automatically retried, server errors are not
+- Token management is dual-tracked (both `token` and `authToken`)
+
+### Notification System
+- Real-time subscriptions via Supabase for active users
+- Background polling with ETag/If-Modified-Since for efficiency
+- Server batches notifications to reduce load
+- Client maintains subscription state per-user
+
+### Error Handling Layers
+1. API service-level retry and normalization
+2. Component-level try/catch with fallback UI
+3. Toast notifications for user feedback
+4. Error boundary catch-all with reset option
+
 ## Development Environment
 
 ### VS Code Extensions (Recommended)
@@ -380,4 +444,9 @@ npm run dev          # Development with nodemon
 
 ---
 
-When working on this project, always consider the full-stack nature and ensure changes work cohesively between client and server components. Prioritize user experience, security, and maintainability in all implementations.
+When working on this project, always consider:
+1. Full-stack cohesion between client and server components
+2. Cache invalidation on write operations
+3. Dual token storage compatibility
+4. Error handling at all levels
+5. Real-time vs polling data patterns

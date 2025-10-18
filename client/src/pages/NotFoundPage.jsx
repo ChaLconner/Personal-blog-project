@@ -1,8 +1,14 @@
 import { CircleAlert } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCallback } from "react";
 
 export default function NotFoundPage() {
     const navigate = useNavigate();
+    
+    const handleGoToHomepage = useCallback(() => {
+        navigate("/");
+    }, [navigate]);
+
     return (
         <div className="flex flex-col min-h-screen">
             <div className="flex-grow flex items-center justify-center">
@@ -10,7 +16,7 @@ export default function NotFoundPage() {
                     <CircleAlert className="h-20 w-20 text-foreground" />
                     <h1 className="mt-6 text-2xl font-bold">Page Not Found</h1>
                     <button
-                        onClick={() => navigate("/")}
+                        onClick={handleGoToHomepage}
                         className="px-8 py-4 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
                     >
                         Go To Homepage

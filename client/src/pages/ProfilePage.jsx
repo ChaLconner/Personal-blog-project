@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import NavBar from "@/components/NavBar";
 import { Footer } from "@/components/WebSection";
 import { useNavigate } from "react-router-dom";
 import { X, User, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/contexts/authContext.js";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api.js";
@@ -13,14 +13,6 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { state, fetchUser } = useAuth();
   
-  // Helper function to generate user initials (consistent with NavBar)
-  const getUserInitials = (user) => {
-    if (!user) return "U";
-    const name = user?.name || user?.username || user?.email || "";
-    const initials = name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-    return initials || "U";
-  };
-
   const [profile, setProfile] = useState({
     image: "",
     name: "",
@@ -62,15 +54,15 @@ export default function ProfilePage() {
     fetchProfile();
   }, [state.user]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setProfile((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
+  }, []);
 
-  const handleFileChange = (event) => {
+  const handleFileChange = useCallback((event) => {
     const file = event.target.files[0];
 
     if (!file) return;
@@ -140,9 +132,9 @@ export default function ProfilePage() {
         </button>
       </div>
     ));
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     try {
       setIsSaving(true);
@@ -197,6 +189,14 @@ export default function ProfilePage() {
 
         // Fetch updated user data to sync global state
         await fetchUser();
+        
+        // Update local profile state with the new image URL
+        if (imageUrl) {
+          setProfile(prev => ({
+            ...prev,
+            image: imageUrl
+          }));
+        }
       } else {
         throw new Error(response.error || 'Failed to update profile');
       }
@@ -221,27 +221,32 @@ export default function ProfilePage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [profile.image, profile.name, profile.username, imageFile, fetchUser]);
+
+  const handleResetPassword = useCallback(() => {
+    navigate("/reset-password");
+  }, [navigate]);
+
+  const avatarSrc = useMemo(() => profile.image || state.user?.profile_pic, [profile.image, state.user?.profile_pic]);
+  const displayName = useMemo(() => profile.name || state.user?.name, [profile.name, state.user?.name]);
 
   return (
     <div className="flex flex-col min-h-screen">
       <NavBar />
-      <div className="min-h-screen md:p-8">
-        <div className="max-w-4xl mx-auto overflow-hidden">
+      <div className="flex-1 md:p-4">
+        <div className="max-w-4xl mx-auto">
           {/* Desktop Header */}
           <div className="hidden md:flex items-center p-6">
-            <Avatar className="h-14 w-14">
-              <AvatarImage
-                src={profile.image}
-                alt="Profile"
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-gray-500 text-white">
-                {getUserInitials(state.user)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              src={avatarSrc}
+              name={state.user?.name}
+              username={state.user?.username}
+              email={state.user?.email}
+              size="xl"
+              alt="Profile"
+            />
             <div className="ml-4">
-              <h1 className="text-2xl font-bold">{profile.name || state.user?.name}</h1>
+              <h1 className="text-2xl font-bold">{displayName}</h1>
             </div>
             <div className="ml-4 font-semibold text-2xl">
               <span className="mr-4">|</span> Profile
@@ -249,35 +254,30 @@ export default function ProfilePage() {
           </div>
 
           {/* Mobile Header */}
-          <div className="md:hidden p-4">
-            <div className="flex justify-start gap-12 items-center mb-4">
+          <div className="md:hidden p-4 pb-0">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-2 text-foreground font-medium cursor-default">
-                <User className="h-5 w-5 mb-1" />
-                <span>Profile</span>
+                <User className="h-5 w-5" />
+                <span className="text-lg">Profile</span>
               </div>
               <button
-                onClick={() => {
-
-                  navigate("/reset-password");
-                }}
-                className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                onClick={handleResetPassword}
+                className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer text-sm"
               >
-                <Lock className="h-5 w-5 mb-1" />
+                <Lock className="h-4 w-4" />
                 Reset password
               </button>
             </div>
-            <div className="flex items-center">
-              <Avatar className="h-10 w-10">
-                <AvatarImage
-                  src={profile.image}
-                  alt="Profile"
-                  className="object-cover"
-                />
-                <AvatarFallback className="bg-gray-500 text-white">
-                  {getUserInitials(state.user)}
-                </AvatarFallback>
-              </Avatar>
-              <h2 className="ml-3 text-xl font-semibold">{profile.name || state.user?.name}</h2>
+            <div className="flex flex-col items-center">
+              <UserAvatar
+                src={avatarSrc}
+                name={state.user?.name}
+                username={state.user?.username}
+                email={state.user?.email}
+                size="xl"
+                alt="Profile"
+              />
+              <h2 className="mt-3 text-xl font-semibold text-center">{displayName}</h2>
             </div>
           </div>
 
@@ -291,10 +291,7 @@ export default function ProfilePage() {
                     <span>Profile</span>
                   </div>
                   <button
-                    onClick={() => {
-
-                      navigate("/reset-password");
-                    }}
+                    onClick={handleResetPassword}
                     className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
                   >
                     <Lock className="h-5 w-5 mb-1" />
@@ -305,18 +302,17 @@ export default function ProfilePage() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 bg-[#EFEEEB] md:m-2 md:shadow-md md:rounded-lg">
-              <div className="flex flex-col md:flex-row items-center justify-start md:gap-6 mb-6">
-                <Avatar className="h-28 w-28 mb-5">
-                  <AvatarImage
-                    src={profile.image}
-                    alt="Profile"
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="text-lg font-medium bg-gray-500 text-white">
-                    {getUserInitials(state.user)}
-                  </AvatarFallback>
-                </Avatar>
+            <main className="flex-1 p-4 md:p-8 bg-[#EFEEEB] md:m-2 md:shadow-md md:rounded-lg">
+              <div className="hidden md:flex flex-col md:flex-row items-center justify-start md:gap-6 mb-6">
+                <UserAvatar
+                  src={avatarSrc}
+                  name={state.user?.name}
+                  username={state.user?.username}
+                  email={state.user?.email}
+                  size="2xl"
+                  alt="Profile"
+                  className="mb-5"
+                />
                 <label className="bg-[#FFFFFF] px-8 py-2 rounded-full text-foreground border-[1px] border-[#75716B] hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer">
                   Upload profile picture
                   <input
@@ -328,11 +324,24 @@ export default function ProfilePage() {
                 </label>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Mobile Upload Button */}
+              <div className="md:hidden mb-6">
+                <label className="w-full bg-[#FFFFFF] px-6 py-3 rounded-full text-foreground border-[1px] border-[#75716B] hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer flex items-center justify-center">
+                  Upload profile picture
+                  <input
+                    type="file"
+                    className="sr-only"
+                    onChange={handleFileChange}
+                    accept="image/*"
+                  />
+                </label>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label
                     htmlFor="name"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-gray-700 mb-2"
                   >
                     Name
                   </label>
@@ -341,13 +350,13 @@ export default function ProfilePage() {
                     name="name"
                     value={profile.name}
                     onChange={handleInputChange}
-                    className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                    className="py-3 px-4 rounded-lg placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="username"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-gray-700 mb-2"
                   >
                     Username
                   </label>
@@ -356,13 +365,13 @@ export default function ProfilePage() {
                     name="username"
                     value={profile.username}
                     onChange={handleInputChange}
-                    className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                    className="py-3 px-4 rounded-lg placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-gray-700 mb-2"
                   >
                     Email
                   </label>
@@ -372,16 +381,18 @@ export default function ProfilePage() {
                     type="email"
                     value={profile.email}
                     disabled
-                    className="bg-gray-100"
+                    className="py-3 px-4 rounded-lg bg-gray-100"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-8 py-2 mt-2 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="w-full md:w-auto px-8 py-3 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? "Saving..." : "Save"}
+                  </button>
+                </div>
               </form>
             </main>
           </div>

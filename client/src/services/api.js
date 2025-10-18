@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseClient } from "../lib/supabaseClient.js";
 
 // Resolve API base URL: prefer VITE_API_URL, then localhost in dev, else Render in prod
 const API_BASE_URL =
@@ -26,13 +26,7 @@ const api = axios.create({
   timeout: 30000, // 30 second default timeout
 });
 
-// Supabase client for realtime notifications (client-side)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || null;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || null;
-const supabaseClient =
-  SUPABASE_URL && SUPABASE_ANON_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+// Supabase client is now imported from the shared supabaseClient module
 
 // Map of active notification channels by userId
 const notificationChannels = new Map();
@@ -144,8 +138,22 @@ api.interceptors.response.use(
       switch (status) {
         case 404:
           throw new Error(data.message || "Resource not found");
-        case 400:
-          throw new Error(data.message || "Bad request");
+        case 400: {
+          // Provide more detailed error message for 400 errors
+          const errorMessage = data?.error || data?.message || "Bad request";
+          console.error('400 Error Details:', { status, data, url: error.config?.url });
+          throw new Error(errorMessage);
+        }
+        case 401:
+          // Clear invalid tokens on 401 errors
+          auth.removeToken();
+          // Dispatch a custom event to notify the auth context
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+          // Only redirect if not on homepage
+          if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/post/')) {
+            // Let the component handle the redirect, not the interceptor
+          }
+          throw new Error(data.message || "Unauthorized");
         case 500:
           throw new Error(data.message || "Server error");
         default:
@@ -449,6 +457,18 @@ export const blogApi = {
     }
   },
 
+  // Check if an email is already registered
+  checkEmail: async (email) => {
+    try {
+      if (!email) throw new Error('Email is required');
+      const response = await api.post('/auth/check-email', { email: email.trim() }, { timeout: 5000 });
+      return response.data; // { success: true, exists: boolean }
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return { success: false, error: error?.message || 'Failed to check email' };
+    }
+  },
+
   logout: async () => {
     try {
       auth.removeToken();
@@ -481,8 +501,6 @@ export const blogApi = {
           ([, value]) => value !== null && value !== undefined && value !== ""
         )
       );
-
-      // Add debug logging
 
       // Provide a safe default limit to avoid fetching extremely large result sets
       if (!Object.prototype.hasOwnProperty.call(cleanParams, "limit")) {
@@ -730,8 +748,6 @@ export const blogApi = {
     }
   },
 
-  // Clear cache
-  // Clear cache function
   clearCache: () => {
     clearCache();
   },
@@ -740,7 +756,7 @@ export const blogApi = {
   uploadImage: async (file) => {
     try {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("imageFile", file);
 
       const response = await api.post("/upload/image", formData, {
         headers: {

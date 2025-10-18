@@ -81,3 +81,8 @@ Thumbs.db
 
 # Local environment files
 *.local
+
+# Temporary test files
+tmp_*.js
+test_*.js
+temp_*.js

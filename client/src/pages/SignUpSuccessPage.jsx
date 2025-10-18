@@ -1,17 +1,43 @@
 import NavBar from '@/components/NavBar';
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 
 export default function SignUpSuccessPage() {
     const location = useLocation();
     const { email, verificationRequired, message, verificationLink } = location.state || {};
 
+    const handleContinue = useCallback(() => {
+        // ตรวจสอบ referrer ว่ามาจาก /article หรือไม่
+        try {
+            const ref = document.referrer;
+            if (ref) {
+                const url = new URL(ref);
+                if (url.pathname.startsWith('/article')) {
+                    window.location.href = ref;
+                    return;
+                }
+            }
+        } catch {
+            // intentionally ignored
+        }
+        window.location.href = '/';
+    }, []);
+
+    // Memoize the what's next steps to avoid recreating the array on every render
+    const whatNextSteps = useMemo(() => {
+        return [
+            verificationLink ? 'Click "Verify Email Now" button above' : 'Check your email inbox',
+            verificationLink ? 'Or check your email for the verification link' : 'Click the verification link',
+            'Return to login page after verification'
+        ];
+    }, [verificationLink]);
+
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             <NavBar />
             <div className="flex justify-center rounded-2xl mt-10 mx-4 sm:mt-15 sm:mx-40">
                 <div className="bg-gray-100 w-full rounded-2xl shadow-md gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
-                    
+                     
                     {verificationRequired ? (
                         // แสดงข้อความสำหรับการยืนยันอีเมล
                         <>
@@ -40,7 +66,7 @@ export default function SignUpSuccessPage() {
                                         <p className="text-sm text-yellow-700 mb-3">
                                             Email sending is not configured yet. Use this link to verify manually:
                                         </p>
-                                        <a 
+                                        <a
                                             href={verificationLink}
                                             target="_blank"
                                             rel="noopener noreferrer"
@@ -56,21 +82,21 @@ export default function SignUpSuccessPage() {
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                     <h4 className="font-semibold text-blue-800 mb-2">What's next?</h4>
                                     <ul className="text-sm text-blue-700 space-y-1">
-                                        <li>• {verificationLink ? 'Click "Verify Email Now" button above' : 'Check your email inbox'}</li>
-                                        <li>• {verificationLink ? 'Or check your email for the verification link' : 'Click the verification link'}</li>
-                                        <li>• Return to login page after verification</li>
+                                        {whatNextSteps.map((step, index) => (
+                                            <li key={index}>• {step}</li>
+                                        ))}
                                     </ul>
                                 </div>
                                 
                                 <div className="flex justify-center gap-4">
-                                    <Link 
-                                        to="/login" 
+                                    <Link
+                                        to="/login"
                                         className="bg-brand-primary text-white px-6 py-2 rounded-full hover:bg-gray-800 transition-colors"
                                     >
                                         Go to Login
                                     </Link>
-                                    <Link 
-                                        to="/" 
+                                    <Link
+                                        to="/"
                                         className="bg-gray-300 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-400 transition-colors"
                                     >
                                         Back to Home
@@ -93,22 +119,7 @@ export default function SignUpSuccessPage() {
                             <h2 className="text-2xl font-semibold">Registration success</h2>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    // ตรวจสอบ referrer ว่ามาจาก /article หรือไม่
-                                    try {
-                                        const ref = document.referrer;
-                                        if (ref) {
-                                            const url = new URL(ref);
-                                            if (url.pathname.startsWith('/article')) {
-                                                window.location.href = ref;
-                                                return;
-                                            }
-                                        }
-                                    } catch {
-                                        // intentionally ignored
-                                    }
-                                    window.location.href = '/';
-                                }}
+                                onClick={handleContinue}
                                 className="bg-brand-primary text-white border border-brand-secondary px-10 py-3 rounded-full sm:my-10"
                             >
                                 Continue

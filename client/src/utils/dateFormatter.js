@@ -74,10 +74,10 @@ export const formatShortDate = (date) => {
     const d = normalizeToDate(date);
     if (isNaN(d.getTime())) return 'Invalid';
 
-    // Compact short date: "Aug 30, 2025"
-    return d.toLocaleDateString('en-US', {
+    // Short date: "11 September 2024" (day month year)
+    return d.toLocaleDateString('en-GB', {
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric',
       timeZone: TIMEZONE
     });

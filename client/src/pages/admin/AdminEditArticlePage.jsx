@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
@@ -25,8 +25,8 @@ export default function AdminEditArticlePage() {
         description: "",
         content: "",
         image: "",
-        author: "", // เพิ่ม author
-        status: "published" // เปลี่ยนจาก "publish" เป็น "published"
+        author: "",
+        status: "published"
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -35,7 +35,7 @@ export default function AdminEditArticlePage() {
     const [fetchingPost, setFetchingPost] = useState(true);
     const [dragActive, setDragActive] = useState(false);
 
-    const fetchPost = async () => {
+    const fetchPost = useCallback(async () => {
         try {
             setFetchingPost(true);
             
@@ -50,12 +50,13 @@ export default function AdminEditArticlePage() {
                     description: post.description || "",
                     content: post.content || "",
                     image: post.image || "",
-                    author: post.author || "Admin", // เพิ่ม author
-                    status: post.status || "published" // เปลี่ยนจาก "publish" เป็น "published"
+                    author: post.author || "Admin",
+                    status: post.status || "published"
                 });
                 
                 if (post.image) {
-                    setImagePreview(post.image.startsWith('http') ? post.image : `http://localhost:3001${post.image}`);
+                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                    setImagePreview(post.image.startsWith('http') ? post.image : `${baseUrl}${post.image}`);
                 }
                 
             } else {
@@ -70,7 +71,7 @@ export default function AdminEditArticlePage() {
         } finally {
             setFetchingPost(false);
         }
-    };
+    }, [id, navigate]);
 
     const fetchCategories = async () => {
         try {
@@ -90,8 +91,7 @@ export default function AdminEditArticlePage() {
             toast.error('Invalid article ID');
             navigate('/admin/article-management');
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
+    }, [id, navigate, fetchPost]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -140,7 +140,8 @@ export default function AdminEditArticlePage() {
         } catch (error) {
             console.error('Upload error:', error);
             toast.error('Failed to upload image');
-            setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `http://localhost:3001${formData.image}`) : null);
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `${baseUrl}${formData.image}`) : null);
             setImageFile(null);
         } finally {
             setUploading(false);
@@ -182,10 +183,10 @@ export default function AdminEditArticlePage() {
 
     const handleSaveAndPublish = async (e) => {
         e.preventDefault();
-        await handleSubmit('publish');
+        await handleSubmit('published');
     };
 
-    const handleSubmit = async (status = 'publish') => {
+    const handleSubmit = async (status = 'published') => {
         if (!formData.title.trim() || !formData.content.trim()) {
             toast.error('Title and content are required');
             return;
@@ -205,7 +206,7 @@ export default function AdminEditArticlePage() {
             const response = await blogApi.admin.updatePost(id, postData);
             
             if (response.success) {
-                toast.success(`Article ${status === 'publish' ? 'published' : 'saved as draft'} successfully`);
+                toast.success(`Article ${status === 'published' ? 'published' : 'saved as draft'} successfully`);
                 navigate('/admin/article-management');
             } else {
                 console.error('❌ Update failed:', response);
@@ -232,6 +233,7 @@ export default function AdminEditArticlePage() {
                 console.error('Error deleting article:', error);
                 const errorMessage = error.message || 'Failed to delete article';
                 toast.error(errorMessage);
+            } finally {
                 setLoading(false);
             }
         }
@@ -248,25 +250,25 @@ export default function AdminEditArticlePage() {
         );
     }
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-100 font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
 
             {/* Main content */}
-            <main className="flex-1 p-8 bg-gray-50 overflow-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-2xl font-semibold">Edit article</h2>
+            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <h2 className="text-xl sm:text-2xl font-semibold">Edit article</h2>
                         {formData.status && (
                             <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${
-                                formData.status === 'publish' 
-                                    ? 'bg-ui-surface text-brand-primary' 
+                                formData.status === 'published'
+                                    ? 'bg-ui-surface text-brand-primary'
                                     : 'bg-ui-surface text-brand-secondary'
                             }`}>
-                                <span 
+                                <span
                                     className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                                        formData.status === 'publish' 
-                                            ? 'bg-brand-accent' 
+                                        formData.status === 'published'
+                                            ? 'bg-brand-accent'
                                             : 'bg-brand-secondary'
                                     }`}
                                 />
@@ -274,17 +276,17 @@ export default function AdminEditArticlePage() {
                             </span>
                         )}
                     </div>
-                    <div className="space-x-2">
-                        <Button 
-                            className="px-8 py-2 rounded-full" 
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
                             variant="outline"
                             onClick={handleSaveAsDraft}
                             disabled={loading}
                         >
                             {loading ? 'Saving...' : 'Save as draft'}
                         </Button>
-                        <Button 
-                            className="px-8 py-2 rounded-full"
+                        <Button
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
                             onClick={handleSaveAndPublish}
                             disabled={loading}
                         >
@@ -293,7 +295,7 @@ export default function AdminEditArticlePage() {
                     </div>
                 </div>
 
-                <form className="space-y-7 max-w-4xl">
+                <form className="space-y-6 sm:space-y-7 max-w-4xl">
                     <div>
                         <label
                             htmlFor="thumbnail"
@@ -301,13 +303,13 @@ export default function AdminEditArticlePage() {
                         >
                             Thumbnail image
                         </label>
-                        <div className="flex items-start space-x-4">
-                            <div 
-                                className={`flex justify-center items-center w-full max-w-lg h-64 px-6 py-4 border-2 border-dashed rounded-md transition-colors ${
-                                    dragActive 
-                                        ? 'border-blue-400 bg-blue-50' 
-                                        : imagePreview 
-                                            ? 'border-gray-300 bg-gray-50' 
+                        <div className="flex flex-col lg:flex-row lg:items-start space-y-4 lg:space-y-0 lg:space-x-4">
+                            <div
+                                className={`flex justify-center items-center w-full h-64 lg:h-auto lg:max-w-lg px-6 py-4 border-2 border-dashed rounded-md transition-colors ${
+                                    dragActive
+                                        ? 'border-blue-400 bg-blue-50'
+                                        : imagePreview
+                                            ? 'border-gray-300 bg-gray-50'
                                             : 'border-gray-300 bg-gray-50 hover:border-gray-400'
                                 } ${uploading ? 'opacity-50' : ''}`}
                                 onDragEnter={handleDrag}
@@ -319,9 +321,9 @@ export default function AdminEditArticlePage() {
                             >
                                 {imagePreview ? (
                                     <div className="relative w-full h-full">
-                                        <img 
-                                            src={imagePreview} 
-                                            alt="Preview" 
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
                                             className="w-full h-full object-contain rounded-md"
                                         />
                                         <button
@@ -330,7 +332,7 @@ export default function AdminEditArticlePage() {
                                                 e.stopPropagation();
                                                 handleImageRemove();
                                             }}
-                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shadow-lg"
+                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 transition-colors shadow-lg cursor-pointer"
                                             disabled={uploading}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -354,7 +356,7 @@ export default function AdminEditArticlePage() {
                             <div className="flex flex-col space-y-2">
                                 <label
                                     htmlFor="file-upload-edit"
-                                    className={`px-6 py-2 bg-background rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer text-center ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`px-6 py-2 sm:px-10 sm:py-3 bg-background rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer text-center ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                     <span className="text-sm font-medium">
                                         {uploading ? 'Uploading...' : 'Browse files'}
@@ -390,7 +392,7 @@ export default function AdminEditArticlePage() {
                                     <button
                                         type="button"
                                         onClick={handleImageRemove}
-                                        className="px-4 py-2 text-red-600 border border-red-300 rounded-full hover:bg-red-50 transition-colors text-sm font-medium"
+                                        className="px-6 py-2 sm:px-10 sm:py-3 text-red-600 border border-red-300 rounded-full hover:bg-red-50 transition-colors text-sm font-medium cursor-pointer"
                                         disabled={uploading}
                                     >
                                         Remove Image
@@ -403,7 +405,7 @@ export default function AdminEditArticlePage() {
                     <div>
                         <label htmlFor="category">Category</label>
                         <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                            <SelectTrigger className="max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
+                            <SelectTrigger className="w-full lg:max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -423,7 +425,7 @@ export default function AdminEditArticlePage() {
                             placeholder="Enter author name"
                             value={formData.author}
                             onChange={(e) => handleInputChange('author', e.target.value)}
-                            className="mt-1 max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full lg:max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
 
@@ -434,7 +436,7 @@ export default function AdminEditArticlePage() {
                             placeholder="Article title"
                             value={formData.title}
                             onChange={(e) => handleInputChange('title', e.target.value)}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
 
@@ -446,7 +448,7 @@ export default function AdminEditArticlePage() {
                             value={formData.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             rows={3}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                             maxLength={120}
                         />
                     </div>
@@ -458,16 +460,16 @@ export default function AdminEditArticlePage() {
                             placeholder="Write your article content here..."
                             value={formData.content}
                             onChange={(e) => handleInputChange('content', e.target.value)}
-                            rows={20}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            rows={15}
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
                 </form>
                 
-                <button 
+                <button
                     onClick={handleDeleteArticle}
                     disabled={loading}
-                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-4 disabled:opacity-50"
+                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-4 disabled:opacity-50 cursor-pointer"
                 >
                     <Trash2 className="h-5 w-5" />
                     {loading ? 'Deleting...' : 'Delete article'}

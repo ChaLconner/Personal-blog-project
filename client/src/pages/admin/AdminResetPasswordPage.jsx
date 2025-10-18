@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -12,8 +13,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
+import { useAuth } from "@/contexts/authContext.js";
 
 export default function AdminResetPasswordPage() {
+    const navigate = useNavigate();
+    const { logout } = useAuth();
     const [password, setPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -61,6 +65,14 @@ export default function AdminResetPasswordPage() {
             setConfirmNewPassword("");
             setIsDialogOpen(false);
             
+            // For security, log out and redirect to admin login to sign in with the new password
+            try {
+                await logout();
+            } catch {
+                // ignore logout errors
+            }
+            navigate("/admin/login", { replace: true });
+            
         } catch (error) {
             console.error('Error resetting password:', error);
             const errorMessage = error.message || 'Failed to reset password. Please try again.';
@@ -70,15 +82,15 @@ export default function AdminResetPasswordPage() {
         }
     };
     return (
-        <div className="flex h-screen bg-ui-surface">
+        <div className="flex h-screen bg-ui-surface font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-8 bg-background overflow-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold">Reset Password</h2>
-                    <Button 
-                        className="px-8 py-2 rounded-full text-[#FFFFFF] bg-[#26231E]" 
+            <main className="flex-1 p-4 lg:p-8 bg-background overflow-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold">Reset Password</h2>
+                    <Button
+                        className="px-6 py-2 sm:px-8 sm:py-2 rounded-full text-[#FFFFFF] bg-[#26231E] cursor-pointer w-full sm:w-auto"
                         onClick={handleSubmit}
                         disabled={loading}
                     >
@@ -86,7 +98,7 @@ export default function AdminResetPasswordPage() {
                     </Button>
                 </div>
 
-                <div className="space-y-7 max-w-md">
+                <div className="space-y-6 sm:space-y-7 max-w-md w-full">
                     <div className="relative">
                         <label
                             htmlFor="current-password"
@@ -100,7 +112,7 @@ export default function AdminResetPasswordPage() {
                             placeholder="Current password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.password ? "border-red-500" : ""
+                            className={`mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.password ? "border-red-500" : ""
                                 }`}
                         />
                         {!valid.password && (
@@ -122,7 +134,7 @@ export default function AdminResetPasswordPage() {
                             placeholder="New password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.newPassword ? "border-red-500" : ""
+                            className={`mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.newPassword ? "border-red-500" : ""
                                 }`}
                         />
                         {!valid.newPassword && (
@@ -144,7 +156,7 @@ export default function AdminResetPasswordPage() {
                             placeholder="Confirm new password"
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
-                            className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.confirmNewPassword ? "border-red-500" : ""
+                            className={`mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.confirmNewPassword ? "border-red-500" : ""
                                 }`}
                         />
                         {!valid.confirmNewPassword && (
@@ -177,13 +189,13 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
                 <div className="flex flex-row gap-4">
                     <button
                         onClick={() => setDialogState(false)}
-                        className="bg-background px-10 py-4 rounded-full text-foreground border border-border hover:border-muted-foreground hover:text-muted-foreground transition-colors"
+                        className="bg-background px-10 py-4 rounded-full text-foreground border border-border hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={resetFunction}
-                        className="rounded-full text-primary-foreground bg-primary hover:bg-primary/90 transition-colors py-4 text-lg px-10"
+                        className="rounded-full text-primary-foreground bg-primary hover:bg-primary/90 transition-colors py-4 text-lg px-10 cursor-pointer"
                     >
                         Reset
                     </button>

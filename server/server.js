@@ -1,12 +1,28 @@
 
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly configure dotenv to look for .env in the server directory
+const envPath = path.join(__dirname, '.env');
+console.log('Loading .env from:', envPath);
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  console.error('Error loading .env file:', result.error);
+} else {
+  console.log('.env file loaded successfully');
+  console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'NOT SET');
+  console.log('SUPABASE_SERVICE_KEY:', process.env.SUPABASE_SERVICE_KEY ? 'SET' : 'NOT SET');
+  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+}
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Load environment variables first
-dotenv.config();
 
 // Import routes
 import authRouter from './routes/auth.mjs';
@@ -17,10 +33,6 @@ import notificationsRouter from './routes/notifications.mjs';
 import commentsRouter from './routes/comments.mjs';
 import likesRouter from './routes/likes.mjs';
 // Note: posts.js contains individual functions, not a router
-
-// Get current directory for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize Express app
 const app = express();
@@ -63,13 +75,23 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'https://personal-blog-project-six.vercel.app',
-    'https://personal-blog-project-nijtz5qay-chalconners-projects.vercel.app',
     process.env.CLIENT_URL
   ].filter(Boolean),
   credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      console.error('Invalid JSON received:', buf.toString());
+      res.status(400).json({ error: 'Invalid JSON in request body' });
+      return;
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Response time logging
@@ -125,6 +147,14 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
+  console.error('Request details:', {
+    method: req.method,
+    url: req.originalUrl,
+    headers: req.headers,
+    body: req.body,
+    params: req.params,
+    query: req.query
+  });
   
   res.status(error.status || 500).json({
     error: error.message || 'Internal Server Error',

@@ -79,9 +79,8 @@ export default function ArticleSection() {
         const fetchPosts = async () => {
             if (page === 1) {
                 setIsLoading(true);
-                setShowSkeleton(true);
-                // Hide skeleton after 600ms if posts not loaded
-                skeletonTimeout = setTimeout(() => setShowSkeleton(false), 600);
+                // Don't show skeleton on homepage to avoid loading indicator
+                setShowSkeleton(false);
             }
 
             try {
@@ -306,14 +305,6 @@ export default function ArticleSection() {
 
                 {/* Blog Cards */}
                 <div className="px-4 pt-6 pb-20 grid grid-cols-1 gap-8 sm:grid-cols-2">
-                    {/* Show skeletons on first load */}
-                    {showSkeleton && posts.length === 0 && (
-                        <>
-                            {[...Array(4)].map((_, i) => (
-                                <PostSkeleton key={i} />
-                            ))}
-                        </>
-                    )}
                     {/* Show loading only when category is changing and no posts */}
                     {isCategoryChanging && posts.length === 0 && !showSkeleton && (
                         <div className="col-span-full text-center py-12">

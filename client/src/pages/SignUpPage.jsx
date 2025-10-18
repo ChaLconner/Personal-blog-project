@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import NavBar from "@/components/NavBar";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/authContext.js";
 import { toast } from "sonner";
+import blogApi from "@/services/api.js";
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -14,25 +15,22 @@ export default function SignUpPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [, setError] = useState("");
     const [validationErrors, setValidationErrors] = useState({});
+    const [emailTaken, setEmailTaken] = useState(false);
 
     const navigate = useNavigate();
     const { register } = useAuth();
 
-    const navigateToLogin = () => {
-        navigate("/login");
-    };
-
     // Validation functions
-    const validateEmail = (email) => {
+    const validateEmail = useCallback((email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-    };
+    }, []);
 
-    const validatePassword = (password) => {
+    const validatePassword = useCallback((password) => {
         return password.length >= 6;
-    };
+    }, []);
 
-    const validateForm = () => {
+    const validateForm = useCallback(() => {
         const errors = {};
         
         if (!formData.name.trim()) {
@@ -58,10 +56,17 @@ export default function SignUpPage() {
         }
 
         setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
+        // Also prevent submission if email is already taken
+        if (emailTaken) {
+            errors.email = "Email is already taken, Please try another email.";
+            setValidationErrors(errors);
+            return false;
+        }
 
-    const handleInputChange = (e) => {
+        return Object.keys(errors).length === 0;
+    }, [formData, emailTaken, validateEmail, validatePassword]);
+
+    const handleInputChange = useCallback((e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -72,9 +77,35 @@ export default function SignUpPage() {
         if (validationErrors[name]) {
             setValidationErrors(prev => ({...prev, [name]: ""}));
         }
-    };
+    }, [validationErrors]);
 
-    const handleSubmit = async (e) => {
+    // Check if email already exists (called on blur)
+    const checkEmailExists = useCallback(async () => {
+        const email = formData.email || "";
+        if (!email.trim()) return;
+
+        try {
+            const res = await blogApi.checkEmail(email.trim());
+            if (res && res.success) {
+                setEmailTaken(!!res.exists);
+                if (res.exists) {
+                    setValidationErrors(prev => ({ ...prev, email: "Email is already taken, Please try another email." }));
+                } else {
+                    // clear only the email error if it was the "taken" message
+                    setValidationErrors(prev => ({ ...prev, email: prev.email === "Email is already taken, Please try another email." ? "" : prev.email }));
+                }
+            } else {
+                // On error, don't block signup — but log it
+                console.warn('checkEmail failed', res.error || res);
+            }
+        } catch (err) {
+            console.warn('checkEmail error', err);
+        } finally {
+            // intentionally not tracking transient checking state in UI
+        }
+    }, [formData.email]);
+
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         setError("");
         setValidationErrors({});
@@ -116,7 +147,74 @@ export default function SignUpPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [formData, validateForm, register, navigate]);
+
+    const navigateToLogin = useCallback(() => {
+        navigate("/login");
+    }, [navigate]);
+
+    const handleEmailBlur = useCallback(() => {
+        if (!formData.email.trim() || !validateEmail(formData.email)) {
+            setValidationErrors(prev => ({
+                ...prev,
+                email: !formData.email.trim()
+                    ? "Email is required"
+                    : "Email must be a valid email"
+            }));
+            return;
+        }
+
+        // Only check email uniqueness if format looks valid
+        checkEmailExists();
+    }, [formData.email, validateEmail, checkEmailExists]);
+
+    const handlePasswordBlur = useCallback(() => {
+        if (!formData.password.trim() || !validatePassword(formData.password)) {
+            setValidationErrors(prev => ({
+                ...prev,
+                password: !formData.password.trim()
+                    ? "Password is required"
+                    : "Password must be at least 6 characters"
+            }));
+        }
+    }, [formData.password, validatePassword]);
+
+    // Memoize input classes to prevent unnecessary recalculations
+    const nameInputClasses = useMemo(() => {
+        return `border rounded w-full py-2 px-3 bg-white ${
+            validationErrors.name
+                ? "border-red-500 focus:border-red-500"
+                : "border-ui-border focus:border-blue-500"
+        }`;
+    }, [validationErrors.name]);
+
+    const usernameInputClasses = useMemo(() => {
+        return `border rounded w-full py-2 px-3 bg-white ${
+            validationErrors.username
+                ? "border-red-500 focus:border-red-500"
+                : "border-[#DAD6D1] focus:border-blue-500"
+        }`;
+    }, [validationErrors.username]);
+
+    const emailInputClasses = useMemo(() => {
+        return `border rounded w-full py-2 px-3 bg-white transition-colors ${
+            validationErrors.email && validationErrors.email === "Email must be a valid email"
+                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
+                : validationErrors.email
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-[#DAD6D1] focus:border-blue-500"
+        }`;
+    }, [validationErrors.email]);
+
+    const passwordInputClasses = useMemo(() => {
+        return `border rounded w-full py-2 px-3 bg-white transition-colors ${
+            validationErrors.password && validationErrors.password === "Password must be at least 6 characters"
+                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
+                : validationErrors.password
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-[#DAD6D1] focus:border-blue-500"
+        }`;
+    }, [validationErrors.password]);
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -133,11 +231,7 @@ export default function SignUpPage() {
                                 id="name"
                                 name="name"
                                 placeholder="Name"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.name 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-ui-border focus:border-blue-500"
-                                }`}
+                                className={nameInputClasses}
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 required
@@ -153,11 +247,7 @@ export default function SignUpPage() {
                                 id="username"
                                 name="username"
                                 placeholder="Username"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    validationErrors.username 
-                                        ? "border-red-500 focus:border-red-500" 
-                                        : "border-[#DAD6D1] focus:border-blue-500"
-                                }`}
+                                className={usernameInputClasses}
                                 value={formData.username}
                                 onChange={handleInputChange}
                                 required
@@ -173,30 +263,16 @@ export default function SignUpPage() {
                                 id="email"
                                 name="email"
                                 placeholder="Email"
-                                className={`border rounded w-full py-2 px-3 bg-white transition-colors
-                                    ${validationErrors.email && validationErrors.email === "Email must be a valid email"
-                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
-                                        : validationErrors.email
-                                            ? "border-red-500 focus:border-red-500"
-                                            : "border-[#DAD6D1] focus:border-blue-500"}
-                                `}
+                                className={emailInputClasses}
                                 value={formData.email}
                                 onChange={handleInputChange}
-                                onBlur={() => {
-                                    if (!formData.email.trim() || !validateEmail(formData.email)) {
-                                        setValidationErrors(prev => ({
-                                            ...prev,
-                                            email: !formData.email.trim()
-                                                ? "Email is required"
-                                                : "Email must be a valid email"
-                                        }));
-                                    }
-                                }}
+                                onBlur={handleEmailBlur}
                                 required
                             />
                             {validationErrors.email && (
                                 <p className={`mt-1 text-[12px] ${validationErrors.email === "Email must be a valid email" ? "text-[#EB5164]" : "text-red-500"}`}>{validationErrors.email}</p>
                             )}
+                            {/* Intentionally hide intermediate 'checking' status per UX request */}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="password">Password</label>
@@ -205,25 +281,10 @@ export default function SignUpPage() {
                                 id="password"
                                 name="password"
                                 placeholder="Password"
-                                className={`border rounded w-full py-2 px-3 bg-white transition-colors
-                                    ${validationErrors.password && validationErrors.password === "Password must be at least 6 characters"
-                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
-                                        : validationErrors.password
-                                            ? "border-red-500 focus:border-red-500"
-                                            : "border-[#DAD6D1] focus:border-blue-500"}
-                                `}
+                                className={passwordInputClasses}
                                 value={formData.password}
                                 onChange={handleInputChange}
-                                onBlur={() => {
-                                    if (!formData.password.trim() || !validatePassword(formData.password)) {
-                                        setValidationErrors(prev => ({
-                                            ...prev,
-                                            password: !formData.password.trim()
-                                                ? "Password is required"
-                                                : "Password must be at least 6 characters"
-                                        }));
-                                    }
-                                }}
+                                onBlur={handlePasswordBlur}
                                 required
                             />
                             {validationErrors.password && (
@@ -235,7 +296,7 @@ export default function SignUpPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
                                 {isLoading ? "Signing up..." : "Sign up"}
                             </button>

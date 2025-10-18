@@ -1,6 +1,9 @@
 import express from 'express';
-import { dbService, supabaseAuth, rawSupabase } from '../config/database.js';
+import { dbService, getSupabaseAuth, rawSupabase } from '../config/database.js';
 import { createNotification } from '../utils/notificationHelpers.mjs';
+
+// Get the actual Supabase Auth client
+const supabaseAuth = getSupabaseAuth();
 
 const router = express.Router();
 
@@ -81,7 +84,7 @@ router.get('/:postId/has-liked', protectUser, async (req, res) => {
       return res.status(401).json({ success: false, error: 'User not found in request' });
     }
 
-  const { data, error } = await rawSupabase
+  const { data, error } = await rawSupabase()
       .from('post_likes')
       .select('id')
       .eq('post_id', postId)

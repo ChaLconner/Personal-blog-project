@@ -177,6 +177,82 @@ router.post('/image', protectUser, upload.single('imageFile'), async (req, res) 
   }
 });
 
+// Multiple article images upload (for admin)
+router.post('/images', protectUser, upload.array('images', 5), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No files uploaded'
+      });
+    }
+
+    const uploadPromises = req.files.map(async (file) => {
+      const timestamp = Date.now() + Math.random(); // Add random to avoid collisions
+      const fileExt = path.extname(file.originalname);
+      const fileName = `articles/${timestamp}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('article-images')
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
+
+      if (error) {
+        throw new Error(`Failed to upload ${file.originalname}: ${error.message}`);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('article-images')
+        .getPublicUrl(fileName);
+
+      return {
+        originalName: file.originalname,
+        url: urlData.publicUrl,
+        path: fileName
+      };
+    });
+
+    const uploadedImages = await Promise.all(uploadPromises);
+
+    res.json({
+      success: true,
+      images: uploadedImages,
+      message: `${uploadedImages.length} images uploaded successfully`
+    });
+
+  } catch (error) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'One or more files are too large. Maximum size is 5MB per file'
+      });
+    }
+    
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        error: 'Too many files. Maximum 5 files allowed'
+      });
+    }
+    
+    if (error.message.includes('Invalid file type')) {
+      return res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
 // Delete image from Supabase Storage
 router.delete('/image/:bucket/:path(*)', protectUser, async (req, res) => {
   try {
@@ -203,6 +279,39 @@ router.delete('/image/:bucket/:path(*)', protectUser, async (req, res) => {
       }
     }
 
+    const { error } = await supabase.storage
+      .from(bucket)
+      .remove([filePath]);
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to delete image'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Image deleted successfully'
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Simple delete endpoint for article images (matches client expectation)
+router.delete('/image/:filename', protectUser, async (req, res) => {
+  try {
+    const { filename } = req.params;
+    
+    // Default to article-images bucket for this endpoint
+    const bucket = 'article-images';
+    const filePath = `articles/${filename}`;
+    
     const { error } = await supabase.storage
       .from(bucket)
       .remove([filePath]);

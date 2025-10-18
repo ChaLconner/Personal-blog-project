@@ -5,16 +5,13 @@ import { AuthContext } from "./authContext.js";
 export function AuthProvider({ children }) {
   const [state, setState] = useState({
     loading: false,
-    getUserLoading: true, // เริ่มต้นด้วย true เพื่อป้องกัน race condition
+    getUserLoading: true,
     error: null,
     user: null,
   });
 
-  // ดึงข้อมูลผู้ใช้โดยใช้ Supabase API
   const fetchUser = async () => {
-    const token = localStorage.getItem("token");
-    
-    setState((prevState) => ({ ...prevState, getUserLoading: true }));
+    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
     
     if (!token) {
       setState((prevState) => ({
@@ -25,7 +22,14 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    setState((prevState) => ({ ...prevState, getUserLoading: true }));
+
     try {
+      // Validate token format before making request
+      if (token.split('.').length !== 3) {
+        throw new Error('Invalid token format');
+      }
+      
       const response = await axios.get(
         "http://localhost:3001/auth/get-user",
         {
@@ -38,27 +42,42 @@ export function AuthProvider({ children }) {
         ...prevState,
         user: response.data,
         getUserLoading: false,
-        error: null, // เคลียร์ error หากมี
+        error: null,
       }));
     } catch (error) {
-      console.warn('❌ fetchUser error:', error.response?.data || error.message);
+      console.error('fetchUser error:', error.response?.data || error.message);
       setState((prevState) => ({
         ...prevState,
         error: error.message,
         user: null,
         getUserLoading: false,
       }));
-      // Remove invalid token
+      // Clear invalid tokens
       localStorage.removeItem("token");
       localStorage.removeItem("authToken");
     }
   };
 
   useEffect(() => {
-    fetchUser(); // โหลดข้อมูลผู้ใช้เมื่อแอปเริ่มต้น
+    fetchUser();
+    
+    // Listen for token expiration events
+    const handleTokenExpired = () => {
+      setState(prevState => ({
+        ...prevState,
+        user: null,
+        error: "Your session has expired. Please log in again.",
+        getUserLoading: false
+      }));
+    };
+    
+    window.addEventListener('auth:token-expired', handleTokenExpired);
+    
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired);
+    };
   }, []);
 
-  // ล็อกอินผู้ใช้
   const login = async (data) => {
     try {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
@@ -69,11 +88,9 @@ export function AuthProvider({ children }) {
       );
       
       const token = response.data.access_token;
-      // Store token for both legacy and api service compatibility
       localStorage.setItem("token", token);
       localStorage.setItem("authToken", token);
 
-      // ดึงและตั้งค่าข้อมูลผู้ใช้ทันทีหลังจากล็อกอินสำเร็จ
       const userResponse = await axios.get(
         "http://localhost:3001/auth/get-user",
         {
@@ -83,19 +100,16 @@ export function AuthProvider({ children }) {
         }
       );
       
-      // Update all states at once to prevent intermediate renders
       setState((prevState) => ({ 
         ...prevState, 
         loading: false, 
         error: null,
         user: userResponse.data,
-        getUserLoading: false, // ตั้งค่า loading เป็น false ทันที
+        getUserLoading: false,
       }));
       
-      // Return success to handle navigation in component
       return { success: true };
     } catch (error) {
-      console.error('❌ Login error:', error.response?.data || error.message);
       const serverData = error.response?.data;
       const errorMessage = serverData?.error || serverData?.message || "Login failed";
       setState((prevState) => ({
@@ -111,7 +125,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ส่งอีเมลยืนยันใหม่
   const resendVerification = async (email) => {
     if (!email) {
       return { success: false, error: "Email is required" };
@@ -129,7 +142,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ลงทะเบียนผู้ใช้
   const register = async (data) => {
     try {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
@@ -142,10 +154,9 @@ export function AuthProvider({ children }) {
       
       setState((prevState) => ({ ...prevState, loading: false, error: null }));
       
-      // Return success to handle navigation in component
       return { success: true };
     } catch (error) {
-      console.error('❌ Registration error:', error.response?.data || error.message);
+      console.error('Registration error:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.error || "Registration failed";
       setState((prevState) => ({
         ...prevState,
@@ -156,7 +167,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ล็อกเอาท์ผู้ใช้
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("authToken");
@@ -164,10 +174,9 @@ export function AuthProvider({ children }) {
       user: null, 
       error: null, 
       loading: false, 
-      getUserLoading: false // ตั้งค่า loading เป็น false ทันที
+      getUserLoading: false
     });
     
-    // Return success to handle navigation in component
     return { success: true };
   };
 
@@ -181,7 +190,6 @@ export function AuthProvider({ children }) {
     isAuthenticated,
     fetchUser,
   resendVerification,
-    // Add these for compatibility with ProtectedRoute
     user: state.user,
     loading: state.loading || state.getUserLoading,
     error: state.error
@@ -194,5 +202,3 @@ export function AuthProvider({ children }) {
   );
 }
 
-// Hook สำหรับใช้งาน AuthContext
-// useAuth and AuthContext have been moved to authContext.js for Fast Refresh compatibility.

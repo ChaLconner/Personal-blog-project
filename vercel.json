@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd client && npm run build",
-  "outputDirectory": "client/dist", 
+  "outputDirectory": "client/dist",
   "installCommand": "cd client && npm install",
   "framework": "vite",
   "rewrites": [
@@ -14,13 +14,10 @@
       "source": "/assets/(.*)",
       "headers": [
         {
-          "key": "Cache-Control", 
+          "key": "Cache-Control",
           "value": "public, immutable, max-age=31536000"
         }
       ]
     }
-  ],
-  "env": {
-    "VITE_API_URL": "https://personal-blog-project-server.onrender.com"
-  }
+  ]
 }

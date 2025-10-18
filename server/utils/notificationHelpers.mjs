@@ -1,10 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+// Lazy initialization of Supabase client
+let supabase = null;
+
+const getSupabaseClient = () => {
+  if (!supabase) {
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
+  }
+  return supabase;
+};
 
 // Notification types
 export const NOTIFICATION_TYPES = {
@@ -23,7 +30,7 @@ export const createNotification = async ({
   postId = null
 }) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from('notifications')
       .insert([{
         user_id: userId,
@@ -53,7 +60,7 @@ export const createNotification = async ({
 export const createNewArticleNotification = async (authorId, postId, postTitle) => {
   try {
     // Get all users except the author to notify them
-    const { data: users, error } = await supabase
+    const { data: users, error } = await getSupabaseClient()
       .from('users')
       .select('id')
       .neq('id', authorId);
@@ -74,14 +81,14 @@ export const createNewArticleNotification = async (authorId, postId, postTitle) 
       read: false
     }));
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await getSupabaseClient()
       .from('notifications')
       .insert(notifications);
 
     if (insertError) {
       console.error('Error creating article notifications:', insertError);
     } else {
-
+      console.log(`✅ Created ${notifications.length} article notifications for new post: ${postTitle}`);
     }
   } catch (error) {
     console.error('Error in createNewArticleNotification:', error);
@@ -97,7 +104,7 @@ export const createCommentNotification = async (commenterId, postId, postTitle, 
     }
 
     // Get commenter's name
-    const { data: commenter, error: commenterError } = await supabase
+    const { data: commenter, error: commenterError } = await getSupabaseClient()
       .from('users')
       .select('name, username')
       .eq('id', commenterId)
@@ -118,8 +125,7 @@ export const createCommentNotification = async (commenterId, postId, postTitle, 
       message: `${commenterName} commented on your article "${postTitle}"`,
       postId
     });
-
-
+    console.log(`✅ Created comment notification for post author: ${postAuthorId}`);
   } catch (error) {
     console.error('Error in createCommentNotification:', error);
   }
@@ -134,7 +140,7 @@ export const createCommentReplyNotification = async (replierId, originalCommente
     }
 
     // Get replier's name
-    const { data: replier, error: replierError } = await supabase
+    const { data: replier, error: replierError } = await getSupabaseClient()
       .from('users')
       .select('name, username')
       .eq('id', replierId)
@@ -155,8 +161,7 @@ export const createCommentReplyNotification = async (replierId, originalCommente
       message: `${replierName} also commented on the article "${postTitle}" that you commented on`,
       postId
     });
-
-
+    console.log(`✅ Created comment reply notification for user: ${originalCommenterId}`);
   } catch (error) {
     console.error('Error in createCommentReplyNotification:', error);
   }

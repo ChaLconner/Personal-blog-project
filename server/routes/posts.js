@@ -1,4 +1,7 @@
-import { supabase } from '../config/database.js';
+import { getSupabase } from '../config/database.js';
+
+// Get the actual Supabase client
+const supabase = getSupabase();
 
 export async function getAllPosts(req, res) {
   const { data, error } = await supabase

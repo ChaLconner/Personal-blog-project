@@ -66,13 +66,13 @@ function BlogCard({ id, image, category, title, description, author, date }) {
         <div className="flex items-center text-sm">
           <img
             className="w-8 h-8 rounded-full mr-2"
-            src={(author?.image && author.image.trim && author.image.trim()) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60'}
+            src={(author?.image && author.image.trim && author.image.trim()) || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60'}
             alt={`${author?.name || author} profile picture`}
             loading="lazy"
             decoding="async"
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
+              e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
             }}
           />
           <span>{author?.name || author}</span>

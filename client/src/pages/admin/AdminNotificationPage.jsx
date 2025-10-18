@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
@@ -71,7 +71,7 @@ export default function AdminNotificationPage() {
         return (
             <div className="flex h-screen bg-ui-surface">
                 <AdminSidebar />
-                <main className="flex-1 p-8 overflow-auto">
+                <main className="flex-1 p-4 lg:p-8 overflow-auto">
                     <div className="text-center mt-20">Loading notifications...</div>
                 </main>
             </div>
@@ -79,17 +79,17 @@ export default function AdminNotificationPage() {
     }
 
     return (
-        <div className="flex h-screen bg-ui-surface">
+        <div className="flex h-screen bg-ui-surface font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-8 bg-background overflow-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold">Notifications</h2>
+            <main className="flex-1 p-4 lg:p-8 bg-background overflow-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold">Notifications</h2>
                     {notifications.some(n => !n.read) && (
                         <button
                             onClick={handleMarkAllAsRead}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors cursor-pointer w-full sm:w-auto"
                         >
                             Mark All as Read
                         </button>
@@ -103,27 +103,24 @@ export default function AdminNotificationPage() {
                 ) : (
                     <div className="space-y-4">
                         {notifications.map((notification) => (
-                            <div 
+                            <div
                                 key={notification.id}
                                 className={cn(
                                     "p-4 rounded-lg border",
-                                    notification.read 
-                                        ? 'bg-card border-border' 
+                                    notification.read
+                                        ? 'bg-card border-border'
                                         : 'bg-accent/50 border-accent'
                                 )}
                             >
-                                <div className="flex items-start justify-between">
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                     <div className="flex items-start space-x-4">
-                                        <Avatar className="w-10 h-10">
-                                            <AvatarImage
-                                                src={notification.trigger_user?.avatar || '/default-avatar.png'}
-                                                alt={notification.trigger_user?.name || 'User'}
-                                            />
-                                            <AvatarFallback>
-                                                {(notification.trigger_user?.name || 'U').charAt(0)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
+                                        <UserAvatar
+                                            src={notification.trigger_user?.avatar || '/default-avatar.png'}
+                                            name={notification.trigger_user?.name}
+                                            size="md"
+                                            alt={notification.trigger_user?.name || 'User'}
+                                        />
+                                        <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold text-foreground">
                                                 {notification.title}
                                             </h3>
@@ -135,31 +132,31 @@ export default function AdminNotificationPage() {
                                                     Article: {notification.post.title}
                                                 </p>
                                             )}
-                                            <div className="flex items-center justify-between mt-2">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-2 gap-2">
                                                 <p className="text-xs text-muted-foreground">
                                                     {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
                                                 </p>
                                                 {!notification.read && (
-                                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-full">
+                                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-full self-start sm:self-auto">
                                                         New
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                                         {notification.post && (
-                                            <button 
+                                            <button
                                                 onClick={() => window.open(`/post/${notification.post.id}`, '_blank')}
-                                                className="text-primary hover:text-primary/80 text-sm underline underline-offset-2"
+                                                className="text-primary hover:text-primary/80 text-sm underline underline-offset-2 cursor-pointer"
                                             >
                                                 View Post
                                             </button>
                                         )}
                                         {!notification.read && (
-                                            <button 
+                                            <button
                                                 onClick={() => handleMarkAsRead(notification.id)}
-                                                className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2"
+                                                className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2 cursor-pointer"
                                             >
                                                 Mark as Read
                                             </button>

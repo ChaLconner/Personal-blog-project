@@ -1,40 +1,53 @@
 import { createClient } from "@supabase/supabase-js";
-import { createNewArticleNotification } from '../utils/notificationHelpers.mjs';
 import process from "process";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// Lazy initialization of Supabase clients
+let supabase = null;
+let supabaseAuth = null;
 
-if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-  console.error('Missing Supabase configuration:');
-  console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
-  console.error('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'SET' : 'NOT SET');
-  console.error('SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'NOT SET');
-  throw new Error("Supabase URL, Service Key, and Anonymous Key must be set in environment variables");
-}
+const getSupabaseClients = () => {
+  if (!supabase || !supabaseAuth) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-// Log successful connection (hide sensitive data) - only in development
-if (process.env.NODE_ENV === 'development') {
-  console.log('✅ Supabase configuration loaded successfully');
-  console.log('📡 Supabase URL:', supabaseUrl);
-  console.log('🔑 Service Key:', supabaseServiceKey ? '***...***' : 'NOT SET');
-  console.log('🔓 Anon Key:', supabaseAnonKey ? '***...***' : 'NOT SET');
-}
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+      console.error('Missing Supabase configuration:');
+      console.error('SUPABASE_URL:', supabaseUrl ? 'SET' : 'NOT SET');
+      console.error('SUPABASE_SERVICE_KEY:', supabaseServiceKey ? 'SET' : 'NOT SET');
+      console.error('SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET' : 'NOT SET');
+      throw new Error("Supabase URL, Service Key, and Anonymous Key must be set in environment variables");
+    }
 
-// Service client for admin operations (database queries)
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    persistSession: false // Disable auth persistence for server-side usage
+    // Log successful connection (hide sensitive data) - only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Supabase configuration loaded successfully');
+      console.log('📡 Supabase URL:', supabaseUrl);
+      console.log('🔑 Service Key:', supabaseServiceKey ? '***...***' : 'NOT SET');
+      console.log('🔓 Anon Key:', supabaseAnonKey ? '***...***' : 'NOT SET');
+    }
+
+    // Service client for admin operations (database queries)
+    supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false // Disable auth persistence for server-side usage
+      }
+    });
+
+    // Auth client for user authentication operations
+    supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false // Disable auth persistence for server-side usage
+      }
+    });
   }
-});
+  
+  return { supabase, supabaseAuth };
+};
 
-// Auth client for user authentication operations
-export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false // Disable auth persistence for server-side usage
-  }
-});
+// Export getters that will initialize the clients on first use
+export const getSupabase = () => getSupabaseClients().supabase;
+export const getSupabaseAuth = () => getSupabaseClients().supabaseAuth;
 
 // Error handling helper
 const handleDatabaseError = (error, operation) => {
@@ -76,7 +89,7 @@ export const dbService = {
         categories = categoriesCache;
       } else {
         try {
-          const { data: categoriesData, error: categoriesError } = await supabase
+          const { data: categoriesData, error: categoriesError } = await getSupabase()
             .from("categories")
             .select("id, name");
           
@@ -90,7 +103,7 @@ export const dbService = {
         }
       }
 
-      let query = supabase
+      let query = getSupabase()
         .from("posts")
         .select("id, title, description, image, date, content, likes_count, category_id, status_id")
         .order("date", { ascending: false });
@@ -144,7 +157,7 @@ export const dbService = {
           status: 'active',
           author: {
             id: 1,
-            name: 'Admin User',
+            name: 'Admin',
             image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
             username: 'admin'
           }
@@ -164,7 +177,7 @@ export const dbService = {
         throw new Error("Invalid post ID provided");
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("posts")
         .select("id, title, description, image, date, content, likes_count, category_id, status_id")
         .eq("id", id)
@@ -180,7 +193,7 @@ export const dbService = {
       // Get categories separately
       let categories = [];
       try {
-        const { data: categoriesData } = await supabase.from("categories").select("id, name");
+        const { data: categoriesData } = await getSupabase().from("categories").select("id, name");
         categories = categoriesData || [];
       } catch (catError) {
         // Categories fetch failed for single post
@@ -221,7 +234,7 @@ export const dbService = {
         throw new Error("Invalid post data provided");
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("posts")
         .insert([postData])
         .select()
@@ -234,6 +247,9 @@ export const dbService = {
       // Best-effort: create notifications for new article publication.
       // If postData contains an author id, use it; otherwise skip notification to avoid guessing.
       try {
+        // Import notification helpers only when needed to avoid circular dependency
+        const { createNewArticleNotification } = await import('../utils/notificationHelpers.mjs');
+        
         const authorId = postData.author_id || postData.authorId || postData.user_id || null;
         // Only trigger if we have a numeric authorId and post is published
         if (authorId) {
@@ -264,7 +280,7 @@ export const dbService = {
         throw new Error("Invalid post data provided");
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("posts")
         .update(postData)
         .eq("id", id)
@@ -292,7 +308,7 @@ export const dbService = {
         throw new Error("Invalid post ID provided");
       }
 
-      const { error } = await supabase.from("posts").delete().eq("id", id);
+      const { error } = await getSupabase().from("posts").delete().eq("id", id);
 
       if (error) {
         throw new Error(`Error deleting post: ${error.message}`);
@@ -312,7 +328,7 @@ export const dbService = {
         throw new Error("Invalid post ID provided");
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("comments")
         .select("id, post_id, comment_text, created_at, user_id")
         .eq("post_id", postId)
@@ -327,7 +343,7 @@ export const dbService = {
       const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
       let usersMap = new Map();
       if (userIds.length > 0) {
-        const { data: usersData, error: usersError } = await supabase
+        const { data: usersData, error: usersError } = await getSupabase()
           .from('users')
           .select('id, name, username, profile_pic')
           .in('id', userIds);
@@ -363,7 +379,7 @@ export const dbService = {
 
   async getAllComments() {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("comments")
         .select("id, post_id, comment_text, created_at, user_id")
         .order("created_at", { ascending: false });
@@ -376,7 +392,7 @@ export const dbService = {
       const userIds = [...new Set(comments.map(c => c.user_id).filter(Boolean))];
       let usersMap = new Map();
       if (userIds.length > 0) {
-        const { data: usersData, error: usersError } = await supabase
+        const { data: usersData, error: usersError } = await getSupabase()
           .from('users')
           .select('id, name, username, profile_pic')
           .in('id', userIds);
@@ -423,7 +439,7 @@ export const dbService = {
         created_at: commentData.created_at || new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("comments")
         .insert([commentToInsert])
         .select("id, post_id, comment_text, created_at, user_id")
@@ -438,7 +454,7 @@ export const dbService = {
     let avatar = commentData?.image || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
       let userObj = null;
       if (data.user_id) {
-        const { data: userData } = await supabase
+        const { data: userData } = await getSupabase()
           .from('users')
           .select('id, name, username, profile_pic')
           .eq('id', data.user_id)
@@ -471,7 +487,7 @@ export const dbService = {
   // Categories
   async getCategories() {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from("categories")
         .select("id, name");
 
@@ -491,7 +507,7 @@ export const dbService = {
   async getStats() {
     try {
       // Get total posts
-      const { count: totalPosts, error: postsError } = await supabase
+      const { count: totalPosts, error: postsError } = await getSupabase()
         .from("posts")
         .select("*", { count: "exact", head: true });
 
@@ -500,7 +516,7 @@ export const dbService = {
       }
 
       // Get total likes
-      const { data: likesData, error: likesError } = await supabase
+      const { data: likesData, error: likesError } = await getSupabase()
         .from("posts")
         .select("likes_count");
 
@@ -514,7 +530,7 @@ export const dbService = {
       );
 
       // Get total comments
-      const { count: totalComments, error: commentsError } = await supabase
+      const { count: totalComments, error: commentsError } = await getSupabase()
         .from("comments")
         .select("*", { count: "exact", head: true });
 
@@ -554,7 +570,7 @@ export const dbService = {
       }
 
       // Check if user already liked this post
-      const { data: existingLike, error: likeError } = await supabase
+      const { data: existingLike, error: likeError } = await getSupabase()
         .from("post_likes")
         .select("id")
         .eq("post_id", postId)
@@ -568,7 +584,7 @@ export const dbService = {
           // Already liked, do nothing
         } else {
           // Insert like
-          const { error: insertError } = await supabase
+          const { error: insertError } = await getSupabase()
             .from("post_likes")
             .insert([{ post_id: postId, user_id: userId }]);
           if (insertError) throw new Error(`Error liking post: ${insertError.message}`);
@@ -576,7 +592,7 @@ export const dbService = {
       } else if (action === 'unlike') {
         if (existingLike) {
           // Remove like
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await getSupabase()
             .from("post_likes")
             .delete()
             .eq("id", existingLike.id);
@@ -587,14 +603,14 @@ export const dbService = {
       }
 
       // Update likes_count in posts table
-      const { count, error: countError } = await supabase
+      const { count, error: countError } = await getSupabase()
         .from("post_likes")
         .select("id", { count: "exact", head: true })
         .eq("post_id", postId);
       if (countError) throw new Error(`Error counting likes: ${countError.message}`);
 
       likesCount = count || 0;
-      const { error: updateError } = await supabase
+      const { error: updateError } = await getSupabase()
         .from("posts")
         .update({ likes_count: likesCount })
         .eq("id", postId);
@@ -609,4 +625,4 @@ export const dbService = {
 };
 
 // Also export raw supabase client for advanced queries in routes when needed
-export const rawSupabase = supabase;
+export const rawSupabase = getSupabase;

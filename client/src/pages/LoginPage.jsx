@@ -1,186 +1,189 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NavBar from "@/components/NavBar";
 import { useAuth } from "@/contexts/authContext.js";
+import blogApi from "@/services/api.js";
 import { toast } from "sonner";
 
-// Simple local validators (avoid depending on a missing utils/validation file)
 const validateEmail = (email) => /\S+@\S+\.\S+/.test(String(email).toLowerCase());
-const validatePassword = (password) => typeof password === 'string' && password.trim().length >= 6;
+const validatePassword = (password) => typeof password === "string" && password.trim().length >= 6;
 
-function LoginPage() {
+export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fieldErrors, setFieldErrors] = useState({ email: false, password: false });
-    const [validationErrors, setValidationErrors] = useState({});
-    const [, setError] = useState("");
+    const [ERROR, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [isWakingServer, setIsWakingServer] = useState(false);
-    const [requiresVerification, setRequiresVerification] = useState(false);
-
+    const [IS_WAKING_SERVER, setIsWakingServer] = useState(false);
+    const [requiresVerification] = useState(false);
     const passwordCheckTimeoutRef = useRef(null);
     const wakeTimeoutRef = useRef(null);
+    const lastWakeRef = useRef(0);
     const navigate = useNavigate();
     const { login, resendVerification } = useAuth();
 
-    // Cleanup debounce timer on unmount
     useEffect(() => {
+        const passwordTimeout = passwordCheckTimeoutRef.current;
+        const wakeTimeout = wakeTimeoutRef.current;
         return () => {
-            if (passwordCheckTimeoutRef.current) {
-                clearTimeout(passwordCheckTimeoutRef.current);
-            }
-            if (wakeTimeoutRef.current) {
-                clearTimeout(wakeTimeoutRef.current);
-            }
+            if (passwordTimeout) clearTimeout(passwordTimeout);
+            if (wakeTimeout) clearTimeout(wakeTimeout);
         };
     }, []);
 
-    // Check if email exists
-    const checkEmailExists = async (emailToCheck) => {
-        try {
-            const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001');
-            let exists = false;
-            let res, data;
-            try {
-                res = await fetch(apiUrl + '/auth/check-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: emailToCheck })
-                });
-                data = await res.json();
-                exists = !!(data && data.exists);
-            } catch {
-                // fallback to login with dummy password
-                res = await fetch(apiUrl + '/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: emailToCheck, password: '___dummy___' })
-                });
-                data = await res.json();
-                exists = !(data && (data.error?.toLowerCase().includes('not found') || data.error?.toLowerCase().includes('email')));
-            }
-            if (!exists) {
-                setFieldErrors(prev => ({ ...prev, email: true }));
-                toast.dismiss();
-                toast.error("Your password is incorrect or this email doesn’t exist. Please try another password or email", { duration: 4000 });
-            } else {
-                setFieldErrors(prev => ({ ...prev, email: false }));
-            }
-        } catch {
-            setFieldErrors(prev => ({ ...prev, email: true }));
-                toast.dismiss();
-                toast.error("Your password is incorrect or this email doesn’t exist. Please try another password or email", { duration: 4000 });
-        }
-    };
+    const validateForm = useCallback(() => {
+        let valid = true;
+        const newFieldErrors = { email: false, password: false };
+        let errorMessage = "";
 
-    // Real-time password+email check (as before)
-    const checkCredentials = async (emailToCheck, passwordToCheck) => {
-        if (!validateEmail(emailToCheck) || !validatePassword(passwordToCheck)) return;
-        try {
-            const res = await fetch(
-                (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/auth/login',
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: emailToCheck, password: passwordToCheck })
-                }
-            );
-            const data = await res.json();
-            if (!res.ok || !data.success || !data.access_token) {
-                setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
-                toast.dismiss();
-                toast.error("Your email doesn’t exist. Please try another email", { duration: 4000 });
+        if (!email.trim() || !validateEmail(email)) {
+            newFieldErrors.email = true;
+            valid = false;
+            errorMessage = email.trim() ? "Please enter a valid email address" : "Email is required";
+        }
+        if (!password.trim() || !validatePassword(password)) {
+            newFieldErrors.password = true;
+            valid = false;
+            if (errorMessage) {
+                errorMessage += " and password";
             } else {
-                setFieldErrors(prev => ({ ...prev, password: false, email: prev.email }));
+                errorMessage = password.trim() ? "Password must be at least 6 characters long" : "Password is required";
             }
-        } catch {
-            setFieldErrors(prev => ({ ...prev, password: true, email: prev.email }));
+        }
+
+        setFieldErrors(newFieldErrors);
+
+        if (!valid) {
             toast.dismiss();
-            toast.error("Your password is incorrect or this email doesn’t exist", { duration: 4000 });
+            toast.error(errorMessage, { duration: 4000 });
         }
-    };
 
-    const validateForm = () => {
-        const errors = {};
-        if (!email.trim()) {
-            errors.email = "Email is required";
-        } else if (!validateEmail(email)) {
-            errors.email = "Email must be a valid email";
-        }
-        if (!password.trim()) {
-            errors.password = "Password is required";
-        } else if (!validatePassword(password)) {
-            errors.password = "Password must be at least 6 characters";
-        }
-        setValidationErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
+        return valid;
+    }, [email, password]);
 
-    const handleSignupClick = () => {
-        navigate("/signup");
-    };
+    const wakeServer = useCallback(() => {
+        try {
+            const now = Date.now();
+            if (now - lastWakeRef.current < 10000) return;
+            lastWakeRef.current = now;
+            setIsWakingServer(true);
+
+            blogApi.healthCheck()
+                .then(() => { })
+                .catch(() => { })
+                .finally(() => {
+                    setTimeout(() => setIsWakingServer(false), 300);
+                });
+        } catch {
+            setTimeout(() => setIsWakingServer(false), 300);
+        }
+    }, []);
+
+    const handleSignupClick = useCallback(() => navigate("/signup"), [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-        setValidationErrors({});
+        if (!validateForm()) return;
 
-        if (!validateForm()) {
-            if (!validateEmail(email)) {
-                setFieldErrors(prev => ({ ...prev, email: true }));
-                toast.dismiss();
-                toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
-            }
-            return;
-        }
+        wakeServer();
 
         setIsLoading(true);
-        setIsWakingServer(false);
-
-        // Show 'waking up server' if login takes >1.2s
-        wakeTimeoutRef.current = setTimeout(() => {
-            setIsWakingServer(true);
-        }, 1200);
 
         try {
-            const result = await login({ email, password });
+            const result = await login({ email: email.trim(), password });
             clearTimeout(wakeTimeoutRef.current);
             setIsWakingServer(false);
+
             if (result.success) {
+                setFieldErrors({ email: false, password: false });
                 toast.success("Login successful! Welcome back!", { duration: 1500 });
             } else if (result.error) {
                 setError(result.error);
                 const authErrorMessage = result.error.toLowerCase();
-                if (
-                    authErrorMessage.includes('invalid') ||
-                    authErrorMessage.includes('wrong') ||
-                    authErrorMessage.includes('incorrect') ||
-                    authErrorMessage.includes('not found') ||
-                    authErrorMessage.includes('password') ||
-                    authErrorMessage.includes('email')
-                ) {
-                    toast.dismiss();
-                    toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
-                } else if (result.requiresVerification) {
-                    setRequiresVerification(true);
-                    toast.error("Please verify your email before logging in", { duration: 4000 });
-                } else {
-                    toast.error(result.error, { duration: 4000 });
+                const newFieldErrors = { email: false, password: false };
+                let errorMessage = "";
+
+                if (authErrorMessage.includes("email") || authErrorMessage.includes("not found")) {
+                    newFieldErrors.email = true;
+                    errorMessage = "Email not found. Please check your email or sign up";
                 }
-                setRequiresVerification(Boolean(result.requiresVerification));
+                if (authErrorMessage.includes("password") || authErrorMessage.includes("wrong") || authErrorMessage.includes("incorrect")) {
+                    newFieldErrors.password = true;
+                    if (errorMessage) {
+                        errorMessage = "Invalid email and password combination";
+                    } else {
+                        errorMessage = "Incorrect password. Please try again";
+                    }
+                }
+                if (!newFieldErrors.email && !newFieldErrors.password) {
+                    newFieldErrors.email = newFieldErrors.password = true;
+                    errorMessage = "Login failed. Please check your credentials";
+                }
+
+                setFieldErrors(newFieldErrors);
+                toast.dismiss();
+                toast.error(errorMessage, { duration: 4000 });
             }
         } catch (error) {
             clearTimeout(wakeTimeoutRef.current);
             setIsWakingServer(false);
-            const errorMessage = error.message || "Login failed. Please try again.";
-            setError(errorMessage);
-            setRequiresVerification(false);
+            setError(error.message || "Login failed. Please try again.");
+            setFieldErrors({ email: true, password: true });
             toast.dismiss();
-            toast.error("Your password is incorrect or this email doesn't exist", { duration: 4000 });
+            toast.error("Network error. Please check your connection and try again", { duration: 4000 });
         } finally {
             setIsLoading(false);
         }
     };
+
+    const emailInputClasses = useMemo(() => {
+        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 ${
+            fieldErrors.email
+                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164]"
+                : "border-[#DAD6D1]"
+        }`;
+    }, [fieldErrors.email]);
+
+    const passwordInputClasses = useMemo(() => {
+        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 ${
+            fieldErrors.password
+                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164]"
+                : "border-[#DAD6D1]"
+        }`;
+    }, [fieldErrors.password]);
+
+    const handleEmailChange = useCallback((e) => {
+        setEmail(e.target.value);
+        setFieldErrors((prev) => ({ ...prev, email: false }));
+    }, []);
+
+    const handleEmailBlur = useCallback(() => {
+        if (!email.trim() || !validateEmail(email)) {
+            setFieldErrors((prev) => ({ ...prev, email: true }));
+            toast.dismiss();
+            toast.error(email.trim() ? "Please enter a valid email address" : "Email is required", { duration: 3000 });
+        }
+    }, [email]);
+
+    const handlePasswordChange = useCallback((e) => {
+        setPassword(e.target.value);
+        setFieldErrors((prev) => ({ ...prev, password: false }));
+    }, []);
+
+    const handlePasswordBlur = useCallback(() => {
+        if (!password.trim() || !validatePassword(password)) {
+            setFieldErrors((prev) => ({ ...prev, password: true }));
+            toast.dismiss();
+            toast.error(password.trim() ? "Password must be at least 6 characters long" : "Password is required", { duration: 3000 });
+        }
+    }, [password]);
+
+    const handleResendVerification = useCallback(async () => {
+        const res = await resendVerification(email);
+        if (res.success) toast.success(res.message, { duration: 4000 });
+        else toast.error(res.error || "Unable to send verification email.", { duration: 4000 });
+    }, [email, resendVerification]);
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -195,27 +198,13 @@ function LoginPage() {
                                 type="email"
                                 id="email"
                                 placeholder="Email"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    fieldErrors.email
-                                        ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
-                                        : validationErrors.email
-                                            ? "border-red-500 focus:border-red-500"
-                                            : "border-[#DAD6D1] "
-                                }`}
+                                className={emailInputClasses}
+                                style={{ borderColor: fieldErrors.email ? "#EB5164" : undefined }}
                                 value={email}
-                                onChange={(e) => {
-                                    setEmail(e.target.value);
-                                    setFieldErrors(prev => ({ ...prev, email: false }));
-                                    if (validationErrors.email) {
-                                        setValidationErrors(prev => ({...prev, email: ""}));
-                                    }
-                                }}
-                                onBlur={() => checkEmailExists(email)}
+                                onChange={handleEmailChange}
+                                onBlur={handleEmailBlur}
                                 required
                             />
-                            {validationErrors.email && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
-                            )}
                         </div>
                         <div className="mb-6">
                             <label className="block text-[#75716B] mb-1 rounded-[8px]" htmlFor="password">Password</label>
@@ -223,55 +212,24 @@ function LoginPage() {
                                 type="password"
                                 id="password"
                                 placeholder="Password"
-                                className={`border rounded w-full py-2 px-3 bg-white ${
-                                    fieldErrors.password
-                                        ? "border-[#EB5164] text-[#EB5164] focus:border-[#EB5164]"
-                                        : validationErrors.password
-                                            ? "border-red-500 focus:border-red-500"
-                                            : "border-[#DAD6D1]"
-                                }`}
+                                className={passwordInputClasses}
+                                style={{ borderColor: fieldErrors.password ? "#EB5164" : undefined }}
                                 value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    setFieldErrors(prev => ({ ...prev, password: false }));
-                                    if (validationErrors.password) {
-                                        setValidationErrors(prev => ({...prev, password: ""}));
-                                    }
-                                }}
-                                onBlur={() => {
-                                    // Debounce password+email check after blur
-                                    if (passwordCheckTimeoutRef.current) {
-                                        clearTimeout(passwordCheckTimeoutRef.current);
-                                    }
-                                    if (!fieldErrors.email && !validationErrors.email && email && validateEmail(email)) {
-                                        passwordCheckTimeoutRef.current = setTimeout(() => {
-                                            checkCredentials(email, password);
-                                        }, 600); // 600ms delay after blur
-                                    }
-                                }}
+                                onChange={handlePasswordChange}
+                                onBlur={handlePasswordBlur}
                                 required
                             />
-                            {validationErrors.password && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
-                            )}
                         </div>
 
                         {requiresVerification && (
                             <div className="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded">
-                                <p className="text-sm">กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ</p>
+                                <p className="text-sm">Please verify your email.</p>
                                 <button
                                     type="button"
                                     className="mt-2 text-sm underline"
-                                    onClick={async () => {
-                                        const res = await resendVerification(email);
-                                        if (res.success) {
-                                            toast.success(res.message, { duration: 4000 });
-                                        } else {
-                                            toast.error(res.error || "ไม่สามารถส่งอีเมลยืนยันได้", { duration: 4000 });
-                                        }
-                                    }}
+                                    onClick={handleResendVerification}
                                 >
-                                    ส่งอีเมลยืนยันอีกครั้ง
+                                    Resend verification email
                                 </button>
                             </div>
                         )}
@@ -280,19 +238,13 @@ function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onMouseDown={wakeServer}
+                                onFocus={wakeServer}
+                                className="bg-[#26231E] text-[#ffffff] border-[1px] border-[#75716B] px-[40px] py-[12px] rounded-[999px] gap-[6px] sm:my-10 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                                {isLoading
-                                    ? isWakingServer
-                                        ? "Log in"
-                                        : "Logging in..."
-                                    : "Log in"}
+                                Log in
                             </button>
-                            <button
-                                type="button"
-                                onClick={handleSignupClick}
-                                className="text-[#75716B]"
-                            >
+                            <button type="button" onClick={handleSignupClick} className="text-[#75716B]">
                                 Don't have any account?<span className="text-black underline ml-2">Sign up</span>
                             </button>
                         </div>
@@ -303,4 +255,4 @@ function LoginPage() {
     );
 }
 
-export default LoginPage;
+

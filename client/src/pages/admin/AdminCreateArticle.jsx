@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/authContext.js";
 
 export default function AdminCreateArticlePage() {
-    const { user } = useAuth(); // เพิ่มการใช้งาน useAuth
+    const { user } = useAuth();
     const [categories, setCategories] = useState([]);
     const [formData, setFormData] = useState({
         title: "",
@@ -25,7 +25,7 @@ export default function AdminCreateArticlePage() {
         description: "",
         content: "",
         image: "",
-        author: "" // เพิ่ม author ใน formData
+        author: ""
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -36,7 +36,7 @@ export default function AdminCreateArticlePage() {
 
     useEffect(() => {
         fetchCategories();
-        // ตั้งค่าชื่อ author เริ่มต้นจากข้อมูล user ที่ล็อกอิน
+        // Set default author name from logged in user
         if (user?.name) {
             setFormData(prev => ({
                 ...prev,
@@ -147,7 +147,7 @@ export default function AdminCreateArticlePage() {
         } catch (error) {
             console.error('❌ Upload error:', error);
             toast.error('Failed to upload image');
-            resetImageState(); // Use the reset function
+            resetImageState();
         } finally {
             setUploading(false);
         }
@@ -176,8 +176,8 @@ export default function AdminCreateArticlePage() {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
                 content: formData.content.trim(),
-                author: formData.author.trim() || user?.name || 'Admin', // ส่ง author ไปด้วย
-                status: publish ? 'published' : 'draft' // แก้ไขให้ใช้ 'published' แทน 'publish'
+                author: formData.author.trim() || user?.name || 'Admin',
+                status: publish ? 'published' : 'draft'
             };
 
             await blogApi.admin.createPost(postData);
@@ -190,9 +190,9 @@ export default function AdminCreateArticlePage() {
                 description: "",
                 content: "",
                 image: "",
-                author: user?.name || "" // รีเซ็ต author กลับเป็นชื่อ user
+                author: user?.name || ""
             });
-            resetImageState(); // Clear image state
+            resetImageState();
             
             navigate('/admin/article-management');
         } catch (error) {
@@ -205,25 +205,25 @@ export default function AdminCreateArticlePage() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-100 font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
 
             {/* Main content */}
-            <main className="flex-1 p-8 bg-gray-50 overflow-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-semibold">Create article</h2>
-                    <div className="space-x-2">
-                        <Button 
-                            className="px-8 py-2 rounded-full bg-[#FFFFFF]text-[#000000] border border-[#75716B]" 
+            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold">Create article</h2>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#FFFFFF] text-[#000000] border border-[#75716B] cursor-pointer"
                             variant="outline"
                             onClick={handleSaveAsDraft}
                             disabled={loading}
                         >
                             {loading ? 'Saving...' : 'Save as draft'}
                         </Button>
-                        <Button 
-                            className="px-8 py-2 rounded-full bg-[#26231E] text-[#FFFFFF]"
+                        <Button
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#26231E] text-[#FFFFFF] cursor-pointer"
                             onClick={handleSaveAndPublish}
                             disabled={loading}
                         >
@@ -232,7 +232,7 @@ export default function AdminCreateArticlePage() {
                     </div>
                 </div>
 
-                <form className="space-y-7 max-w-4xl">
+                <form className="space-y-6 sm:space-y-7 max-w-4xl">
                     <div>
                         <label
                             htmlFor="file-upload"
@@ -240,11 +240,11 @@ export default function AdminCreateArticlePage() {
                         >
                             Thumbnail image
                         </label>
-                        <div className="flex items-end space-x-4">
-                            <div 
-                                className={`flex justify-center items-center w-full max-w-lg h-64 px-6 py-20 border-2 border-dashed rounded-md bg-gray-50 relative transition-colors ${
-                                    dragActive 
-                                        ? 'border-blue-400 bg-blue-50' 
+                        <div className="flex flex-col lg:flex-row lg:items-end space-y-4 lg:space-y-0 lg:space-x-4">
+                            <div
+                                className={`flex justify-center items-center w-full h-64 lg:max-w-lg lg:h-64 px-6 py-20 border-2 border-dashed rounded-md bg-gray-50 relative transition-colors ${
+                                    dragActive
+                                        ? 'border-blue-400 bg-blue-50'
                                         : 'border-gray-300'
                                 }`}
                                 onDragEnter={handleDrag}
@@ -256,15 +256,15 @@ export default function AdminCreateArticlePage() {
                             >
                                 {imagePreview ? (
                                     <>
-                                        <img 
-                                            src={imagePreview} 
-                                            alt="Preview" 
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
                                             className="max-w-full max-h-full object-contain rounded-md"
                                         />
                                         <button
                                             type="button"
                                             onClick={handleImageRemove}
-                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors cursor-pointer"
                                             title="Remove image"
                                         >
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,36 +276,38 @@ export default function AdminCreateArticlePage() {
                                     <div className="text-center space-y-2">
                                         <ImageIcon className="mx-auto h-8 w-8 text-gray-400" />
                                         <p className="text-sm text-gray-500">
-                                            {uploading 
-                                                ? 'Uploading...' 
-                                                : dragActive 
-                                                    ? 'Drop image here' 
+                                            {uploading
+                                                ? 'Uploading...'
+                                                : dragActive
+                                                    ? 'Drop image here'
                                                     : 'Drag & drop image here or click to browse'
                                             }
                                         </p>
                                     </div>
                                 )}
                             </div>
-                            <label
-                                htmlFor="file-upload"
-                                className={`px-8 py-2 bg-[#FFFFFF] border-[#75716B] rounded-full text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <span>{uploading ? 'Uploading...' : 'Upload thumbnail image'}</span>
-                                <input
-                                    id="file-upload"
-                                    name="file-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    disabled={uploading}
-                                    className="sr-only"
-                                    onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        if (file) {
-                                            handleFileUpload(file);
-                                        }
-                                    }}
-                                />
-                            </label>
+                            <div className="flex flex-col space-y-2">
+                                <label
+                                    htmlFor="file-upload"
+                                    className={`px-6 py-2 sm:px-10 sm:py-3 bg-[#FFFFFF] border-[#75716B] rounded-full text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer text-center ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <span>{uploading ? 'Uploading...' : 'Upload thumbnail image'}</span>
+                                    <input
+                                        id="file-upload"
+                                        name="file-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        disabled={uploading}
+                                        className="sr-only"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                handleFileUpload(file);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </div>
                         </div>
                         
                         {/* Display selected file information */}
@@ -324,7 +326,7 @@ export default function AdminCreateArticlePage() {
                                     <button
                                         type="button"
                                         onClick={handleImageRemove}
-                                        className="text-red-500 hover:text-red-700 text-sm"
+                                        className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
                                     >
                                         Remove
                                     </button>
@@ -336,7 +338,7 @@ export default function AdminCreateArticlePage() {
                     <div>
                         <label htmlFor="category">Category</label>
                         <Select onValueChange={(value) => handleInputChange('category', value)}>
-                            <SelectTrigger id="category" className="max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
+                            <SelectTrigger id="category" className="w-full lg:max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
                                 <SelectValue placeholder="Select category" />
                             </SelectTrigger>
                             <SelectContent>
@@ -356,7 +358,7 @@ export default function AdminCreateArticlePage() {
                             placeholder="Enter author name"
                             value={formData.author}
                             onChange={(e) => handleInputChange('author', e.target.value)}
-                            className="mt-1 max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full lg:max-w-lg py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                         <p className="text-sm text-gray-500 mt-1">
                             Default: {user?.name || 'Admin'}
@@ -370,7 +372,7 @@ export default function AdminCreateArticlePage() {
                             placeholder="Article title"
                             value={formData.title}
                             onChange={(e) => handleInputChange('title', e.target.value)}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
 
@@ -382,7 +384,7 @@ export default function AdminCreateArticlePage() {
                             value={formData.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             rows={3}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                             maxLength={120}
                         />
                     </div>
@@ -394,8 +396,8 @@ export default function AdminCreateArticlePage() {
                             placeholder="Write your article content here..."
                             value={formData.content}
                             onChange={(e) => handleInputChange('content', e.target.value)}
-                            rows={20}
-                            className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            rows={15}
+                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
                 </form>

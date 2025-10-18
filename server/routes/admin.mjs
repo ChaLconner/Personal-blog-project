@@ -1,6 +1,9 @@
 import express from 'express';
-import { supabase } from '../config/database.js';
+import { getSupabase } from '../config/database.js';
 import { createNewArticleNotification } from '../utils/notificationHelpers.mjs';
+
+// Get the actual Supabase client
+const supabase = getSupabase();
 
 const adminRouter = express.Router();
 

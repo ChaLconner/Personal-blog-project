@@ -1,4 +1,7 @@
-import { supabase } from '../config/database.js';
+import { getSupabase } from '../config/database.js';
+
+// Get the actual Supabase client
+const supabase = getSupabase();
 
 // Optional authentication middleware: if Authorization header present, verify token and attach user; otherwise continue anonymously
 const optionalProtectUser = async (req, res, next) => {

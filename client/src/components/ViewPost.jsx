@@ -25,6 +25,7 @@ import { formatDateTimeAt } from "@/utils/dateFormatter";
 import ProtectedAction from "./ProtectedAction";
 import { PageLoadingSpinner } from "@/components/LoadingSpinner";
 import { useAuth } from "@/contexts/authContext.js";
+import { UserAvatar } from "@/components/UserAvatar";
 
 // Lazy load ReactMarkdown (heavy dependency)
 const ReactMarkdown = lazy(() => import("react-markdown"));
@@ -37,7 +38,7 @@ export default function ViewPost() {
     const [category, setCategory] = useState("");
     const [content, setContent] = useState("");
     const [likes, setLikes] = useState(0);
-    const [isLiked, setIsLiked] = useState(false); // เพิ่ม state สำหรับ like status
+    // like status handled in Share component; no local isLiked required
     const [author, setAuthor] = useState({ name: "Admin", image: null, id: 1, username: "admin" }); // เพิ่ม author state
     const [isLoading, setIsLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -50,16 +51,12 @@ export default function ViewPost() {
     useEffect(() => {
         getPost();
         getComments();
-        // ตรวจสอบ like status หากผู้ใช้ล็อกอินแล้ว
-        if (isAuthenticated && state.user?.id) {
-            checkLikeStatus();
-        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, state.user]);
 
     const getComments = async () => {
         try {
-            const response = await blogApi.getComments({ postId: param.postId });
+            const response = await blogApi.getComments({ postId: param.id });
             // API returns { success, data: [...], count }
             const list = Array.isArray(response?.data) ? response.data : response?.data?.data;
             setPostComments(Array.isArray(list) ? list : []);
@@ -69,88 +66,8 @@ export default function ViewPost() {
     };
 
     // ตรวจสอบว่าผู้ใช้ได้กดไลก์โพสต์นี้แล้วหรือยัง
-    const checkLikeStatus = async () => {
-        try {
-            const response = await blogApi.checkPostLike(param.id);
-            setIsLiked(response.isLiked || false);
-        } catch (error) {
-            console.error("Error checking like status:", error);
-        }
-    };
 
-    // จัดการการกดไลก์
-    const handleLike = async () => {
-        if (!isAuthenticated) {
-            toast.error("Please login to like this post", {
-                position: "bottom-right",
-                duration: 3000,
-            });
-            return;
-        }
-
-        try {
-            const response = await blogApi.likePost(param.id);
-            
-            if (response.success) {
-                // อัปเดต state ตาม response
-                setIsLiked(response.isLiked);
-                setLikes(response.likes_count);
-                
-                const message = response.isLiked ? "Post liked!" : "Post unliked!";
-                toast.success(message, {
-                    position: "bottom-right",
-                    duration: 2000,
-                });
-            }
-        } catch (error) {
-            console.error("Error liking post:", error);
-            toast.error("Failed to like post. Please try again.", {
-                position: "bottom-right",
-                duration: 3000,
-            });
-        }
-    };
-
-    // ส่ง comment
-    const handleSendComment = async (commentText, setComment, setIsError) => {
-        if (!isAuthenticated) {
-            toast.error("Please login to comment", {
-                position: "bottom-right",
-                duration: 3000,
-            });
-            return;
-        }
-
-        if (!commentText.trim()) {
-            setIsError(true);
-            return;
-        }
-
-        try {
-            const response = await blogApi.addComment({
-                postId: param.id,
-                content: commentText.trim()
-            });
-
-            if (response.success) {
-                toast.success("Comment added successfully!", {
-                    position: "bottom-right",
-                    duration: 2000,
-                });
-                
-                // เคลียร์ form และโหลดความคิดเห็นใหม่
-                setComment("");
-                setIsError(false);
-                getComments(); // รีเฟรชความคิดเห็น
-            }
-        } catch (error) {
-            console.error("Error adding comment:", error);
-            toast.error("Failed to add comment. Please try again.", {
-                position: "bottom-right",
-                duration: 3000,
-            });
-        }
-    };
+    // Comment sending is handled inside the Comment component
 
     const getPost = async () => {
         setIsLoading(true);
@@ -415,9 +332,9 @@ export default function ViewPost() {
                         <AuthorBio author={author} />
                     </div>
 
-                    <Share postId={param.postId} likesAmount={likes} setDialogState={setIsDialogOpen} />
+                    <Share postId={param.id} likesAmount={likes} setDialogState={setIsDialogOpen} />
                     <Comment
-                        postId={param.postId}
+                        postId={param.id}
                         setDialogState={setIsDialogOpen}
                         postComments={postComments}
                         addComment={(c) => setPostComments((prev) => [...prev, c])}
@@ -440,6 +357,7 @@ export default function ViewPost() {
 
 function Share({ postId, likesAmount, setDialogState }) {
     const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const [localLikes, setLocalLikes] = useState(likesAmount || 0);
     const [hasLiked, setHasLiked] = useState(false);
 
@@ -489,7 +407,17 @@ function Share({ postId, likesAmount, setDialogState }) {
             // rollback
             setHasLiked(!next);
             setLocalLikes((n) => Math.max(0, n + (next ? -1 : 1)));
-            toast.error(`Unable to update like. ${err?.message || 'Please try again.'}`);
+            
+            // Handle authentication errors specifically
+            if (err?.message === 'Unauthorized' || err?.message?.includes('401')) {
+                toast.error('Your session has expired. Please log in again.');
+                // Redirect to login after a short delay
+                setTimeout(() => {
+                    navigate('/login');
+                }, 1500);
+            } else {
+                toast.error(`Unable to update like. ${err?.message || 'Please try again.'}`);
+            }
         }
     };
     const shareLink = encodeURI(window.location.href);
@@ -499,7 +427,7 @@ function Share({ postId, likesAmount, setDialogState }) {
             <div className="bg-[#EFEEEB] py-4 px-4 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row md:items-center md:space-y-0 md:justify-between mb-10">
                 <button
                     onClick={handleLikeClick}
-                    className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+                    className="bg-white flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group cursor-pointer"
                     aria-pressed={hasLiked}
                 >
                     <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
@@ -512,7 +440,7 @@ function Share({ postId, likesAmount, setDialogState }) {
                         onClick={() => {
                             navigator.clipboard.writeText(shareLink);
                             toast.custom((t) => (
-                                <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start max-w-md w-full">
+                                <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start max-w-md w-full cursor-pointer">
                                     <div>
                                         <h2 className="font-bold text-lg mb-1">Copied!</h2>
                                         <p className="text-sm">
@@ -528,7 +456,7 @@ function Share({ postId, likesAmount, setDialogState }) {
                                 </div>
                             ));
                         }}
-                        className="bg-white flex flex-1 items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+                        className="bg-white flex flex-1 items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group cursor-pointer"
                     >
                         <Copy className="w-5 h-5 text-foreground transition-colors group-hover:text-muted-foreground" />
                         <span className="text-foreground font-medium transition-colors group-hover:text-muted-foreground">
@@ -564,6 +492,7 @@ function Share({ postId, likesAmount, setDialogState }) {
 
 function Comment({ postId, setDialogState, postComments, addComment }) {
     const { state, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const [comment, setComment] = useState("");
     const [isError, setIsError] = useState(false);
 
@@ -620,7 +549,16 @@ function Comment({ postId, setDialogState, postComments, addComment }) {
             setComment("");
             toast.success('Comment posted');
         } catch (err) {
-            toast.error(err?.message || 'Failed to post comment');
+            // Handle authentication errors specifically
+            if (err?.message === 'Unauthorized' || err?.message?.includes('401')) {
+                toast.error('Your session has expired. Please log in again.');
+                // Redirect to login after a short delay
+                setTimeout(() => {
+                    navigate('/login');
+                }, 1500);
+            } else {
+                toast.error(err?.message || 'Failed to post comment');
+            }
         }
     };
 
@@ -629,7 +567,7 @@ function Comment({ postId, setDialogState, postComments, addComment }) {
             <div className="space-y-4 px-4 mb-16">
                 <h3 className="text-lg font-semibold">Comment</h3>
                 <ProtectedAction action="comment on this post">
-                    <form className="space-y-2" onSubmit={handleSubmit}>
+                    <form className="space-y-2" onSubmit={handleSendComment}>
                         <Textarea
                             value={comment}
                             onFocus={() => {
@@ -647,7 +585,7 @@ function Comment({ postId, setDialogState, postComments, addComment }) {
                         )}
                         <div className="flex justify-end">
                             <button type="submit"
-                                className="px-8 py-2 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors"
+                                className="px-10 py-3 bg-[#26231E] text-white rounded-full hover:bg-muted-foreground transition-colors cursor-pointer"
                             >
                                 Send
                             </button>
@@ -660,13 +598,11 @@ function Comment({ postId, setDialogState, postComments, addComment }) {
                     <div key={index} className="flex flex-col gap-2 mb-4">
                         <div className="flex space-x-4">
                             <div className="flex-shrink-0">
-                                <img
+                                <UserAvatar
                                     src={resolveImageUrl(comment.image)}
+                                    name={comment.name}
+                                    size="md"
                                     alt={comment.name}
-                                    className="rounded-full w-12 h-12 object-cover"
-                                    onError={(e) => {
-                                        e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
-                                    }}
                                 />
                             </div>
                             <div className="flex-grow">
@@ -694,16 +630,14 @@ function AuthorBio({ author = { name: "Admin", image: null, id: 1, username: "ad
     return (
         <div className="bg-[#EFEEEB] rounded-3xl p-6">
             <div className="flex items-center mb-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden mr-4">
-                    <img
-                        src={(safeAuthor.image && safeAuthor.image.trim && safeAuthor.image.trim()) || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face&auto=format&q=60"}
-                        alt={safeAuthor.name || safeAuthor}
-                        className="object-cover w-16 h-16"
-                        onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face&auto=format&q=60';
-                        }}
-                    />
-                </div>
+                <UserAvatar
+                    src={(safeAuthor.image && safeAuthor.image.trim && safeAuthor.image.trim()) || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face&auto=format&q=60"}
+                    name={safeAuthor.name || safeAuthor}
+                    username={safeAuthor.username}
+                    size="xl"
+                    alt={safeAuthor.name || safeAuthor}
+                    className="mr-4"
+                />
                 <div>
                     <p className="text-sm">Author</p>
                     <h3 className="text-2xl font-bold">{safeAuthor.name || safeAuthor}</h3>

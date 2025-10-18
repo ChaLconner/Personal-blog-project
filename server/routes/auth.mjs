@@ -1,5 +1,9 @@
 import express from 'express';
-import { supabase, supabaseAuth } from '../config/database.js';
+import { getSupabase, getSupabaseAuth } from '../config/database.js';
+
+// Get the actual Supabase clients
+const supabase = getSupabase();
+const supabaseAuth = getSupabaseAuth();
 
 const authRouter = express.Router();
 

@@ -120,7 +120,7 @@ my-side-project/
 ```bash
 # Clone the repository
 git clone https://github.com/ChaLconner/Personal-blog-project.git
-cd Personal-blog-project
+cd my-side-project
 
 # Install all dependencies (both client and server)
 npm run install:all
@@ -404,9 +404,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📊 Project Status
 
-**Current Version**: 1.0.0  
-**Status**: ✅ Production Ready  
-**Last Updated**: August 2025
+**Current Version**: 1.0.0
+**Status**: ✅ Production Ready
+**Last Updated**: October 2025
 
 ### **Features Status**
 - ✅ User Authentication & Authorization

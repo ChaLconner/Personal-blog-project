@@ -5,8 +5,10 @@ const cache = {
 };
 const CACHE_TTL = 60 * 1000; // 1 minute
 import express from "express";
-import { dbService } from "../config/database.js";
-import { supabase } from "../config/database.js";
+import { dbService, getSupabase } from "../config/database.js";
+
+// Get the actual Supabase client
+const supabase = getSupabase();
 
 const router = express.Router();
 

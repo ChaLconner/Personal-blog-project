@@ -10,6 +10,13 @@ const ProtectedRoute = ({
   requireAdmin = false
 }) => {
   const location = useLocation();
+  
+  // Ensure all props have default values to prevent undefined errors
+  const safeIsLoading = isLoading === null || isLoading === undefined ? false : isLoading;
+  const safeIsAuthenticated = Boolean(isAuthenticated);
+  const safeUserRole = userRole || null;
+  const safeRequiredRole = requiredRole || null;
+  
   const hasStoredToken = (() => {
     try {
       return Boolean(
@@ -22,7 +29,7 @@ const ProtectedRoute = ({
   })();
 
   // Avoid redirects while auth is resolving or when a token exists but state hasn't authenticated yet
-  if (isLoading === null || isLoading || (hasStoredToken && !isAuthenticated)) {
+  if (safeIsLoading || (hasStoredToken && !safeIsAuthenticated)) {
     // แสดง loading แบบ inline แทน LoadingScreen
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -35,25 +42,29 @@ const ProtectedRoute = ({
   }
 
   // ตรวจสอบการเข้าสู่ระบบ
-  if (!isAuthenticated) {
+  if (!safeIsAuthenticated) {
     // สร้าง return URL พร้อม query parameters
     const returnUrl = `${location.pathname}${location.search}${location.hash}`;
     
-    // เปลี่ยนเส้นทางไปหน้า login พร้อมเก็บ URL ปัจจุบัน
-    return <Navigate 
-      to={`/login?redirect=${encodeURIComponent(returnUrl)}`} 
-      state={{ from: location }} 
-      replace 
+    // ตรวจสอบว่า path ปัจจุบันเป็น admin path หรือไม่
+    const isAdminPath = location.pathname.startsWith('/admin');
+    
+    // เปลี่ยนเส้นทางไปหน้า login ที่เหมาะสมตาม role พร้อมเก็บ URL ปัจจุบัน
+    const loginPath = isAdminPath ? '/admin/login' : '/login';
+    return <Navigate
+      to={`${loginPath}?redirect=${encodeURIComponent(returnUrl)}`}
+      state={{ from: location }}
+      replace
     />;
   }
 
   // ตรวจสอบ role โดยใช้ requireAdmin (backward compatibility)
-  if (requireAdmin && userRole !== 'admin') {
+  if (requireAdmin && safeUserRole !== 'admin') {
     return <Navigate to="/" replace />;
   }
 
   // ตรวจสอบ role โดยใช้ requiredRole (flexible role checking)
-  if (requiredRole && userRole !== requiredRole) {
+  if (safeRequiredRole && safeUserRole !== safeRequiredRole) {
     // For role mismatch, send to home instead of login to prevent confusing redirects
     return <Navigate to="/" replace />;
   }

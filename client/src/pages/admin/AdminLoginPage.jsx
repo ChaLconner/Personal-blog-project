@@ -45,9 +45,6 @@ export default function AdminLoginPage() {
             const loginResult = await login({ email, password });
             
             if (loginResult.success) {
-                // Keep loading state active until navigation completes
-                // Don't set loading to false here to prevent flash
-                
                 // Navigate immediately without delay
                 navigate(from, { replace: true });
             } else {
@@ -63,7 +60,7 @@ export default function AdminLoginPage() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen font-poppins">
             {/* Loading overlay to prevent flash during login */}
             {isLoading && (
                 <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
@@ -125,7 +122,7 @@ export default function AdminLoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-[#26231E]"
+                            className="px-10 py-3 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-[#26231E] cursor-pointer"
                         >
                             {isLoading ? "Logging in..." : "Log in"}
                         </button>

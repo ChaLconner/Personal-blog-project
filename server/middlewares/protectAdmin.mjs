@@ -1,4 +1,7 @@
-import { supabase } from '../config/database.js';
+import { getSupabase } from '../config/database.js';
+
+// Get the actual Supabase client
+const supabase = getSupabase();
 
 // Middleware ตรวจสอบ JWT token และสิทธิ์ Admin
 const protectAdmin = async (req, res, next) => {

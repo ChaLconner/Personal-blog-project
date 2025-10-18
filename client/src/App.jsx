@@ -5,7 +5,7 @@ import { AuthProvider } from "@/contexts/auth.jsx";
 import { useAuth } from "@/contexts/authContext.js";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthenticationRoute from "@/components/AuthenticationRoute";
-import { PageLoadingSpinner } from "@/components/LoadingSpinner";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // Lazy load all pages
 // Public pages
@@ -39,7 +39,9 @@ const AdminResetPasswordPage = lazy(() => import("@/pages/admin/AdminResetPasswo
 function AppContent() {
   const { isAuthenticated, state } = useAuth();
 
- if (state.getUserLoading === true && !state.user && !localStorage.getItem("token")) {
+  // Only show loading if we have a token and are checking it
+  const hasToken = localStorage.getItem("token") || localStorage.getItem("authToken");
+  if (state.getUserLoading === true && hasToken && !state.user && window.location.pathname !== '/') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -50,9 +52,10 @@ function AppContent() {
   }
 
   return (
-    <div className="App">
-      <Suspense>
-        <Routes>
+    <ErrorBoundary>
+      <div className="App">
+        <Suspense>
+          <Routes>
           {/* เส้นทางสาธารณะที่ทุกคนเข้าถึงได้ */}
           <Route path="/" element={<HomePage />} />
           <Route path="/post/:id" element={<ViewPostPage />} />
@@ -62,37 +65,43 @@ function AppContent() {
           <Route
             path="/signup"
             element={
-              <AuthenticationRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <SignUpPage />
-              </AuthenticationRoute>
+              <ErrorBoundary>
+                <AuthenticationRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <SignUpPage />
+                </AuthenticationRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/signup-success"
             element={
-              <AuthenticationRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <SignUpSuccessPage />
-              </AuthenticationRoute>
+              <ErrorBoundary>
+                <AuthenticationRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <SignUpSuccessPage />
+                </AuthenticationRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/login"
             element={
-              <AuthenticationRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <LoginPage />
-              </AuthenticationRoute>
+              <ErrorBoundary>
+                <AuthenticationRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <LoginPage />
+                </AuthenticationRoute>
+              </ErrorBoundary>
             }
           />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -101,25 +110,29 @@ function AppContent() {
           <Route
             path="/profile"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <ProfilePage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <ProfilePage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/reset-password"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <ResetPasswordPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <ResetPasswordPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           
@@ -127,153 +140,176 @@ function AppContent() {
           <Route
             path="/admin/login"
             element={
-              <AuthenticationRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-              >
-                <AdminLogin />
-              </AuthenticationRoute>
+              <ErrorBoundary>
+                <AuthenticationRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                >
+                  <AdminLogin />
+                </AuthenticationRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminDashboardPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminDashboardPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/create-article"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminCreateArticlePage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminCreateArticlePage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/article-management"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminArticlePage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminArticlePage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/edit-article/:id"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminEditArticlePage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminEditArticlePage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/create-category"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminCreateCategoryPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminCreateCategoryPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/category-management"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminCategoryPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminCategoryPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/edit-category/:id"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminEditCategoryPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminEditCategoryPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/notifications"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminNotificationPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminNotificationPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/profile"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminProfilePage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminProfilePage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
           <Route
             path="/admin/reset-password"
             element={
-              <ProtectedRoute
-                isLoading={state.getUserLoading}
-                isAuthenticated={isAuthenticated}
-                userRole={state.user?.role}
-                requiredRole="admin"
-        >
-          <AdminResetPasswordPage />
-              </ProtectedRoute>
+              <ErrorBoundary>
+                <ProtectedRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                  userRole={state.user?.role}
+                  requiredRole="admin"
+          >
+            <AdminResetPasswordPage />
+                </ProtectedRoute>
+              </ErrorBoundary>
             }
           />
-        </Routes>
-      </Suspense>
-      <Toaster
-        toastOptions={{
-          unstyled: true,
-        }}
-      />
-    </div>
+          </Routes>
+        </Suspense>
+        <Toaster
+          toastOptions={{
+            unstyled: true,
+          }}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }
 

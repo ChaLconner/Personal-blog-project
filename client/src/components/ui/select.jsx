@@ -62,6 +62,22 @@ function SelectContent({
           className
         )}
         position={position}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
+        onMount={() => {
+          // Fix aria-hidden issue by removing aria-hidden from focused elements
+          const focusedElement = document.activeElement;
+          if (focusedElement) {
+            let parent = focusedElement.parentElement;
+            while (parent) {
+              if (parent.hasAttribute('aria-hidden')) {
+                parent.removeAttribute('aria-hidden');
+              }
+              parent = parent.parentElement;
+            }
+          }
+        }}
         {...props}>
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
