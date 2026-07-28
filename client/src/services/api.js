@@ -1,12 +1,11 @@
 import axios from "axios";
-import { supabaseClient } from "../lib/supabaseClient.js";
 
-// Resolve API base URL: prefer VITE_API_URL, then localhost in dev, else Render in prod
-const API_BASE_URL =
+// Resolve API base URL: prefer VITE_API_URL, then localhost:5000 in dev, else relative / origin
+export const API_BASE_URL =
   (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) ||
   (import.meta.env.DEV
-    ? "http://localhost:3001"
-    : "https://personal-blog-project-server.onrender.com");
+    ? "http://localhost:5000"
+    : window.location.origin);
 
 // Simple cache for storing API responses
 const cache = new Map();
@@ -23,68 +22,10 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000, // 30 second default timeout
+  timeout: 10000, // 10 second default timeout
 });
 
 // Supabase client is now imported from the shared supabaseClient module
-
-// Map of active notification channels by userId
-const notificationChannels = new Map();
-
-const subscribeNotifications = async (userId, onInsert) => {
-  if (!supabaseClient) {
-    console.warn(
-      "Supabase client not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY"
-    );
-    return null;
-  }
-  if (!userId) return null;
-  if (notificationChannels.has(userId)) return notificationChannels.get(userId);
-
-  // Use Postgres change feed to listen for INSERTs on notifications for this user
-  try {
-    const channel = supabaseClient
-      .channel(`notifications_user_${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          try {
-            // payload.new contains the inserted row
-            if (onInsert && typeof onInsert === "function") {
-              onInsert(payload.new);
-            }
-          } catch (err) {
-            console.error("Error in notifications insert handler:", err);
-          }
-        }
-      )
-      .subscribe();
-
-    notificationChannels.set(userId, channel);
-    return channel;
-  } catch (err) {
-    console.error("Failed to subscribe to notifications:", err);
-    return null;
-  }
-};
-
-const unsubscribeNotifications = async (userId) => {
-  try {
-    const channel = notificationChannels.get(userId);
-    if (!channel || !supabaseClient) return;
-    // Unsubscribe and remove
-    await channel.unsubscribe();
-    notificationChannels.delete(userId);
-  } catch (err) {
-    console.error("Failed to unsubscribe notifications:", err);
-  }
-};
 
 // Request interceptor - เพิ่ม authentication token
 api.interceptors.request.use(
@@ -135,14 +76,14 @@ api.interceptors.response.use(
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
+      const errorMessage = data?.error || data?.message || data?.details;
       switch (status) {
         case 404:
-          throw new Error(data.message || "Resource not found");
+          throw new Error(errorMessage || "Resource not found");
         case 400: {
           // Provide more detailed error message for 400 errors
-          const errorMessage = data?.error || data?.message || "Bad request";
           console.error('400 Error Details:', { status, data, url: error.config?.url });
-          throw new Error(errorMessage);
+          throw new Error(errorMessage || "Bad request");
         }
         case 401:
           // Clear invalid tokens on 401 errors
@@ -153,11 +94,11 @@ api.interceptors.response.use(
           if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/post/')) {
             // Let the component handle the redirect, not the interceptor
           }
-          throw new Error(data.message || "Unauthorized");
+          throw new Error(errorMessage || "Unauthorized");
         case 500:
-          throw new Error(data.message || "Server error");
+          throw new Error(errorMessage || "Server error");
         default:
-          throw new Error(data.message || `HTTP ${status} error`);
+          throw new Error(errorMessage || `HTTP ${status} error`);
       }
     } else if (error.request) {
       // Network error (no response). If this is a timeout we'll let callers/retry-helpers handle it
@@ -225,7 +166,7 @@ const auth = {
   setToken: (token) => {
     authToken = token;
     localStorage.setItem("authToken", token);
-    localStorage.setItem("token", token);
+    localStorage.removeItem("token");
   },
 
   removeToken: () => {
@@ -265,6 +206,26 @@ const auth = {
       throw error;
     }
   },
+
+  checkEmail: async (email) => {
+    try {
+      const response = await api.post("/auth/check-email", { email });
+      return response.data;
+    } catch (error) {
+      console.error("Error checking email:", error);
+      return { success: false, error: error?.message || "Check email failed" };
+    }
+  },
+
+  logout: async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.warn("Server logout notification skipped/failed:", error?.message);
+    } finally {
+      auth.removeToken();
+    }
+  },
 };
 
 // Cache helper functions
@@ -288,7 +249,13 @@ const getCachedData = (key) => {
   return null;
 };
 
+const MAX_CACHE_SIZE = 100;
+
 const setCachedData = (key, data) => {
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey) cache.delete(firstKey);
+  }
   cache.set(key, {
     data,
     timestamp: Date.now(),
@@ -409,88 +376,9 @@ export const blogApi = {
   // Auth helper functions
   auth,
 
-  // Authentication functions
-  register: async (userData) => {
-    try {
-      const { name, username, email, password } = userData;
+  // Check email availability
+  checkEmail: async (email) => auth.checkEmail(email),
 
-      if (!name || !username || !email || !password) {
-        throw new Error("All fields are required");
-      }
-
-      const response = await api.post("/auth/register", {
-        name: name.trim(),
-        username: username.trim(),
-        email: email.trim(),
-        password,
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error("Error during registration:", error);
-      throw error;
-    }
-  },
-
-  login: async (credentials) => {
-    try {
-      const { email, password } = credentials;
-
-      if (!email || !password) {
-        throw new Error("Email and password are required");
-      }
-
-      const response = await api.post("/auth/login", {
-        email: email.trim(),
-        password,
-      });
-
-      // Store the token
-      if (response.data.access_token) {
-        auth.setToken(response.data.access_token);
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Error during login:", error);
-      throw error;
-    }
-  },
-
-  // Check if an email is already registered
-  checkEmail: async (email) => {
-    try {
-      if (!email) throw new Error('Email is required');
-      const response = await api.post('/auth/check-email', { email: email.trim() }, { timeout: 5000 });
-      return response.data; // { success: true, exists: boolean }
-    } catch (error) {
-      console.error('Error checking email:', error);
-      return { success: false, error: error?.message || 'Failed to check email' };
-    }
-  },
-
-  logout: async () => {
-    try {
-      auth.removeToken();
-      clearCache(); // Clear cache on logout
-      return { message: "Logged out successfully" };
-    } catch (error) {
-      console.error("Error during logout:", error);
-      throw error;
-    }
-  },
-
-  getCurrentUser: async () => {
-    try {
-      const response = await api.get("/auth/get-user");
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching current user:", error);
-      // Remove invalid token
-      auth.removeToken();
-      throw error;
-    }
-  },
 
   // Get all blog posts with optional filters (with caching)
   getPosts: async (params = {}) => {
@@ -608,44 +496,7 @@ export const blogApi = {
     }
   },
 
-  // Like/Unlike a post
-  likePost: async (postId) => {
-    try {
-      const response = await api.post(`/blog/posts/${postId}/like`);
-      return response.data;
-    } catch (error) {
-      console.error('Error liking post:', error);
-      throw error;
-    }
-  },
 
-  // Check if user has liked a post
-  checkPostLike: async (postId) => {
-    try {
-      const response = await api.get(`/blog/posts/${postId}/like-status`);
-      return response.data;
-    } catch (error) {
-      console.error('Error checking like status:', error);
-      throw error;
-    }
-  },
-
-  // Add comment to a post
-  addComment: async (commentData) => {
-    try {
-      if (!commentData.postId || !commentData.content) {
-        throw new Error('Missing required fields: postId, content');
-      }
-
-      const response = await api.post(`/blog/posts/${commentData.postId}/comment`, {
-        content: commentData.content
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error adding comment:', error);
-      throw error;
-    }
-  },
 
   // Create new comment
   createComment: async (commentData) => {
@@ -678,17 +529,29 @@ export const blogApi = {
     }
   },
 
+  // Delete comment by ID
+  deleteComment: async (id) => {
+    try {
+      if (!id) throw new Error("Comment ID is required");
+      const response = await api.delete(`/comments/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      throw error;
+    }
+  },
+
   // Get all categories (with caching)
   getCategories: async () => {
     try {
       // Check cache first
-      const cacheKey = getCacheKey("/categories");
+      const cacheKey = getCacheKey("/blog/categories");
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
         return cachedData;
       }
 
-      const response = await api.get("/categories");
+      const response = await api.get("/blog/categories");
 
       // Cache the response
       setCachedData(cacheKey, response.data);
@@ -700,41 +563,7 @@ export const blogApi = {
     }
   },
 
-  // Get blog statistics
-  getStats: async () => {
-    try {
-      const response = await api.get("/stats");
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      throw error;
-    }
-  },
 
-  // Search posts
-  searchPosts: async (searchTerm, category = null, limit = null) => {
-    try {
-      const params = {};
-
-      if (searchTerm && searchTerm.trim().length > 0) {
-        params.search = searchTerm.trim();
-      }
-
-      if (category && category !== "all" && category !== null) {
-        params.category = category;
-      }
-
-      if (limit && limit > 0) {
-        params.limit = limit;
-      }
-
-      const response = await api.get("/blog/posts", { params });
-      return response.data;
-    } catch (error) {
-      console.error("Error searching posts:", error);
-      throw error;
-    }
-  },
 
   // Health check
   healthCheck: async () => {
@@ -760,33 +589,13 @@ export const blogApi = {
 
       const response = await api.post("/upload/image", formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": undefined,
         },
       });
 
       return response.data;
     } catch (error) {
       console.error("Error uploading image:", error);
-      throw error;
-    }
-  },
-
-  uploadImages: async (files) => {
-    try {
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("images", file);
-      });
-
-      const response = await api.post("/upload/images", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error("Error uploading images:", error);
       throw error;
     }
   },
@@ -798,7 +607,7 @@ export const blogApi = {
 
       const response = await api.post("/upload/profile", formData, {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": undefined,
         },
       });
 
@@ -809,15 +618,7 @@ export const blogApi = {
     }
   },
 
-  deleteImage: async (filename) => {
-    try {
-      const response = await api.delete(`/upload/image/${filename}`);
-      return response.data;
-    } catch (error) {
-      console.error("Error deleting image:", error);
-      throw error;
-    }
-  },
+
 
   // Notification functions (incremental fetch + centralized error handling)
   getNotifications: async (userId) => {
@@ -842,14 +643,26 @@ export const blogApi = {
     }
   },
 
-  createNotification: async (notificationData) => {
+  deleteNotification: async (notificationId) => {
     try {
-      const response = await api.post("/notifications", notificationData);
+      const response = await api.delete(`/notifications/${notificationId}`);
       return { success: true, data: response.data };
     } catch (error) {
-      return handleApiError(error, "creating notification");
+      return handleApiError(error, "deleting notification");
     }
   },
+
+  clearReadNotifications: async (userId) => {
+    try {
+      const response = await api.delete(`/notifications/user/${userId}/clear-read`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return handleApiError(error, "clearing read notifications");
+    }
+  },
+
+
+
 
   // Admin functions
   admin: {
@@ -944,15 +757,7 @@ export const blogApi = {
       }
     },
 
-    deleteComment: async (id) => {
-      try {
-        const response = await api.delete(`/admin/comments/${id}`);
-        return response.data;
-      } catch (error) {
-        console.error("Error deleting comment:", error);
-        throw error;
-      }
-    },
+
 
     // Dashboard stats
     getStats: async () => {
@@ -1008,6 +813,27 @@ export const blogApi = {
         throw error;
       }
     },
+
+    // Admin notifications
+    getNotifications: async (params = {}) => {
+      try {
+        const response = await api.get('/notifications/admin/all', { params });
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching admin notifications:", error);
+        throw error;
+      }
+    },
+
+    getNotificationStats: async () => {
+      try {
+        const response = await api.get('/notifications/admin/stats');
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching admin notification stats:", error);
+        throw error;
+      }
+    },
   },
 
   // Notifications management
@@ -1024,27 +850,16 @@ export const blogApi = {
       return blogApi.markAllNotificationsAsRead(userId);
     },
 
-    create: async (notificationData) => {
-      return blogApi.createNotification(notificationData);
-    },
-
     delete: async (notificationId) => {
-      try {
-        const response = await api.delete(`/notifications/${notificationId}`);
-        return { success: true, data: response.data };
-      } catch (error) {
-        return handleApiError(error, "deleting notification");
-      }
+      return blogApi.deleteNotification(notificationId);
     },
 
-    // Realtime subscription helpers (Supabase)
-    subscribe: async (userId, onInsert) => {
-      return subscribeNotifications(userId, onInsert);
+    clearRead: async (userId) => {
+      return blogApi.clearReadNotifications(userId);
     },
 
-    unsubscribe: async (userId) => {
-      return unsubscribeNotifications(userId);
-    },
+
+
 
     // Create test notification (development only)
     createTest: async (userId, testData = {}) => {
@@ -1072,42 +887,7 @@ export const blogApi = {
       }
     },
 
-    // Admin functions
-    admin: {
-      getAll: async (params = {}) => {
-        try {
-          const response = await api.get("/notifications/admin/all", {
-            params,
-          });
-          return response.data;
-        } catch (error) {
-          console.error("Error fetching admin notifications:", error);
-          return { success: false, data: [], error: error.message };
-        }
-      },
 
-      getStats: async () => {
-        try {
-          const response = await api.get("/notifications/admin/stats");
-          return response.data;
-        } catch (error) {
-          console.error("Error fetching notification stats:", error);
-          return { success: false, error: error.message };
-        }
-      },
-
-      bulkDelete: async (deleteParams) => {
-        try {
-          const response = await api.delete("/notifications/admin/bulk", {
-            data: deleteParams,
-          });
-          return response.data;
-        } catch (error) {
-          console.error("Error bulk deleting notifications:", error);
-          return { success: false, error: error.message };
-        }
-      },
-    },
   },
 };
 

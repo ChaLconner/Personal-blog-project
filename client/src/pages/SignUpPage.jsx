@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
-import NavBar from "@/components/NavBar";
+import NavBar from "@/components/layout/NavBar";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import blogApi from "@/services/api.js";
 
@@ -46,7 +46,7 @@ export default function SignUpPage() {
         if (!formData.email.trim()) {
             errors.email = "Email is required";
         } else if (!validateEmail(formData.email)) {
-            errors.email = "Email must be a valid email";
+            errors.email = "Email must be a valid email address";
         }
 
         if (!formData.password.trim()) {
@@ -58,7 +58,7 @@ export default function SignUpPage() {
         setValidationErrors(errors);
         // Also prevent submission if email is already taken
         if (emailTaken) {
-            errors.email = "Email is already taken, Please try another email.";
+            errors.email = "Email is already taken. Please try another email.";
             setValidationErrors(errors);
             return false;
         }
@@ -89,10 +89,10 @@ export default function SignUpPage() {
             if (res && res.success) {
                 setEmailTaken(!!res.exists);
                 if (res.exists) {
-                    setValidationErrors(prev => ({ ...prev, email: "Email is already taken, Please try another email." }));
+                    setValidationErrors(prev => ({ ...prev, email: "Email is already taken. Please try another email." }));
                 } else {
                     // clear only the email error if it was the "taken" message
-                    setValidationErrors(prev => ({ ...prev, email: prev.email === "Email is already taken, Please try another email." ? "" : prev.email }));
+                    setValidationErrors(prev => ({ ...prev, email: prev.email === "Email is already taken. Please try another email." ? "" : prev.email }));
                 }
             } else {
                 // On error, don't block signup — but log it
@@ -124,6 +124,7 @@ export default function SignUpPage() {
                 toast.success("Registration successful! Redirecting...", {
                     position: "bottom-right",
                     duration: 2000,
+                    className: "auth-toast",
                 });
 
                 // เปลี่ยนเส้นทางไปยัง SignUpSuccessPage
@@ -135,6 +136,7 @@ export default function SignUpPage() {
                 toast.error(result.error, {
                     position: "bottom-right",
                     duration: 4000,
+                    className: "auth-toast",
                 });
             }
         } catch (error) {
@@ -143,6 +145,7 @@ export default function SignUpPage() {
             toast.error(errorMessage, {
                 position: "bottom-right",
                 duration: 4000,
+                className: "auth-toast",
             });
         } finally {
             setIsLoading(false);
@@ -159,7 +162,7 @@ export default function SignUpPage() {
                 ...prev,
                 email: !formData.email.trim()
                     ? "Email is required"
-                    : "Email must be a valid email"
+                    : "Email must be a valid email address"
             }));
             return;
         }
@@ -181,38 +184,34 @@ export default function SignUpPage() {
 
     // Memoize input classes to prevent unnecessary recalculations
     const nameInputClasses = useMemo(() => {
-        return `border rounded w-full py-2 px-3 bg-white ${
+        return `border rounded w-full py-2 px-3 bg-white transition-colors placeholder:!text-[#75716B] focus:outline-none ${
             validationErrors.name
-                ? "border-red-500 focus:border-red-500"
-                : "border-ui-border focus:border-blue-500"
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
+                : "border-[#DAD6D1] focus:border-blue-500"
         }`;
     }, [validationErrors.name]);
 
     const usernameInputClasses = useMemo(() => {
-        return `border rounded w-full py-2 px-3 bg-white ${
+        return `border rounded w-full py-2 px-3 bg-white transition-colors placeholder:!text-[#75716B] focus:outline-none ${
             validationErrors.username
-                ? "border-red-500 focus:border-red-500"
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
                 : "border-[#DAD6D1] focus:border-blue-500"
         }`;
     }, [validationErrors.username]);
 
     const emailInputClasses = useMemo(() => {
-        return `border rounded w-full py-2 px-3 bg-white transition-colors ${
-            validationErrors.email && validationErrors.email === "Email must be a valid email"
-                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
-                : validationErrors.email
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-[#DAD6D1] focus:border-blue-500"
+        return `border rounded w-full py-2 px-3 bg-white transition-colors placeholder:!text-[#75716B] focus:outline-none ${
+            validationErrors.email
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
+                : "border-[#DAD6D1] focus:border-blue-500"
         }`;
     }, [validationErrors.email]);
 
     const passwordInputClasses = useMemo(() => {
-        return `border rounded w-full py-2 px-3 bg-white transition-colors ${
-            validationErrors.password && validationErrors.password === "Password must be at least 6 characters"
-                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164] focus:border-[#EB5164]"
-                : validationErrors.password
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-[#DAD6D1] focus:border-blue-500"
+        return `border rounded w-full py-2 px-3 bg-white transition-colors placeholder:!text-[#75716B] focus:outline-none ${
+            validationErrors.password
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
+                : "border-[#DAD6D1] focus:border-blue-500"
         }`;
     }, [validationErrors.password]);
 
@@ -220,10 +219,10 @@ export default function SignUpPage() {
         <div className="flex flex-col min-h-screen">
             <NavBar />
             <div className="flex justify-center rounded-2xl mt-10 mx-4 sm:mt-15 sm:mx-40">
-                <div className="bg-gray-100 w-full rounded-2xl shadow-md gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
+                <div className="bg-[#EFEEEB] border border-[#DAD6D1] w-full rounded-2xl shadow-sm gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
                     <h1 className="text-[40px] font-semibold">Sign up</h1>
 
-                    <form className="w-full" onSubmit={handleSubmit}>
+                    <form className="w-full" onSubmit={handleSubmit} autoComplete="off">
                         <div className="mb-6">
                             <label className="block text-brand-secondary mb-1 rounded-lg" htmlFor="name">Name</label>
                             <input
@@ -234,10 +233,11 @@ export default function SignUpPage() {
                                 className={nameInputClasses}
                                 value={formData.name}
                                 onChange={handleInputChange}
+                                autoComplete="off"
                                 required
                             />
                             {validationErrors.name && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.name}</p>
+                                <p className="text-[#EB5164] text-xs mt-1">{validationErrors.name}</p>
                             )}
                         </div>
                         <div className="mb-6">
@@ -250,10 +250,11 @@ export default function SignUpPage() {
                                 className={usernameInputClasses}
                                 value={formData.username}
                                 onChange={handleInputChange}
+                                autoComplete="off"
                                 required
                             />
                             {validationErrors.username && (
-                                <p className="text-red-500 text-sm mt-1">{validationErrors.username}</p>
+                                <p className="text-[#EB5164] text-xs mt-1">{validationErrors.username}</p>
                             )}
                         </div>
                         <div className="mb-6">
@@ -267,10 +268,11 @@ export default function SignUpPage() {
                                 value={formData.email}
                                 onChange={handleInputChange}
                                 onBlur={handleEmailBlur}
+                                autoComplete="off"
                                 required
                             />
                             {validationErrors.email && (
-                                <p className={`mt-1 text-[12px] ${validationErrors.email === "Email must be a valid email" ? "text-[#EB5164]" : "text-red-500"}`}>{validationErrors.email}</p>
+                                <p className="mt-1 text-xs text-[#EB5164]">{validationErrors.email}</p>
                             )}
                             {/* Intentionally hide intermediate 'checking' status per UX request */}
                         </div>
@@ -285,10 +287,11 @@ export default function SignUpPage() {
                                 value={formData.password}
                                 onChange={handleInputChange}
                                 onBlur={handlePasswordBlur}
+                                autoComplete="new-password"
                                 required
                             />
                             {validationErrors.password && (
-                                <p className={`mt-1 text-[12px] ${validationErrors.password === "Password must be at least 6 characters" ? "text-[#EB5164]" : "text-red-500"}`}>{validationErrors.password}</p>
+                                <p className="mt-1 text-xs text-[#EB5164]">{validationErrors.password}</p>
                             )}
                         </div>
 
@@ -300,13 +303,16 @@ export default function SignUpPage() {
                             >
                                 {isLoading ? "Signing up..." : "Sign up"}
                             </button>
-                            <button
-                                type="button"
-                                onClick={navigateToLogin}
-                                className="text-[#75716B]"
-                            >
-                                Already have an account?<span className="text-black underline ml-2">Log in</span>
-                            </button>
+                            <p className="text-[#75716B]">
+                                Already have an account?
+                                <button
+                                    type="button"
+                                    onClick={navigateToLogin}
+                                    className="text-black underline ml-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                >
+                                    Log in
+                                </button>
+                            </p>
                         </div>
                     </form>
                 </div>

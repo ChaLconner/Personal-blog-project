@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import NavBar from "@/components/NavBar";
-import { Footer } from "@/components/WebSection";
+import NavBar from "@/components/layout/NavBar";
+import Footer from "@/components/layout/Footer";
 import { useNavigate } from "react-router-dom";
 import { X, User, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { UserAvatar } from "@/components/UserAvatar";
-import { useAuth } from "@/contexts/authContext.js";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api.js";
 
@@ -53,6 +53,14 @@ export default function ProfilePage() {
 
     fetchProfile();
   }, [state.user]);
+
+  useEffect(() => {
+    return () => {
+      if (profile.image && profile.image.startsWith("blob:")) {
+        URL.revokeObjectURL(profile.image);
+      }
+    };
+  }, [profile.image]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -167,22 +175,11 @@ export default function ProfilePage() {
       const response = await blogApi.auth.updateProfile(updateData);
 
       if (response.success) {
-        toast.custom((t) => (
-          <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
-            <div>
-              <h2 className="font-bold text-lg mb-1">
-                Profile updated successfully
-              </h2>
-              <p className="text-sm">Your profile changes have been saved.</p>
-            </div>
-            <button
-              onClick={() => toast.dismiss(t)}
-              className="text-white hover:text-gray-200"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        ));
+        toast.dismiss();
+        toast.success('Saved profile', {
+          description: 'Your profile has been successfully updated',
+          className: 'custom-alert-toast'
+        });
 
         // Clear the image file since it's now uploaded
         setImageFile(null);

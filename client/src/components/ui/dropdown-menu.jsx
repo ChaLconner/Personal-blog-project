@@ -3,7 +3,9 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+const DropdownMenu = ({ modal = false, ...props }) => (
+  <DropdownMenuPrimitive.Root modal={modal} {...props} />
+);
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
@@ -51,9 +53,6 @@ DropdownMenuSubContent.displayName =
 
 const DropdownMenuContent = React.forwardRef(
   ({ className, sideOffset = 4, ...props }, ref) => {
-    // Store original body style before dropdown opens
-    const originalBodyStyle = React.useRef({});
-    
     return (
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
@@ -64,35 +63,6 @@ const DropdownMenuContent = React.forwardRef(
             className
           )}
           {...props}
-          // Prevent body scroll lock and padding when dropdown opens
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            // Store original body style and prevent scroll lock
-            originalBodyStyle.current = {
-              overflow: document.body.style.overflow,
-              paddingRight: document.body.style.paddingRight,
-              width: document.body.style.width
-            };
-            // Ensure body maintains full width and scroll
-            document.body.style.overflow = 'auto';
-            document.body.style.paddingRight = '0';
-            document.body.style.width = '100%';
-            
-            // Also set attributes to prevent Radix UI from changing them
-            document.body.setAttribute('data-dropdown-open', 'true');
-            
-            // Fix aria-hidden issue by removing aria-hidden from focused elements
-            const focusedElement = document.activeElement;
-            if (focusedElement) {
-              let parent = focusedElement.parentElement;
-              while (parent) {
-                if (parent.hasAttribute('aria-hidden')) {
-                  parent.removeAttribute('aria-hidden');
-                }
-                parent = parent.parentElement;
-              }
-            }
-          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             // Restore original body style when dropdown closes

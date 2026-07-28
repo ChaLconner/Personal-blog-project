@@ -1,6 +1,6 @@
-import NavBar from "@/components/NavBar";
-import Footer from "@/components/Footer";
-import ViewPost from "@/components/ViewPost";
+import NavBar from "@/components/layout/NavBar";
+import Footer from "@/components/layout/Footer";
+import ViewPost from "@/components/blog/ViewPost";
 import { memo } from "react";
 
 const PageContent = memo(() => (

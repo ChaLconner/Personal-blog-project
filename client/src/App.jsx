@@ -1,11 +1,11 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/contexts/auth.jsx";
-import { useAuth } from "@/contexts/authContext.js";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import AuthenticationRoute from "@/components/AuthenticationRoute";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AuthenticationRoute from "@/components/auth/AuthenticationRoute";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
+import { PageLoadingSpinner } from "@/components/common/LoadingSpinner";
 
 // Lazy load all pages
 // Public pages
@@ -54,7 +54,7 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <div className="App">
-        <Suspense>
+        <Suspense fallback={<PageLoadingSpinner />}>
           <Routes>
           {/* เส้นทางสาธารณะที่ทุกคนเข้าถึงได้ */}
           <Route path="/" element={<HomePage />} />
@@ -303,11 +303,7 @@ function AppContent() {
           />
           </Routes>
         </Suspense>
-        <Toaster
-          toastOptions={{
-            unstyled: true,
-          }}
-        />
+        <Toaster position="bottom-right" closeButton />
       </div>
     </ErrorBoundary>
   );

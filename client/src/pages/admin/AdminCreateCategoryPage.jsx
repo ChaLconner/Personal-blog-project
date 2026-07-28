@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { blogApi } from "@/services/api";
@@ -33,18 +33,18 @@ export default function AdminCreateCategoryPage() {
         }
     };
     return (
-        <div className="flex h-screen bg-gray-100 font-poppins">
+        <div className="flex h-screen overflow-hidden bg-gray-100 font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 min-w-0 p-4 lg:p-8 bg-gray-50 overflow-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h2 className="text-xl sm:text-2xl font-semibold">Create Category</h2>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
                             type="button"
                             variant="outline"
-                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#FFFFFF] text-[#000000] border border-[#75716B] hover:bg-gray-50 transition-colors cursor-pointer"
                             onClick={() => navigate('/admin/category-management')}
                         >
                             Cancel
@@ -52,7 +52,7 @@ export default function AdminCreateCategoryPage() {
                         <Button
                             type="submit"
                             form="category-form"
-                            className="bg-black text-white px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#26231E] text-[#FFFFFF] hover:bg-[#3d3831] transition-colors cursor-pointer"
                             disabled={loading}
                         >
                             {loading ? 'Saving...' : 'Save'}

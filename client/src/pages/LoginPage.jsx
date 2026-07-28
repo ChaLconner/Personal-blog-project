@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import NavBar from "@/components/NavBar";
-import { useAuth } from "@/contexts/authContext.js";
+import NavBar from "@/components/layout/NavBar";
+import { useAuth } from "@/contexts/AuthContext";
 import blogApi from "@/services/api.js";
 import { toast } from "sonner";
 
@@ -23,10 +23,10 @@ export default function LoginPage() {
     const { login, resendVerification } = useAuth();
 
     useEffect(() => {
-        const passwordTimeout = passwordCheckTimeoutRef.current;
+        const passwordCheckTimeout = passwordCheckTimeoutRef.current;
         const wakeTimeout = wakeTimeoutRef.current;
         return () => {
-            if (passwordTimeout) clearTimeout(passwordTimeout);
+            if (passwordCheckTimeout) clearTimeout(passwordCheckTimeout);
             if (wakeTimeout) clearTimeout(wakeTimeout);
         };
     }, []);
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
         if (!valid) {
             toast.dismiss();
-            toast.error(errorMessage, { duration: 4000 });
+            toast.error("Validation Error", { description: errorMessage, duration: 4000, className: "auth-toast" });
         }
 
         return valid;
@@ -97,33 +97,16 @@ export default function LoginPage() {
 
             if (result.success) {
                 setFieldErrors({ email: false, password: false });
-                toast.success("Login successful! Welcome back!", { duration: 1500 });
+                toast.success("Login Successful", { description: "Welcome back!", duration: 2000, className: "auth-toast" });
             } else if (result.error) {
                 setError(result.error);
-                const authErrorMessage = result.error.toLowerCase();
-                const newFieldErrors = { email: false, password: false };
-                let errorMessage = "";
-
-                if (authErrorMessage.includes("email") || authErrorMessage.includes("not found")) {
-                    newFieldErrors.email = true;
-                    errorMessage = "Email not found. Please check your email or sign up";
-                }
-                if (authErrorMessage.includes("password") || authErrorMessage.includes("wrong") || authErrorMessage.includes("incorrect")) {
-                    newFieldErrors.password = true;
-                    if (errorMessage) {
-                        errorMessage = "Invalid email and password combination";
-                    } else {
-                        errorMessage = "Incorrect password. Please try again";
-                    }
-                }
-                if (!newFieldErrors.email && !newFieldErrors.password) {
-                    newFieldErrors.email = newFieldErrors.password = true;
-                    errorMessage = "Login failed. Please check your credentials";
-                }
-
-                setFieldErrors(newFieldErrors);
+                setFieldErrors({ email: true, password: true });
                 toast.dismiss();
-                toast.error(errorMessage, { duration: 4000 });
+                toast.error("Your password is incorrect or this email doesn't exist", {
+                    description: "Please try another password or email",
+                    duration: 4000,
+                    className: "auth-toast"
+                });
             }
         } catch (error) {
             clearTimeout(wakeTimeoutRef.current);
@@ -131,24 +114,24 @@ export default function LoginPage() {
             setError(error.message || "Login failed. Please try again.");
             setFieldErrors({ email: true, password: true });
             toast.dismiss();
-            toast.error("Network error. Please check your connection and try again", { duration: 4000 });
+            toast.error("Login Error", { description: "Network error. Please check your connection and try again", duration: 4000, className: "auth-toast" });
         } finally {
             setIsLoading(false);
         }
     };
 
     const emailInputClasses = useMemo(() => {
-        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 ${
+        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 placeholder:!text-[#75716B] ${
             fieldErrors.email
-                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164]"
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
                 : "border-[#DAD6D1]"
         }`;
     }, [fieldErrors.email]);
 
     const passwordInputClasses = useMemo(() => {
-        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 ${
+        return `border-2 rounded w-full py-2 px-3 bg-white ring-0 transition-colors duration-150 focus:outline-none focus:ring-0 placeholder:!text-[#75716B] ${
             fieldErrors.password
-                ? "border-[#EB5164] text-[#EB5164] placeholder-[#EB5164]"
+                ? "!border-[#EB5164] !text-[#EB5164] focus:!border-[#EB5164]"
                 : "border-[#DAD6D1]"
         }`;
     }, [fieldErrors.password]);
@@ -162,7 +145,7 @@ export default function LoginPage() {
         if (!email.trim() || !validateEmail(email)) {
             setFieldErrors((prev) => ({ ...prev, email: true }));
             toast.dismiss();
-            toast.error(email.trim() ? "Please enter a valid email address" : "Email is required", { duration: 3000 });
+            toast.error(email.trim() ? "Please enter a valid email address" : "Email is required", { duration: 3000, className: "auth-toast" });
         }
     }, [email]);
 
@@ -175,21 +158,21 @@ export default function LoginPage() {
         if (!password.trim() || !validatePassword(password)) {
             setFieldErrors((prev) => ({ ...prev, password: true }));
             toast.dismiss();
-            toast.error(password.trim() ? "Password must be at least 6 characters long" : "Password is required", { duration: 3000 });
+            toast.error(password.trim() ? "Password must be at least 6 characters long" : "Password is required", { duration: 3000, className: "auth-toast" });
         }
     }, [password]);
 
     const handleResendVerification = useCallback(async () => {
         const res = await resendVerification(email);
-        if (res.success) toast.success(res.message, { duration: 4000 });
-        else toast.error(res.error || "Unable to send verification email.", { duration: 4000 });
+        if (res.success) toast.success(res.message, { duration: 4000, className: "auth-toast" });
+        else toast.error(res.error || "Unable to send verification email.", { duration: 4000, className: "auth-toast" });
     }, [email, resendVerification]);
 
     return (
         <div className="flex flex-col min-h-screen">
             <NavBar />
             <div className="flex justify-center rounded-2xl mt-10 mx-4 sm:mt-15 sm:mx-40">
-                <div className="bg-gray-100 w-full rounded-2xl shadow-md gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
+                <div className="bg-[#EFEEEB] border border-[#DAD6D1] w-full rounded-2xl shadow-sm gap-6 flex flex-col items-center p-6 sm:py-15 sm:px-30">
                     <h1 className="text-[40px] font-semibold">Log in</h1>
                     <form className="w-full" onSubmit={handleSubmit}>
                         <div className="mb-6">
@@ -199,7 +182,11 @@ export default function LoginPage() {
                                 id="email"
                                 placeholder="Email"
                                 className={emailInputClasses}
-                                style={{ borderColor: fieldErrors.email ? "#EB5164" : undefined }}
+                                style={{
+                                    borderColor: fieldErrors.email ? "#EB5164" : undefined,
+                                    color: fieldErrors.email ? "#EB5164" : undefined,
+                                    WebkitTextFillColor: fieldErrors.email ? "#EB5164" : undefined
+                                }}
                                 value={email}
                                 onChange={handleEmailChange}
                                 onBlur={handleEmailBlur}
@@ -213,7 +200,11 @@ export default function LoginPage() {
                                 id="password"
                                 placeholder="Password"
                                 className={passwordInputClasses}
-                                style={{ borderColor: fieldErrors.password ? "#EB5164" : undefined }}
+                                style={{
+                                    borderColor: fieldErrors.password ? "#EB5164" : undefined,
+                                    color: fieldErrors.password ? "#EB5164" : undefined,
+                                    WebkitTextFillColor: fieldErrors.password ? "#EB5164" : undefined
+                                }}
                                 value={password}
                                 onChange={handlePasswordChange}
                                 onBlur={handlePasswordBlur}
@@ -244,9 +235,16 @@ export default function LoginPage() {
                             >
                                 Log in
                             </button>
-                            <button type="button" onClick={handleSignupClick} className="text-[#75716B]">
-                                Don't have any account?<span className="text-black underline ml-2">Sign up</span>
-                            </button>
+                            <p className="text-[#75716B]">
+                                Don't have an account?
+                                <button
+                                    type="button"
+                                    onClick={handleSignupClick}
+                                    className="text-black underline ml-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                >
+                                    Sign up
+                                </button>
+                            </p>
                         </div>
                     </form>
                 </div>

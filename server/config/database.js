@@ -1,5 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import process from "process";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Automatically load server/.env if environment variables are not yet present
+if (!process.env.SUPABASE_URL) {
+  dotenv.config({ path: path.resolve(__dirname, "../.env") });
+}
 
 // Lazy initialization of Supabase clients
 let supabase = null;
@@ -27,6 +38,10 @@ const getSupabaseClients = () => {
       console.log('🔓 Anon Key:', supabaseAnonKey ? '***...***' : 'NOT SET');
     }
 
+    if (supabaseServiceKey === supabaseAnonKey) {
+      console.warn('⚠️ WARNING: SUPABASE_SERVICE_KEY is using ANON_KEY! Admin operations may fail due to RLS policies.');
+    }
+
     // Service client for admin operations (database queries)
     supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -46,7 +61,36 @@ const getSupabaseClients = () => {
 };
 
 // Export getters that will initialize the clients on first use
-export const getSupabase = () => getSupabaseClients().supabase;
+const userClientCache = new Map();
+const MAX_CACHE_SIZE = 100;
+
+export const getSupabase = (token = null) => {
+  const { supabase } = getSupabaseClients();
+  if (!token) return supabase;
+  
+  if (userClientCache.has(token)) {
+    return userClientCache.get(token);
+  }
+  
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    },
+    auth: { persistSession: false }
+  });
+
+  if (userClientCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = userClientCache.keys().next().value;
+    userClientCache.delete(firstKey);
+  }
+  userClientCache.set(token, client);
+
+  return client;
+};
 export const getSupabaseAuth = () => getSupabaseClients().supabaseAuth;
 
 // Error handling helper
@@ -78,6 +122,11 @@ let categoriesCache = null;
 let categoriesCacheTime = 0;
 const CATEGORIES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
+export const clearCategoriesCache = () => {
+  categoriesCache = null;
+  categoriesCacheTime = 0;
+};
+
 export const dbService = {
   // Blog Posts
   async getAllPosts(filters = {}) {
@@ -105,7 +154,7 @@ export const dbService = {
 
       let query = getSupabase()
         .from("posts")
-        .select("id, title, description, image, date, content, likes_count, category_id, status_id")
+        .select("id, title, description, image, date, content, likes_count, category_id, status_id, author_id")
         .order("date", { ascending: false });
 
       // Apply category filter
@@ -124,26 +173,79 @@ export const dbService = {
 
       // Apply search filter
       if (filters.search && filters.search.trim()) {
-        const searchTerm = filters.search.trim();
+        const searchTerm = filters.search.trim().replace(/[,().]/g, '');
         query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
       }
 
       // Apply pagination offset to prevent duplicates
-      if (filters.offset && filters.offset > 0) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 6) - 1);
+      if (filters.offset !== undefined && filters.offset !== null && filters.offset !== '') {
+        const offsetNum = Number(filters.offset);
+        const limitNum = Number(filters.limit) || 6;
+        query = query.range(offsetNum, offsetNum + limitNum - 1);
       } else if (filters.limit && filters.limit > 0) {
-        query = query.limit(filters.limit);
+        query = query.limit(Number(filters.limit));
       }
 
-      const { data, error } = await query;
+      let selectFields = "id, title, description, image, date, content, likes_count, category_id, status_id, author_id";
+      let { data, error } = await query;
+
+      if (error && error.message?.includes("author_id")) {
+        // Fallback for databases where author_id column is not yet migrated
+        let fallbackQuery = getSupabase()
+          .from("posts")
+          .select("id, title, description, image, date, content, likes_count, category_id, status_id")
+          .order("date", { ascending: false });
+
+        if (filters.category && filters.category !== 'Highlight') {
+          const categoryObj = categories.find(cat => cat.name.toLowerCase() === filters.category.toLowerCase());
+          if (categoryObj) fallbackQuery = fallbackQuery.eq('category_id', categoryObj.id);
+        }
+
+        if (filters.search && filters.search.trim()) {
+          const searchTerm = filters.search.trim().replace(/[,().]/g, '');
+          fallbackQuery = fallbackQuery.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+        }
+
+        if (filters.offset !== undefined && filters.offset !== null && filters.offset !== '') {
+          const offsetNum = Number(filters.offset);
+          const limitNum = Number(filters.limit) || 6;
+          fallbackQuery = fallbackQuery.range(offsetNum, offsetNum + limitNum - 1);
+        } else if (filters.limit && filters.limit > 0) {
+          fallbackQuery = fallbackQuery.limit(Number(filters.limit));
+        }
+
+        const fallbackRes = await fallbackQuery;
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) {
         handleDatabaseError(error, 'getAllPosts');
       }
 
+      const postsData = data || [];
+
+      // Fetch authors for posts if author_id is present
+      const authorIds = [...new Set(postsData.map(p => p.author_id).filter(Boolean))];
+      let authorsMap = new Map();
+      if (authorIds.length > 0) {
+        try {
+          const { data: authorsData } = await getSupabase()
+            .from("users")
+            .select("id, name, username, profile_pic")
+            .in("id", authorIds);
+          if (Array.isArray(authorsData)) {
+            authorsMap = new Map(authorsData.map(u => [u.id, u]));
+          }
+        } catch (authErr) {
+          // Fallback if users table query fails
+        }
+      }
+
       // Transform data to match frontend expectations (optimized)
-      const transformedData = (data || []).map(post => {
+      const transformedData = postsData.map(post => {
         const category = categories.find(cat => cat.id === post.category_id);
+        const authorObj = post.author_id ? authorsMap.get(post.author_id) : null;
         
         return {
           id: post.id,
@@ -156,10 +258,10 @@ export const dbService = {
           likes_count: post.likes_count || 0,
           status: 'active',
           author: {
-            id: 1,
-            name: 'Admin',
-            image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
-            username: 'admin'
+            id: authorObj?.id || post.author_id || 1,
+            name: authorObj?.name || authorObj?.username || 'Admin',
+            image: authorObj?.profile_pic || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
+            username: authorObj?.username || 'admin'
           }
         };
       });
@@ -177,11 +279,21 @@ export const dbService = {
         throw new Error("Invalid post ID provided");
       }
 
-      const { data, error } = await getSupabase()
+      let { data, error } = await getSupabase()
         .from("posts")
-        .select("id, title, description, image, date, content, likes_count, category_id, status_id")
+        .select("id, title, description, image, date, content, likes_count, category_id, status_id, author_id")
         .eq("id", id)
         .single();
+
+      if (error && error.message?.includes("author_id")) {
+        const fallbackRes = await getSupabase()
+          .from("posts")
+          .select("id, title, description, image, date, content, likes_count, category_id, status_id")
+          .eq("id", id)
+          .single();
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) {
         if (error.code === "PGRST116") {
@@ -199,6 +311,21 @@ export const dbService = {
         // Categories fetch failed for single post
       }
 
+      // Fetch author info if present
+      let authorObj = null;
+      if (data.author_id) {
+        try {
+          const { data: userData } = await getSupabase()
+            .from("users")
+            .select("id, name, username, profile_pic")
+            .eq("id", data.author_id)
+            .single();
+          authorObj = userData;
+        } catch (uErr) {
+          // Fallback if user not found
+        }
+      }
+
       // Transform data to match frontend expectations
       const category = categories.find(cat => cat.id === data.category_id);
       
@@ -213,10 +340,10 @@ export const dbService = {
         likes_count: data.likes_count || 0,
         status: 'active',
         author: {
-          id: 1,
-          name: 'Admin User',
-          image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
-          username: 'admin'
+          id: authorObj?.id || data.author_id || 1,
+          name: authorObj?.name || authorObj?.username || 'Admin User',
+          image: authorObj?.profile_pic || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60',
+          username: authorObj?.username || 'admin'
         }
       };
 
@@ -248,7 +375,7 @@ export const dbService = {
       // If postData contains an author id, use it; otherwise skip notification to avoid guessing.
       try {
         // Import notification helpers only when needed to avoid circular dependency
-        const { createNewArticleNotification } = await import('../utils/notificationHelpers.mjs');
+        const { createNewArticleNotification } = await import('../utils/notificationHelpers.js');
         
         const authorId = postData.author_id || postData.authorId || postData.user_id || null;
         // Only trigger if we have a numeric authorId and post is published
@@ -484,6 +611,22 @@ export const dbService = {
     }
   },
 
+  async deleteComment(id) {
+    try {
+      if (!id || isNaN(id) || id <= 0) {
+        throw new Error("Invalid comment ID provided");
+      }
+      const { error } = await getSupabase().from("comments").delete().eq("id", id);
+      if (error) {
+        throw new Error(`Error deleting comment: ${error.message}`);
+      }
+      return true;
+    } catch (error) {
+      console.error("Database error in deleteComment:", error);
+      throw error;
+    }
+  },
+
   // Categories
   async getCategories() {
     try {
@@ -515,19 +658,14 @@ export const dbService = {
         throw new Error(`Error fetching posts count: ${postsError.message}`);
       }
 
-      // Get total likes
-      const { data: likesData, error: likesError } = await getSupabase()
-        .from("posts")
-        .select("likes_count");
+      // Get total likes using count from post_likes to avoid memory issues with .reduce()
+      const { count: totalLikes, error: likesError } = await getSupabase()
+        .from("post_likes")
+        .select("id", { count: "exact", head: true });
 
       if (likesError) {
         throw new Error(`Error fetching likes: ${likesError.message}`);
       }
-
-      const totalLikes = (likesData || []).reduce(
-        (sum, post) => sum + (post.likes_count || 0),
-        0
-      );
 
       // Get total comments
       const { count: totalComments, error: commentsError } = await getSupabase()
@@ -557,7 +695,7 @@ export const dbService = {
   },
 
   // Likes (per-user like tracking)
-  async toggleUserLike(postId, userId, action) {
+  async toggleUserLike(postId, userId, action, token = null) {
     try {
       if (!postId || isNaN(postId) || postId <= 0) {
         throw new Error("Invalid post ID provided");
@@ -569,52 +707,39 @@ export const dbService = {
         throw new Error("Invalid action for like toggle");
       }
 
-      // Check if user already liked this post
-      const { data: existingLike, error: likeError } = await getSupabase()
-        .from("post_likes")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (likeError) throw new Error(`Error checking like: ${likeError.message}`);
+      const client = getSupabase(token);
 
-      let likesCount = 0;
       if (action === 'like') {
-        if (existingLike) {
-          // Already liked, do nothing
-        } else {
-          // Insert like
-          const { error: insertError } = await getSupabase()
-            .from("post_likes")
-            .insert([{ post_id: postId, user_id: userId }]);
-          if (insertError) throw new Error(`Error liking post: ${insertError.message}`);
+        const { error: insertError } = await client
+          .from("post_likes")
+          .insert([{ post_id: postId, user_id: userId }]);
+        if (insertError && insertError.code !== '23505' && !insertError.message?.includes('duplicate')) {
+          throw new Error(`Error liking post: ${insertError.message}`);
         }
       } else if (action === 'unlike') {
-        if (existingLike) {
-          // Remove like
-          const { error: deleteError } = await getSupabase()
-            .from("post_likes")
-            .delete()
-            .eq("id", existingLike.id);
-          if (deleteError) throw new Error(`Error unliking post: ${deleteError.message}`);
-        } else {
-          // Not liked, do nothing
-        }
+        const { error: deleteError } = await client
+          .from("post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", userId);
+        if (deleteError) throw new Error(`Error unliking post: ${deleteError.message}`);
       }
 
       // Update likes_count in posts table
-      const { count, error: countError } = await getSupabase()
+      const { count, error: countError } = await client
         .from("post_likes")
         .select("id", { count: "exact", head: true })
         .eq("post_id", postId);
       if (countError) throw new Error(`Error counting likes: ${countError.message}`);
 
-      likesCount = count || 0;
-      const { error: updateError } = await getSupabase()
+      const likesCount = count || 0;
+      getSupabase()
         .from("posts")
         .update({ likes_count: likesCount })
-        .eq("id", postId);
-      if (updateError) throw new Error(`Error updating likes_count: ${updateError.message}`);
+        .eq("id", postId)
+        .then(({ error }) => {
+          if (error) console.error("Error background updating likes_count:", error);
+        });
 
       return likesCount;
     } catch (error) {

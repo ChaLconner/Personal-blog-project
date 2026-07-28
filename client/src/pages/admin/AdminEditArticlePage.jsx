@@ -8,12 +8,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { blogApi } from "@/services/api";
+import { blogApi, API_BASE_URL } from "@/services/api";
 import { toast } from "sonner";
+import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";
 
 export default function AdminEditArticlePage() {
     const navigate = useNavigate();
@@ -34,6 +35,8 @@ export default function AdminEditArticlePage() {
     const [loading, setLoading] = useState(false);
     const [fetchingPost, setFetchingPost] = useState(true);
     const [dragActive, setDragActive] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchPost = useCallback(async () => {
         try {
@@ -55,7 +58,7 @@ export default function AdminEditArticlePage() {
                 });
                 
                 if (post.image) {
-                    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                    const baseUrl = API_BASE_URL;
                     setImagePreview(post.image.startsWith('http') ? post.image : `${baseUrl}${post.image}`);
                 }
                 
@@ -140,7 +143,7 @@ export default function AdminEditArticlePage() {
         } catch (error) {
             console.error('Upload error:', error);
             toast.error('Failed to upload image');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            const baseUrl = API_BASE_URL;
             setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `${baseUrl}${formData.image}`) : null);
             setImageFile(null);
         } finally {
@@ -206,7 +209,18 @@ export default function AdminEditArticlePage() {
             const response = await blogApi.admin.updatePost(id, postData);
             
             if (response.success) {
-                toast.success(`Article ${status === 'published' ? 'published' : 'saved as draft'} successfully`);
+                toast.dismiss();
+                if (status === 'published') {
+                    toast.success('Edit article and published', {
+                        description: 'Your article has been successfully updated and published',
+                        className: 'custom-alert-toast'
+                    });
+                } else {
+                    toast.success('Edit article saved as draft', {
+                        description: 'You can publish article later',
+                        className: 'custom-alert-toast'
+                    });
+                }
                 navigate('/admin/article-management');
             } else {
                 console.error('❌ Update failed:', response);
@@ -222,40 +236,43 @@ export default function AdminEditArticlePage() {
         }
     };
 
-    const handleDeleteArticle = async () => {
-        if (window.confirm(`Are you sure you want to delete "${formData.title}"?`)) {
-            try {
-                setLoading(true);
-                await blogApi.admin.deletePost(id);
-                toast.success('Article deleted successfully');
-                navigate('/admin/article-management');
-            } catch (error) {
-                console.error('Error deleting article:', error);
-                const errorMessage = error.message || 'Failed to delete article';
-                toast.error(errorMessage);
-            } finally {
-                setLoading(false);
-            }
+    const handleDeleteArticle = () => {
+        setDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await blogApi.admin.deletePost(id);
+            toast.success('Article deleted successfully');
+            setDeleteModalOpen(false);
+            navigate('/admin/article-management');
+        } catch (error) {
+            console.error('Error deleting article:', error);
+            const errorMessage = error.message || 'Failed to delete article';
+            toast.error(errorMessage);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     if (fetchingPost) {
         return (
-            <div className="flex h-screen bg-gray-100">
+            <div className="flex h-screen overflow-hidden bg-background">
                 <AdminSidebar />
-                <main className="flex-1 p-8 bg-gray-50 overflow-auto">
+                <main className="flex-1 min-w-0 p-8 bg-background overflow-auto">
                     <div className="text-center mt-20">Loading article...</div>
                 </main>
             </div>
         );
     }
     return (
-        <div className="flex h-screen bg-gray-100 font-poppins">
+        <div className="flex h-screen overflow-hidden bg-background font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
 
             {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 min-w-0 p-4 lg:p-8 bg-background overflow-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <h2 className="text-xl sm:text-2xl font-semibold">Edit article</h2>
@@ -278,7 +295,7 @@ export default function AdminEditArticlePage() {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
-                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#FFFFFF] text-[#000000] border border-[#75716B] hover:bg-gray-50 transition-colors cursor-pointer"
                             variant="outline"
                             onClick={handleSaveAsDraft}
                             disabled={loading}
@@ -286,7 +303,7 @@ export default function AdminEditArticlePage() {
                             {loading ? 'Saving...' : 'Save as draft'}
                         </Button>
                         <Button
-                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#26231E] text-[#FFFFFF] hover:bg-[#3d3831] transition-colors cursor-pointer"
                             onClick={handleSaveAndPublish}
                             disabled={loading}
                         >
@@ -403,7 +420,7 @@ export default function AdminEditArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="category">Category</label>
+                        <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                         <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
                             <SelectTrigger className="w-full lg:max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
                                 <SelectValue placeholder="Select category" />
@@ -419,7 +436,7 @@ export default function AdminEditArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="author">Author name</label>
+                        <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">Author name</label>
                         <Input
                             id="author"
                             placeholder="Enter author name"
@@ -430,7 +447,7 @@ export default function AdminEditArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="title">Title</label>
+                        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                         <Input
                             id="title"
                             placeholder="Article title"
@@ -441,39 +458,47 @@ export default function AdminEditArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="description">Description (max 120 letters)</label>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description (max 120 characters)</label>
                         <Textarea
                             id="description"
                             placeholder="Brief description of the article"
                             value={formData.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             rows={3}
-                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full bg-white py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                             maxLength={120}
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="content">Content</label>
+                        <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">Content</label>
                         <Textarea
                             id="content"
                             placeholder="Write your article content here..."
                             value={formData.content}
                             onChange={(e) => handleInputChange('content', e.target.value)}
                             rows={15}
-                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full bg-white py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
                 </form>
                 
                 <button
+                    type="button"
                     onClick={handleDeleteArticle}
-                    disabled={loading}
-                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-4 disabled:opacity-50 cursor-pointer"
+                    disabled={loading || isDeleting}
+                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-4 disabled:opacity-50 cursor-pointer border-none bg-transparent"
                 >
                     <Trash2 className="h-5 w-5" />
-                    {loading ? 'Deleting...' : 'Delete article'}
+                    Delete article
                 </button>
+
+                <DeleteArticleModal
+                    isOpen={deleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={handleConfirmDelete}
+                    isLoading={isDeleting}
+                />
             </main>
         </div>
     );

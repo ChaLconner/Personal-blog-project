@@ -5,33 +5,33 @@
     /* Brand colors */
     --brand-primary: 38 35 30; /* #26231E */
     --brand-secondary: 117 113 107; /* #75716B */
-    --brand-accent: 18 178 121; /* #12B279 */
+    --brand-accent: 18 178 121; /* #12B379 */
     
     /* UI colors */
     --ui-border: 218 214 209; /* #DAD6D1 */
     --ui-surface: 239 238 235; /* #EFEEEB */
     --ui-neutral: 249 248 246; /* #F9F8F6 */
     
-    /* Semantic colors */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Semantic colors tuned to match Figma theme */
+    --background: 40 18% 97%; /* #F9F8F6 - brown/100 */
+    --foreground: 36 12% 13%; /* #26231E */
+    --card: 40 18% 97%; /* #F9F8F6 */
+    --card-foreground: 36 12% 13%; /* #26231E */
+    --popover: 40 18% 97%; /* #F9F8F6 */
+    --popover-foreground: 36 12% 13%; /* #26231E */
+    --primary: 36 12% 13%; /* #26231E */
+    --primary-foreground: 40 18% 97%;
+    --secondary: 36 12% 84%; /* #DAD6D1 */
+    --secondary-foreground: 36 12% 13%;
+    --muted: 36 12% 84%; /* #DAD6D1 */
+    --muted-foreground: 36 6% 44%; /* #75716B */
+    --accent: 154 81% 41%; /* #12B379 */
+    --accent-foreground: 40 18% 97%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 47.4% 11.2%;
+    --border: 36 12% 84%; /* #DAD6D1 */
+    --input: 36 12% 84%; /* #DAD6D1 */
+    --ring: 36 12% 13%;
     --radius: 0.5rem;
   }
 
@@ -80,49 +80,15 @@ body {
   display: none;
 }
 
-/* Prevent scrollbar from disappearing when dropdown is open */
-body[data-dropdown-open="true"] {
-  overflow: auto !important;
-  padding-right: 0 !important;
-  width: 100% !important;
-  /* position: initial !important; */
-}
 
-/* Ensure scrollbar is always visible */
-body {
-  overflow: auto !important;
-  width: 100% !important;
-}
 
-/* Prevent body scroll lock from Radix UI */
-body[data-radix-popper-content-wrapper] {
-  overflow: auto !important;
-  padding-right: 0 !important;
-  width: 100% !important;
-}
-
-/* Override any style that might hide scrollbar */
 html, body {
-  overflow-x: hidden;
-  overflow-y: auto !important;
-  width: 100% !important;
+  overflow-x: clip;
+  min-height: 100%;
 }
 
-/* Ensure scrollbar is visible when dropdown is open */
-[data-radix-dropdown-menu-content] {
-  position: fixed !important;
-}
-
-/* Prevent any padding changes when dropdown is open */
-body {
-  padding-right: 0 !important;
-}
-
-/* Ensure dropdown content doesn't affect body width */
-[data-radix-dropdown-menu-content] {
-  position: fixed !important;
-  left: auto !important;
-  right: auto !important;
+#root, .App {
+  min-height: 100%;
 }
 
 /* Fix aria-hidden accessibility issue */
@@ -141,3 +107,120 @@ body {
   /* Override any inline styles that might hide focusable elements */
   /* This allows focus to properly escape aria-hidden containers */
 }
+
+/* Custom Alert Notification Toast (Figma Spec - Article Publish/Draft & Auth) */
+[data-sonner-toaster][data-position^="bottom-right"] {
+  right: 24px !important;
+  bottom: 38px !important;
+}
+
+[data-sonner-toast].custom-alert-toast,
+[data-sonner-toast].auth-toast,
+[data-sonner-toast].alert-toast {
+  background: #12B379 !important;
+  background-color: #12B379 !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-radius: 8px !important;
+  border: none !important;
+  padding: 16px !important;
+  gap: 12px !important;
+  width: 700px !important;
+  max-width: calc(100vw - 48px) !important;
+  min-height: 86px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  color: #FFFFFF !important;
+}
+
+/* Red Error Alert (Figma Spec: #EB5164) */
+[data-sonner-toast].custom-alert-toast[data-type="error"],
+[data-sonner-toast].auth-toast[data-type="error"],
+[data-sonner-toast].alert-toast[data-type="error"] {
+  background: #EB5164 !important;
+  background-color: #EB5164 !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-icon],
+[data-sonner-toast].auth-toast [data-icon],
+[data-sonner-toast].alert-toast [data-icon] {
+  display: none !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-content],
+[data-sonner-toast].auth-toast [data-content],
+[data-sonner-toast].alert-toast [data-content] {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  padding: 0px !important;
+  gap: 4px !important;
+  flex: 1 1 auto !important;
+  order: 1 !important;
+  max-width: calc(100% - 36px) !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-title],
+[data-sonner-toast].auth-toast [data-title],
+[data-sonner-toast].alert-toast [data-title] {
+  font-family: 'Poppins', sans-serif !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  font-size: 20px !important;
+  line-height: 28px !important;
+  color: #FFFFFF !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-description],
+[data-sonner-toast].auth-toast [data-description],
+[data-sonner-toast].alert-toast [data-description] {
+  font-family: 'Poppins', sans-serif !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  line-height: 22px !important;
+  color: #FFFFFF !important;
+  margin-top: 0px !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-close-button],
+[data-sonner-toast].auth-toast [data-close-button],
+[data-sonner-toast].alert-toast [data-close-button] {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  order: 99 !important;
+  margin-left: auto !important;
+  background: transparent !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  flex-shrink: 0 !important;
+  align-self: flex-start !important;
+}
+
+[data-sonner-toast].custom-alert-toast [data-close-button] svg,
+[data-sonner-toast].auth-toast [data-close-button] svg,
+[data-sonner-toast].alert-toast [data-close-button] svg {
+  width: 24px !important;
+  height: 24px !important;
+  stroke: #FFFFFF !important;
+  color: #FFFFFF !important;
+  stroke-width: 1.5px !important;
+}
+

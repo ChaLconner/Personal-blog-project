@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { UserAvatar } from "@/components/UserAvatar";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
 
@@ -80,8 +80,10 @@ export default function AdminProfilePage() {
       const publicUrl = await uploadImageToSupabase(file);
 
       setProfileImage(publicUrl);
+      toast.dismiss();
       toast.success("Profile image uploaded successfully");
     } catch {
+      toast.dismiss();
       toast.error("Failed to upload profile image");
       setImagePreview(user?.profile_pic || null);
     } finally {
@@ -93,6 +95,7 @@ export default function AdminProfilePage() {
     e.preventDefault();
 
     if (!formData.name.trim() || !formData.email.trim()) {
+      toast.dismiss();
       toast.error("Name and email are required");
       return;
     }
@@ -118,7 +121,11 @@ export default function AdminProfilePage() {
 
       if (profileImage) setImagePreview(profileImage);
       setProfileImage(null);
-      toast.success("Profile updated successfully");
+      toast.dismiss();
+      toast.success('Saved profile', {
+        description: 'Your profile has been successfully updated',
+        className: 'custom-alert-toast'
+      });
     } catch (error) {
       toast.error(error.message || "Failed to update profile");
     } finally {
@@ -127,7 +134,7 @@ export default function AdminProfilePage() {
   };
 
   return (
-    <div className="flex h-screen bg-ui-surface font-poppins">
+    <div className="flex h-screen overflow-hidden bg-background font-poppins">
       {/* Sidebar */}
       <AdminSidebar />
 
@@ -214,10 +221,9 @@ export default function AdminProfilePage() {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                disabled
+                className="mt-1 w-full py-3 rounded-sm bg-muted/50 cursor-not-allowed placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                 placeholder="Enter your email"
-                required
               />
             </div>
 

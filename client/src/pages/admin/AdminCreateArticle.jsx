@@ -9,12 +9,12 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AdminSidebar } from "@/components/AdminWebSection";
-import { useState, useEffect } from "react";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminCreateArticlePage() {
     const { user } = useAuth();
@@ -181,7 +181,18 @@ export default function AdminCreateArticlePage() {
             };
 
             await blogApi.admin.createPost(postData);
-            toast.success(`Article ${publish ? 'published' : 'saved as draft'} successfully`);
+            toast.dismiss();
+            if (publish) {
+                toast.success('Create article and published', {
+                    description: 'Your article has been successfully published',
+                    className: 'custom-alert-toast'
+                });
+            } else {
+                toast.success('Create article and saved as draft', {
+                    description: 'You can publish article later',
+                    className: 'custom-alert-toast'
+                });
+            }
             
             // Reset form and image state after successful creation
             setFormData({
@@ -205,12 +216,12 @@ export default function AdminCreateArticlePage() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100 font-poppins">
+        <div className="flex h-screen overflow-hidden bg-background font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
 
             {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 min-w-0 p-4 lg:p-8 bg-background overflow-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h2 className="text-xl sm:text-2xl font-semibold">Create article</h2>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -336,7 +347,7 @@ export default function AdminCreateArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="category">Category</label>
+                        <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                         <Select onValueChange={(value) => handleInputChange('category', value)}>
                             <SelectTrigger id="category" className="w-full lg:max-w-lg mt-1 py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
                                 <SelectValue placeholder="Select category" />
@@ -352,7 +363,7 @@ export default function AdminCreateArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="author">Author name</label>
+                        <label htmlFor="author" className="block text-sm font-medium text-gray-700 mb-1">Author name</label>
                         <Input
                             id="author"
                             placeholder="Enter author name"
@@ -366,7 +377,7 @@ export default function AdminCreateArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="title">Title</label>
+                        <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                         <Input
                             id="title"
                             placeholder="Article title"
@@ -377,27 +388,27 @@ export default function AdminCreateArticlePage() {
                     </div>
 
                     <div>
-                        <label htmlFor="introduction">Description (max 120 letters)</label>
+                        <label htmlFor="introduction" className="block text-sm font-medium text-gray-700 mb-1">Description (max 120 characters)</label>
                         <Textarea
                             id="introduction"
                             placeholder="Brief description of the article"
                             value={formData.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
                             rows={3}
-                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full bg-white py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                             maxLength={120}
                         />
                     </div>
 
                     <div>
-                        <label htmlFor="content">Content</label>
+                        <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">Content</label>
                         <Textarea
                             id="content"
                             placeholder="Write your article content here..."
                             value={formData.content}
                             onChange={(e) => handleInputChange('content', e.target.value)}
                             rows={15}
-                            className="mt-1 w-full py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+                            className="mt-1 w-full bg-white py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
                         />
                     </div>
                 </form>

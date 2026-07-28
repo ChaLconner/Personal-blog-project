@@ -1,16 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
+import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";
 
 export default function AdminEditCategoryPage() {
     const [categoryName, setCategoryName] = useState("");
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -62,46 +65,49 @@ export default function AdminEditCategoryPage() {
         }
     };
 
-    const handleDelete = async () => {
-        if (window.confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
-            try {
-                setLoading(true);
-                await blogApi.admin.deleteCategory(id);
-                toast.success('Category deleted successfully');
-                navigate('/admin/category-management');
-            } catch (error) {
-                console.error('Error deleting category:', error);
-                const errorMessage = error.message || 'Failed to delete category';
-                toast.error(errorMessage);
-            } finally {
-                setLoading(false);
-            }
+    const handleDelete = () => {
+        setDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await blogApi.admin.deleteCategory(id);
+            toast.success('Category deleted successfully');
+            setDeleteModalOpen(false);
+            navigate('/admin/category-management');
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            const errorMessage = error.message || 'Failed to delete category';
+            toast.error(errorMessage);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     if (initialLoading) {
         return (
-            <div className="flex h-screen bg-gray-100">
+            <div className="flex h-screen overflow-hidden bg-gray-100">
                 <AdminSidebar />
-                <main className="flex-1 p-8 bg-gray-50 overflow-auto">
+                <main className="flex-1 min-w-0 p-8 bg-gray-50 overflow-auto">
                     <div className="text-center mt-20">Loading category...</div>
                 </main>
             </div>
         );
     }
     return (
-        <div className="flex h-screen bg-gray-100 font-poppins">
+        <div className="flex h-screen overflow-hidden bg-gray-100 font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 bg-gray-50 overflow-auto">
+            <main className="flex-1 min-w-0 p-4 lg:p-8 bg-gray-50 overflow-auto">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <h2 className="text-xl sm:text-2xl font-semibold">Edit Category</h2>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
                             type="button"
                             variant="outline"
-                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#FFFFFF] text-[#000000] border border-[#75716B] hover:bg-gray-50 transition-colors cursor-pointer"
                             onClick={() => navigate('/admin/category-management')}
                         >
                             Cancel
@@ -109,7 +115,7 @@ export default function AdminEditCategoryPage() {
                         <Button
                             type="submit"
                             form="category-form"
-                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full cursor-pointer"
+                            className="px-6 py-2 sm:px-10 sm:py-3 rounded-full bg-[#26231E] text-[#FFFFFF] hover:bg-[#3d3831] transition-colors cursor-pointer"
                             disabled={loading}
                         >
                             {loading ? 'Saving...' : 'Save'}
@@ -138,13 +144,23 @@ export default function AdminEditCategoryPage() {
                 </form>
                 
                 <button
+                    type="button"
                     onClick={handleDelete}
-                    disabled={loading}
-                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-6 disabled:opacity-50 cursor-pointer"
+                    disabled={loading || isDeleting}
+                    className="underline underline-offset-2 hover:text-muted-foreground text-sm font-medium flex items-center gap-1 mt-6 disabled:opacity-50 cursor-pointer border-none bg-transparent"
                 >
                     <Trash2 className="h-5 w-5" />
-                    {loading ? 'Deleting...' : 'Delete Category'}
+                    Delete Category
                 </button>
+
+                <DeleteArticleModal
+                    isOpen={deleteModalOpen}
+                    onClose={() => setDeleteModalOpen(false)}
+                    onConfirm={handleConfirmDelete}
+                    title="Delete category"
+                    description="Do you want to delete this category?"
+                    isLoading={isDeleting}
+                />
             </main>
         </div>
     );

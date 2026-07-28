@@ -1,27 +1,28 @@
-import NavBar from '@/components/NavBar';
+import NavBar from '@/components/layout/NavBar';
 import React, { useCallback, useMemo } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 
 export default function SignUpSuccessPage() {
     const location = useLocation();
+    const navigate = useNavigate();
     const { email, verificationRequired, message, verificationLink } = location.state || {};
 
     const handleContinue = useCallback(() => {
-        // ตรวจสอบ referrer ว่ามาจาก /article หรือไม่
+        // Check referrer URL
         try {
             const ref = document.referrer;
             if (ref) {
                 const url = new URL(ref);
-                if (url.pathname.startsWith('/article')) {
-                    window.location.href = ref;
+                if (url.pathname.startsWith('/post')) {
+                    navigate(url.pathname + url.search);
                     return;
                 }
             }
         } catch {
             // intentionally ignored
         }
-        window.location.href = '/';
-    }, []);
+        navigate('/');
+    }, [navigate]);
 
     // Memoize the what's next steps to avoid recreating the array on every render
     const whatNextSteps = useMemo(() => {
@@ -116,7 +117,7 @@ export default function SignUpSuccessPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
-                            <h2 className="text-2xl font-semibold">Registration success</h2>
+                            <h2 className="text-2xl font-semibold">Registration successful</h2>
                             <button
                                 type="button"
                                 onClick={handleContinue}

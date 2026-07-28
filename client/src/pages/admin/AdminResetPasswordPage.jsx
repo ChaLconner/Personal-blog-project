@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AdminResetPasswordPage() {
     const navigate = useNavigate();
@@ -32,7 +32,7 @@ export default function AdminResetPasswordPage() {
     const handleSubmit = (e) => {
         e.preventDefault();
         const isValidPassword = password.trim() !== "";
-        const isValidNewPassword = newPassword.trim() !== "";
+        const isValidNewPassword = newPassword.trim() !== "" && newPassword.length >= 6;
         const isValidConfirmPassword =
             confirmNewPassword.trim() !== "" && confirmNewPassword === newPassword;
 
@@ -53,6 +53,7 @@ export default function AdminResetPasswordPage() {
             
             // Call API to reset password
             await blogApi.auth.resetPassword({
+                oldPassword: password,
                 currentPassword: password,
                 newPassword: newPassword
             });
@@ -82,7 +83,7 @@ export default function AdminResetPasswordPage() {
         }
     };
     return (
-        <div className="flex h-screen bg-ui-surface font-poppins">
+        <div className="flex h-screen overflow-hidden bg-ui-surface font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
             {/* Main content */}
@@ -139,7 +140,7 @@ export default function AdminResetPasswordPage() {
                         />
                         {!valid.newPassword && (
                             <p className="text-red-500 text-xs absolute mt-1">
-                                Password must be at least 8 characters
+                                Password must be at least 6 characters
                             </p>
                         )}
                     </div>
@@ -200,7 +201,7 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
                         Reset
                     </button>
                 </div>
-                <AlertDialogCancel className="absolute right-4 top-2 sm:top-4 p-1 border-none">
+                <AlertDialogCancel className="absolute right-4 top-2 sm:top-4 p-1 border-none bg-transparent hover:bg-transparent shadow-none dark:bg-transparent cursor-pointer">
                     <X className="h-6 w-6" />
                 </AlertDialogCancel>
             </AlertDialogContent>

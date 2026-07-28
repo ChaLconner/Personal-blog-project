@@ -16,31 +16,30 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // Vendor chunks
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-alert-dialog', '@radix-ui/react-avatar', '@radix-ui/react-dropdown-menu'],
-          'utils-vendor': ['axios', 'clsx', 'tailwind-merge'],
-          'icons-vendor': ['lucide-react'],
-          
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/@radix-ui/')) {
+            return 'ui-vendor';
+          }
+          if (id.includes('node_modules/axios/') || id.includes('node_modules/clsx/') || id.includes('node_modules/tailwind-merge/')) {
+            return 'utils-vendor';
+          }
+          if (id.includes('node_modules/lucide-react/')) {
+            return 'icons-vendor';
+          }
           // Feature chunks
-          'admin': [
-            'src/pages/admin/AdminDashboardPage.jsx',
-            'src/pages/admin/AdminArticlePage.jsx',
-            'src/pages/admin/AdminCreateArticle.jsx',
-            'src/pages/admin/AdminCategoryPage.jsx',
-            'src/pages/admin/AdminCreateCategoryPage.jsx',
-            'src/pages/admin/AdminEditArticlePage.jsx',
-            'src/pages/admin/AdminEditCategoryPage.jsx',
-            'src/pages/admin/AdminLoginPage.jsx',
-            'src/pages/admin/AdminNotificationPage.jsx',
-            'src/pages/admin/AdminProfilePage.jsx',
-            'src/pages/admin/AdminResetPasswordPage.jsx'
-          ],
-          
-          // Heavy components
-          'markdown': ['react-markdown'],
-          'charts': ['framer-motion']
+          if (id.includes('src/pages/admin/')) {
+            return 'admin';
+          }
+          if (id.includes('node_modules/react-markdown/')) {
+            return 'markdown';
+          }
+          if (id.includes('node_modules/framer-motion/')) {
+            return 'charts';
+          }
         }
       }
     },
@@ -52,7 +51,7 @@ export default defineConfig({
     cssCodeSplit: true,
     
     // Minification options
-    minify: 'esbuild',
+    minify: 'oxc',
     target: 'es2020'
   },
   

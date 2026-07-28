@@ -6,25 +6,6 @@
 // Central timezone used for displaying Supabase/Postgres timestamps
 const TIMEZONE = 'Asia/Bangkok';
 
-// Compact long date like "August 30, 2025"
-export const formatDate = (date) => {
-  if (!date) return 'Unknown date';
-  try {
-    const d = normalizeToDate(date);
-    if (isNaN(d.getTime())) return 'Invalid date';
-
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: TIMEZONE
-    });
-  } catch (err) {
-    console.error('Error formatting date:', err);
-    return 'Invalid date';
-  }
-};
-
 /**
  * Format date for relative display (e.g., "2 days ago")
  * @param {string|Date} date - The date to format

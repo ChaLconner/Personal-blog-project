@@ -2,11 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import jwtInterceptor from './utils/jwtInterceptor'
-import { Toaster } from 'sonner'
-
-// Initialize JWT interceptor
-jwtInterceptor();
 
 // ตรวจสอบว่าไม่มีการ redirect ที่ไม่จำเป็นใน URL ปัจจุบัน
 if (window.location.pathname === '/' && window.location.search.includes('redirect=')) {
@@ -24,8 +19,6 @@ if (window.location.pathname === '/auth/get-user') {
 }
 
 createRoot(document.getElementById('root')).render(
-    <>
-        <App />
-        <Toaster />
-    </>
+    <App />
 )
+

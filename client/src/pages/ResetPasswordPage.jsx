@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import NavBar from "@/components/NavBar";
-import { Footer } from "@/components/WebSection";
+import NavBar from "@/components/layout/NavBar";
+import Footer from "@/components/layout/Footer";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { UserAvatar } from "@/components/UserAvatar";
+import { UserAvatar } from "@/components/common/UserAvatar";
 import { User, Lock, X } from "lucide-react";
 import {
   AlertDialog,
@@ -13,7 +13,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 import { blogApi } from "@/services/api.js";
 
 export default function ResetPasswordPage() {
@@ -83,14 +83,15 @@ export default function ResetPasswordPage() {
         setConfirmNewPassword("");
 
         // For security, log out and redirect to login to sign in with the new password
+        const userRole = state.user?.role;
         try {
           await logout();
         } catch {
           // ignore logout errors
         }
         // Check if user is admin and redirect to appropriate login page
-        const loginPath = state.user?.role === 'admin' ? "/admin/login" : "/login";
-        const redirectPath = state.user?.role === 'admin' ? "/admin" : "/profile";
+        const loginPath = userRole === 'admin' ? "/admin/login" : "/login";
+        const redirectPath = userRole === 'admin' ? "/admin" : "/profile";
         navigate(`${loginPath}?redirect=${redirectPath}`, { replace: true });
       } else {
         throw new Error(response.error || 'Password reset failed');
@@ -118,7 +119,7 @@ export default function ResetPasswordPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [password, newPassword, logout, navigate]);
+  }, [password, newPassword, logout, navigate, state]);
 
   const handleNavigateToProfile = useCallback(() => {
     navigate("/profile");
@@ -330,7 +331,7 @@ const ResetPasswordModal = ({ dialogState, setDialogState, resetFunction, isLoad
             {isLoading ? "Resetting..." : "Reset"}
           </button>
         </div>
-        <AlertDialogCancel className="absolute right-4 top-2 sm:top-4 p-1 border-none">
+        <AlertDialogCancel className="absolute right-4 top-2 sm:top-4 p-1 border-none bg-transparent hover:bg-transparent shadow-none dark:bg-transparent cursor-pointer">
           <X className="h-6 w-6" />
         </AlertDialogCancel>
       </AlertDialogContent>

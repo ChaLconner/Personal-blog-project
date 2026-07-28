@@ -13,7 +13,7 @@ const AuthCallback = () => {
 
       if (error) {
         console.error('Auth callback error:', error, errorDescription);
-        toast.error('เกิดข้อผิดพลาดในการยืนยันอีเมล');
+        toast.error('เกิดข้อผิดพลาดในการยืนยันอีเมล', { className: "auth-toast" });
         navigate('/login');
         return;
       }
@@ -24,7 +24,7 @@ const AuthCallback = () => {
       const refreshToken = hashParams.get('refresh_token');
 
       if (accessToken) {
-        toast.success('ยืนยันอีเมลสำเร็จ! คุณสามารถเข้าสู่ระบบได้แล้ว');
+        toast.success('ยืนยันอีเมลสำเร็จ! คุณสามารถเข้าสู่ระบบได้แล้ว', { className: "auth-toast" });
         
         // Store tokens if needed (optional, Supabase client handles this)
         localStorage.setItem('supabase.auth.token', accessToken);
@@ -34,12 +34,12 @@ const AuthCallback = () => {
         
         navigate('/login', { state: { verified: true } });
       } else {
-        toast.success('ยืนยันอีเมลสำเร็จ! กรุณาเข้าสู่ระบบ');
+        toast.success('ยืนยันอีเมลสำเร็จ! กรุณาเข้าสู่ระบบ', { className: "auth-toast" });
         navigate('/login', { state: { verified: true } });
       }
     } catch (error) {
       console.error('Auth callback error:', error);
-      toast.error('เกิดข้อผิดพลาดในการยืนยันอีเมล');
+      toast.error('เกิดข้อผิดพลาดในการยืนยันอีเมล', { className: "auth-toast" });
       navigate('/login');
     }
   }, [navigate, searchParams]);

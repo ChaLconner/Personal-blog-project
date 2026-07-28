@@ -1,4 +1,4 @@
-import { PenSquare, Trash2, Plus, Filter, ArrowUpDown, ChevronLeft, ChevronRight, MoreHorizontal, Search } from "lucide-react";
+import { PenSquare, Trash2, Plus, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,26 +9,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
+import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";
 
 export default function AdminCategoryManagementPage() {
     const [categories, setCategories] = useState([]);
@@ -37,6 +23,9 @@ export default function AdminCategoryManagementPage() {
     const [sortField, setSortField] = useState("name");
     const [sortDirection, setSortDirection] = useState("asc");
     const [currentPage, setCurrentPage] = useState(1);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -59,11 +48,9 @@ export default function AdminCategoryManagementPage() {
             let aValue = a[sortField];
             let bValue = b[sortField];
             
-            // Handle undefined values
             if (aValue === undefined) aValue = '';
             if (bValue === undefined) bValue = '';
             
-            // Convert to lowercase for string comparison
             if (typeof aValue === 'string') aValue = aValue.toLowerCase();
             if (typeof bValue === 'string') bValue = bValue.toLowerCase();
             
@@ -113,120 +100,128 @@ export default function AdminCategoryManagementPage() {
         }
     };
 
-    const handleDeleteCategory = async (categoryId, categoryName) => {
-        if (window.confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
-            try {
-                await blogApi.admin.deleteCategory(categoryId);
-                toast.success('Category deleted successfully');
-                fetchCategories(); // Refresh the list
-            } catch (error) {
-                console.error('Error deleting category:', error);
-                const errorMessage = error.message || 'Failed to delete category';
-                toast.error(errorMessage);
-            }
+    const handleDeleteCategory = (categoryId, categoryName) => {
+        setCategoryToDelete({ id: categoryId, name: categoryName });
+        setDeleteModalOpen(true);
+    };
+
+    const handleConfirmDeleteCategory = async () => {
+        if (!categoryToDelete) return;
+        try {
+            setIsDeleting(true);
+            await blogApi.admin.deleteCategory(categoryToDelete.id);
+            toast.success('Category deleted successfully');
+            setDeleteModalOpen(false);
+            setCategoryToDelete(null);
+            fetchCategories(); // Refresh the list
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            const errorMessage = error.message || 'Failed to delete category';
+            toast.error(errorMessage);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     if (loading) {
         return (
-            <div className="flex h-screen bg-gray-100">
+            <div className="flex h-screen overflow-hidden bg-[#F9F8F6]">
                 <AdminSidebar />
-                <main className="flex-1 p-4 lg:p-8 overflow-auto">
-                    <div className="text-center mt-20">Loading categories...</div>
+                <main className="flex-1 p-6 lg:p-10 overflow-auto">
+                    <div className="text-center mt-20 text-[#75716B]">Loading categories...</div>
                 </main>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen bg-background font-poppins">
+        <div className="flex h-screen overflow-hidden bg-[#F9F8F6] font-poppins text-[#26231E]">
             {/* Sidebar */}
             <AdminSidebar />
+
             {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 overflow-auto">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <h2 className="text-2xl font-semibold">Category management</h2>
+            <main className="flex-1 p-6 lg:p-10 overflow-auto">
+                {/* Top Header Bar */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 pr-14 lg:pr-0">
+                    <h2 className="text-2xl font-semibold text-[#26231E]">Category management</h2>
                     <Button
-                        className="px-4 py-2 rounded-full text-[#FFFFFF] bg-[#26231E] cursor-pointer"
+                        className="px-6 py-2.5 rounded-full text-white bg-[#26231E] hover:bg-[#3d3831] transition-colors cursor-pointer"
                         onClick={() => navigate("/admin/create-category")}
                     >
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden sm:inline">Create category</span>
-                        <span className="sm:hidden">Create</span>
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        <span>Create category</span>
                     </Button>
                 </div>
 
-                {/* Filters */}
-                <div className="bg-card mb-6">
-                    <div className="flex flex-col lg:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Search categories..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
-                            />
-                        </div>
+                {/* Search Bar */}
+                <div className="mb-6">
+                    <div className="w-full sm:w-[360px] relative">
+                        <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#75716B]" />
+                        <Input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 py-3 bg-white border border-[#DAD6D1] rounded-[8px] text-sm text-[#43403B] placeholder:text-[#75716B] focus-visible:ring-1 focus-visible:ring-[#26231E]"
+                        />
                     </div>
                 </div>
 
                 {/* Results count */}
-                <div className="mb-4 text-sm text-muted-foreground">
+                <div className="mb-3 text-sm text-[#75716B]">
                     Showing {paginatedCategories.length} of {processedCategories.length} categories
                 </div>
 
-                {/* Table */}
-                <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+                {/* Table Container */}
+                <div className="bg-white rounded-[8px] border border-[#DAD6D1] shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
+                            <TableHeader className="bg-[#F9F8F6] border-b border-[#DAD6D1]">
+                                <TableRow className="border-b border-[#DAD6D1]">
                                     <TableHead
-                                        className="cursor-pointer hover:bg-muted/50"
+                                        className="py-3.5 px-6 text-[#75716B] font-normal cursor-pointer hover:text-[#26231E]"
                                         onClick={() => handleSort("name")}
                                     >
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center gap-1.5">
                                             Category
                                             {sortField === "name" && (
                                                 <ArrowUpDown className={`h-4 w-4 ${sortDirection === "asc" ? "rotate-180" : ""}`} />
                                             )}
                                         </div>
                                     </TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="py-3.5 px-6 text-right text-[#75716B] font-normal">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {paginatedCategories.map((category) => (
-                                    <TableRow key={category.id}>
-                                        <TableCell className="font-medium">{category.name}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="cursor-pointer"
+                                {paginatedCategories.map((category, index) => (
+                                    <TableRow
+                                        key={category.id}
+                                        className={`border-b border-[#DAD6D1] ${index % 2 === 1 ? "bg-[#EFEEEB]" : "bg-white"} hover:bg-[#DAD6D1]/30 transition-colors`}
+                                    >
+                                        <TableCell className="py-4 px-6 font-medium text-[#43403B]">{category.name}</TableCell>
+                                        <TableCell className="py-4 px-6 text-right">
+                                            <div className="flex justify-end items-center gap-3">
+                                                <button
+                                                    className="p-1 text-[#75716B] hover:text-[#26231E] transition-colors cursor-pointer"
                                                     onClick={() => navigate(`/admin/edit-category/${category.id}`)}
+                                                    title="Edit category"
                                                 >
-                                                    <PenSquare className="h-4 w-4 hover:text-muted-foreground" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="cursor-pointer"
+                                                    <PenSquare className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    className="p-1 text-[#75716B] hover:text-red-600 transition-colors cursor-pointer"
                                                     onClick={() => handleDeleteCategory(category.id, category.name)}
+                                                    title="Delete category"
                                                 >
-                                                    <Trash2 className="h-4 w-4 hover:text-muted-foreground" />
-                                                </Button>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                                 {paginatedCategories.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={2} className="text-center text-gray-500 py-8">
+                                        <TableCell colSpan={2} className="text-center text-[#75716B] py-12">
                                             {searchTerm ? 'No categories found matching your search' : 'No categories found'}
                                         </TableCell>
                                     </TableRow>
@@ -239,7 +234,7 @@ export default function AdminCategoryManagementPage() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                     <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-[#75716B]">
                             Page {currentPage} of {totalPages}
                         </div>
                         <div className="flex items-center gap-2">
@@ -248,13 +243,12 @@ export default function AdminCategoryManagementPage() {
                                 size="sm"
                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
-                                className="cursor-pointer"
+                                className="border-[#DAD6D1] text-[#26231E] hover:bg-[#EFEEEB] cursor-pointer"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                                 <span className="hidden sm:inline ml-1">Previous</span>
                             </Button>
                             
-                            {/* Page numbers */}
                             <div className="flex items-center gap-1">
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                                     let pageNum;
@@ -274,7 +268,11 @@ export default function AdminCategoryManagementPage() {
                                             variant={currentPage === pageNum ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => setCurrentPage(pageNum)}
-                                            className="cursor-pointer w-8 h-8 p-0"
+                                            className={`w-8 h-8 p-0 cursor-pointer ${
+                                                currentPage === pageNum
+                                                    ? "bg-[#26231E] text-white"
+                                                    : "border-[#DAD6D1] text-[#26231E] hover:bg-[#EFEEEB]"
+                                            }`}
                                         >
                                             {pageNum}
                                         </Button>
@@ -287,7 +285,7 @@ export default function AdminCategoryManagementPage() {
                                 size="sm"
                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
-                                className="cursor-pointer"
+                                className="border-[#DAD6D1] text-[#26231E] hover:bg-[#EFEEEB] cursor-pointer"
                             >
                                 <span className="hidden sm:inline mr-1">Next</span>
                                 <ChevronRight className="h-4 w-4" />
@@ -295,6 +293,18 @@ export default function AdminCategoryManagementPage() {
                         </div>
                     </div>
                 )}
+
+                <DeleteArticleModal
+                    isOpen={deleteModalOpen}
+                    onClose={() => {
+                        setDeleteModalOpen(false);
+                        setCategoryToDelete(null);
+                    }}
+                    onConfirm={handleConfirmDeleteCategory}
+                    title="Delete category"
+                    description="Do you want to delete this category?"
+                    isLoading={isDeleting}
+                />
             </main>
         </div>
     );

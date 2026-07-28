@@ -1,10 +1,10 @@
-import { UserAvatar } from "@/components/UserAvatar";
-import { AdminSidebar } from "@/components/AdminWebSection";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
-import { useAuth } from "@/contexts/authContext.js";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { formatRelativeDate } from "@/utils/dateFormatter";
 
 export default function AdminNotificationPage() {
     const [notifications, setNotifications] = useState([]);
@@ -16,8 +16,18 @@ export default function AdminNotificationPage() {
             try {
                 setLoading(true);
                 if (user?.id) {
-                    const response = await blogApi.notifications.getAll(user.id);
-                    setNotifications(response.data || []);
+                    try {
+                        const adminRes = await blogApi.admin.getNotifications();
+                        if (adminRes.success && Array.isArray(adminRes.data)) {
+                            setNotifications(adminRes.data);
+                        } else {
+                            const response = await blogApi.notifications.getAll(user.id);
+                            setNotifications(response.data || []);
+                        }
+                    } catch {
+                        const response = await blogApi.notifications.getAll(user.id);
+                        setNotifications(response.data || []);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching notifications:', error);
@@ -30,144 +40,101 @@ export default function AdminNotificationPage() {
         fetchNotifications();
     }, [user?.id]);
 
-    const handleMarkAsRead = async (notificationId) => {
-        try {
-            await blogApi.notifications.markAsRead(notificationId);
-            // Update the notification in local state
-            setNotifications(prev => 
-                prev.map(notif => 
-                    notif.id === notificationId 
-                        ? { ...notif, read: true, read_at: new Date().toISOString() }
-                        : notif
-                )
-            );
-            toast.success('Notification marked as read');
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-            toast.error('Failed to mark notification as read');
-        }
+    const formatTimeAgo = (dateStr) => {
+        if (!dateStr) return 'Unknown time';
+        return formatRelativeDate(dateStr);
     };
-
-    const handleMarkAllAsRead = async () => {
-        try {
-            if (user?.id) {
-                await blogApi.notifications.markAllAsRead(user.id);
-                setNotifications(prev =>
-                    prev.map(notif => ({
-                        ...notif,
-                        read: true,
-                        read_at: new Date().toISOString()
-                    }))
-                );
-                toast.success('All notifications marked as read');
-            }
-        } catch (error) {
-            console.error('Error marking all notifications as read:', error);
-            toast.error('Failed to mark all notifications as read');
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex h-screen bg-ui-surface">
-                <AdminSidebar />
-                <main className="flex-1 p-4 lg:p-8 overflow-auto">
-                    <div className="text-center mt-20">Loading notifications...</div>
-                </main>
-            </div>
-        );
-    }
 
     return (
-        <div className="flex h-screen bg-ui-surface font-poppins">
+        <div className="flex h-screen overflow-hidden bg-[#F9F8F6] font-poppins">
             {/* Sidebar */}
             <AdminSidebar />
-            {/* Main content */}
-            <main className="flex-1 p-4 lg:p-8 bg-background overflow-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <h2 className="text-xl sm:text-2xl font-semibold">Notifications</h2>
-                    {notifications.some(n => !n.read) && (
-                        <button
-                            onClick={handleMarkAllAsRead}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors cursor-pointer w-full sm:w-auto"
-                        >
-                            Mark All as Read
-                        </button>
-                    )}
-                </div>
 
-                {notifications.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                        <p>No notifications yet.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {notifications.map((notification) => (
-                            <div
-                                key={notification.id}
-                                className={cn(
-                                    "p-4 rounded-lg border",
-                                    notification.read
-                                        ? 'bg-card border-border'
-                                        : 'bg-accent/50 border-accent'
-                                )}
-                            >
-                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                    <div className="flex items-start space-x-4">
-                                        <UserAvatar
-                                            src={notification.trigger_user?.avatar || '/default-avatar.png'}
-                                            name={notification.trigger_user?.name}
-                                            size="md"
-                                            alt={notification.trigger_user?.name || 'User'}
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-foreground">
-                                                {notification.title}
-                                            </h3>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                {notification.message}
-                                            </p>
-                                            {notification.post && (
-                                                <p className="text-xs text-muted-foreground/80 mt-1">
-                                                    Article: {notification.post.title}
-                                                </p>
-                                            )}
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-2 gap-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
-                                                </p>
-                                                {!notification.read && (
-                                                    <span className="text-xs bg-accent text-accent-foreground px-2 py-1 rounded-full self-start sm:self-auto">
-                                                        New
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                                        {notification.post && (
-                                            <button
-                                                onClick={() => window.open(`/post/${notification.post.id}`, '_blank')}
-                                                className="text-primary hover:text-primary/80 text-sm underline underline-offset-2 cursor-pointer"
-                                            >
-                                                View Post
-                                            </button>
-                                        )}
-                                        {!notification.read && (
-                                            <button
-                                                onClick={() => handleMarkAsRead(notification.id)}
-                                                className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2 cursor-pointer"
-                                            >
-                                                Mark as Read
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+            {/* Main Area */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+                {/* Header */}
+                <header className="h-[96px] shrink-0 border-b border-[#DAD6D1] px-6 lg:px-[60px] flex items-center justify-between bg-[#F9F8F6]">
+                    <h1 className="text-[24px] font-semibold text-[#26231E] leading-[32px]">
+                        Notification
+                    </h1>
+                </header>
+
+                {/* Main Content */}
+                <main className="flex-1 px-6 lg:px-[60px] py-10 overflow-y-auto">
+                    <div className="max-w-[1040px]">
+                        {loading ? (
+                            <div className="py-12 text-center text-[#75716B]">Loading notifications...</div>
+                        ) : notifications.length === 0 ? (
+                            <div className="py-12 text-center text-[#75716B] text-[16px]">
+                                No notifications found
                             </div>
-                        ))}
+                        ) : (
+                            <div className="space-y-0">
+                                {notifications.map((notification, index) => {
+                                    const userName = notification.trigger_user?.name || notification.trigger_user?.username || notification.actor_name || 'User';
+                                    const isComment = notification.type === 'comment' || (notification.message && notification.message.trim().length > 0);
+                                    const articleTitle = notification.post?.title || notification.article_title || 'article';
+                                    const messageText = notification.message ? notification.message.trim() : '';
+                                    const timeStr = formatTimeAgo(notification.created_at);
+
+                                    return (
+                                        <div key={notification.id || index}>
+                                            <div className="py-6 flex items-start justify-between gap-6 lg:gap-10">
+                                                {/* Left: Avatar + Details */}
+                                                <div className="flex items-start gap-3 lg:gap-3.5 flex-1 min-w-0">
+                                                    <UserAvatar
+                                                        src={notification.trigger_user?.profile_pic || notification.trigger_user?.avatar || '/default-avatar.png'}
+                                                        name={userName}
+                                                        size="lg"
+                                                        className="w-[48px] h-[48px] shrink-0 rounded-full"
+                                                    />
+                                                    <div className="flex-1 min-w-0 pt-0.5 space-y-1.5">
+                                                        <div className="text-[16px] leading-[24px] text-[#43403B]">
+                                                            <span className="font-bold">{userName}</span>{" "}
+                                                            <span className="font-normal">
+                                                                {isComment ? "Commented on your article:" : "liked your article:"}
+                                                            </span>{" "}
+                                                            <span className="font-normal">{articleTitle}</span>
+                                                        </div>
+
+                                                        {isComment && messageText && (
+                                                            <p className="text-[16px] leading-[24px] font-normal text-[#43403B]">
+                                                                {messageText.startsWith('“') || messageText.startsWith('"')
+                                                                    ? messageText
+                                                                    : `“${messageText}”`}
+                                                            </p>
+                                                        )}
+
+                                                        <p className="text-[14px] leading-[22px] font-medium text-[#F2B68C]">
+                                                            {timeStr}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right: Action */}
+                                                <button
+                                                    onClick={() => {
+                                                        const postId = notification.post?.id || notification.post_id;
+                                                        if (postId) window.open(`/post/${postId}`, '_blank');
+                                                    }}
+                                                    className="text-[16px] leading-[24px] font-medium text-[#26231E] underline hover:opacity-80 transition-opacity cursor-pointer shrink-0 pt-0.5"
+                                                >
+                                                    View
+                                                </button>
+                                            </div>
+
+                                            {/* Line divider */}
+                                            {index < notifications.length - 1 && (
+                                                <div className="border-b border-[#DAD6D1] w-full" />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                )}
-            </main>
+                </main>
+            </div>
         </div>
     );
 }

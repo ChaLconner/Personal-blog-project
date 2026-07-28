@@ -18,12 +18,18 @@ export const subscribeToNotifications = async (userId, onNotification) => {
     return null;
   }
 
+  if (typeof onNotification === "function") {
+    if (!notificationListeners.has(userId)) {
+      notificationListeners.set(userId, []);
+    }
+    notificationListeners.get(userId).push(onNotification);
+  }
+
   if (notificationChannels.has(userId)) {
     return notificationChannels.get(userId);
   }
 
   try {
-    notificationListeners.set(userId, onNotification);
     const channel = supabaseClient
       .channel(`notifications_user_${userId}`)
       .on(
@@ -36,10 +42,14 @@ export const subscribeToNotifications = async (userId, onNotification) => {
         },
         (payload) => {
           try {
-            const listener = notificationListeners.get(userId);
-            if (listener && typeof listener === "function") {
-              listener(payload.new);
-            }
+            const listeners = notificationListeners.get(userId) || [];
+            listeners.forEach((listener) => {
+              try {
+                listener(payload.new);
+              } catch {
+                // Silently handle error for individual listener
+              }
+            });
           } catch {
             // Silently handle errors in notification handler
           }
@@ -63,8 +73,19 @@ export const subscribeToNotifications = async (userId, onNotification) => {
  * @param {string} userId - User ID to unsubscribe from
  * @returns {Promise<boolean>} Success status
  */
-export const unsubscribeFromNotifications = async (userId) => {
+export const unsubscribeFromNotifications = async (userId, listenerToRemove) => {
   try {
+    if (listenerToRemove) {
+      const listeners = notificationListeners.get(userId);
+      if (listeners) {
+        const filtered = listeners.filter(l => l !== listenerToRemove);
+        if (filtered.length > 0) {
+          notificationListeners.set(userId, filtered);
+          return true; // Still have other listeners, keep channel
+        }
+      }
+    }
+    
     const channel = notificationChannels.get(userId);
     if (!channel || !supabaseClient) {
       return false;
@@ -90,14 +111,6 @@ export const isSubscribedToNotifications = (userId) => {
   return notificationChannels.has(userId);
 };
 
-/**
- * Get the current Supabase client
- * @returns {Object|null} Supabase client or null
- */
-export const getSupabaseClient = () => {
-  return supabaseClient;
-};
-
 if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", () => {
     notificationChannels.forEach(async (channel) => {
@@ -118,5 +131,4 @@ export default {
   subscribeToNotifications,
   unsubscribeFromNotifications,
   isSubscribedToNotifications,
-  getSupabaseClient,
 };
