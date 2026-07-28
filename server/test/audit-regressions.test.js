@@ -7,6 +7,10 @@ import {
   verifyImageMagicBytes,
 } from "../routes/uploadSupabase.js";
 
+process.env.SUPABASE_URL ??= "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY ??= "ci-placeholder-anon-key";
+process.env.SUPABASE_SERVICE_KEY ??= "ci-placeholder-service-role-key";
+
 const readSource = async (relativePath) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
 
