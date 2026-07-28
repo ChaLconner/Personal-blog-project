@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { getNotificationPresentation } from "../src/utils/notificationFormatter.js";
 
 const readSource = async (relativePath) =>
   readFile(new URL(relativePath, import.meta.url), "utf8");
@@ -33,4 +34,19 @@ test("missing posts navigate to a stable 404 URL", async () => {
   const source = await readSource("../src/components/blog/ViewPost.jsx");
   assert.doesNotMatch(source, /navigate\(\s*["']\*["']\s*\)/);
   assert.match(source, /navigate\(\s*["']\/404["']/);
+});
+
+test("notification presentation uses the notification type, not message presence", () => {
+  assert.deepEqual(getNotificationPresentation("new_article"), {
+    actionText: "published a new article:",
+    showMessage: false,
+  });
+  assert.deepEqual(getNotificationPresentation("new_comment"), {
+    actionText: "Commented on your article:",
+    showMessage: true,
+  });
+  assert.deepEqual(getNotificationPresentation("like"), {
+    actionText: "liked your article:",
+    showMessage: false,
+  });
 });

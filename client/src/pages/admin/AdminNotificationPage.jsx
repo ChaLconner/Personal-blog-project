@@ -5,6 +5,7 @@ import { blogApi } from "@/services/api";
 import { useAuth } from "@/contexts/authContext";
 import { toast } from "sonner";
 import { formatRelativeDate } from "@/utils/dateFormatter";
+import { getNotificationPresentation } from "@/utils/notificationFormatter";
 
 export default function AdminNotificationPage() {
     const [notifications, setNotifications] = useState([]);
@@ -72,7 +73,7 @@ export default function AdminNotificationPage() {
                             <div className="space-y-0">
                                 {notifications.map((notification, index) => {
                                     const userName = notification.trigger_user?.name || notification.trigger_user?.username || notification.actor_name || 'User';
-                                    const isComment = notification.type === 'comment' || (notification.message && notification.message.trim().length > 0);
+                                    const { actionText, showMessage } = getNotificationPresentation(notification.type);
                                     const articleTitle = notification.post?.title || notification.article_title || 'article';
                                     const messageText = notification.message ? notification.message.trim() : '';
                                     const timeStr = formatTimeAgo(notification.created_at);
@@ -92,12 +93,12 @@ export default function AdminNotificationPage() {
                                                         <div className="text-[16px] leading-[24px] text-[#43403B]">
                                                             <span className="font-bold">{userName}</span>{" "}
                                                             <span className="font-normal">
-                                                                {isComment ? "Commented on your article:" : "liked your article:"}
+                                                                {actionText}
                                                             </span>{" "}
                                                             <span className="font-normal">{articleTitle}</span>
                                                         </div>
 
-                                                        {isComment && messageText && (
+                                                        {showMessage && messageText && (
                                                             <p className="text-[16px] leading-[24px] font-normal text-[#43403B]">
                                                                 {messageText.startsWith('“') || messageText.startsWith('"')
                                                                     ? messageText
