@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate, useLocation } from "react-router";
+import { useAuth } from "@/contexts/authContext";
 import { toast } from "sonner";
 
 export default function AdminLoginPage() {
@@ -20,7 +20,6 @@ export default function AdminLoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        let hasError = false;
         const emailErr = !email.trim();
         const passErr = !password.trim();
 
@@ -56,7 +55,7 @@ export default function AdminLoginPage() {
                 });
                 setIsLoading(false);
             }
-        } catch (error) {
+        } catch {
             setIsErrorEmail(true);
             setIsErrorPassword(true);
             toast.dismiss();

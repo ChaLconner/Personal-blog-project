@@ -25,7 +25,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo } from "react";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";

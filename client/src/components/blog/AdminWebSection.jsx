@@ -10,9 +10,9 @@ import {
     X,
     LayoutDashboard,
 } from "lucide-react";
-import { useLocation, Link, useNavigate } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router";
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 
 export function AdminSidebar() {
     const location = useLocation();

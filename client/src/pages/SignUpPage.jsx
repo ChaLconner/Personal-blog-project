@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import NavBar from "@/components/layout/NavBar";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router";
+import { useAuth } from "@/contexts/authContext";
 import { toast } from "sonner";
 import blogApi from "@/services/api.js";
 

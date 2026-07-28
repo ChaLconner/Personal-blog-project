@@ -2,7 +2,7 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import { toast } from "sonner";
 import { formatRelativeDate } from "@/utils/dateFormatter";
 

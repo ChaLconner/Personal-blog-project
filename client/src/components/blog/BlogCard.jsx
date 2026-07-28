@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { formatShortDate } from "@/utils/dateFormatter";
 import UserAvatar from "@/components/common/UserAvatar";
 import { API_BASE_URL } from "@/services/api";

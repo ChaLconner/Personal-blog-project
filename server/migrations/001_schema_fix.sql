@@ -94,6 +94,8 @@ DROP POLICY IF EXISTS "Allow public insert on post_likes" ON public.post_likes;
 DROP POLICY IF EXISTS "Allow public delete on post_likes" ON public.post_likes;
 DROP POLICY IF EXISTS "Users can create their own likes" ON public.post_likes;
 DROP POLICY IF EXISTS "Users can delete their own likes" ON public.post_likes;
+DROP POLICY IF EXISTS "Public can read likes" ON public.post_likes;
 
-CREATE POLICY "Users can create their own likes" ON public.post_likes FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own likes" ON public.post_likes FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Public can read likes" ON public.post_likes FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Users can create their own likes" ON public.post_likes FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "Users can delete their own likes" ON public.post_likes FOR DELETE TO authenticated USING ((select auth.uid()) = user_id);

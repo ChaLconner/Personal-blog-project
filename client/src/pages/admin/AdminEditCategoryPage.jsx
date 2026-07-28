@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
 import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";

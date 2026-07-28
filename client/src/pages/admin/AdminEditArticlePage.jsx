@@ -11,7 +11,7 @@ import {
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { blogApi, API_BASE_URL } from "@/services/api";
 import { toast } from "sonner";
 import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";

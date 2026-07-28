@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
 

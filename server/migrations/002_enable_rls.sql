@@ -9,17 +9,23 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 -- Allow access policies for tables
 DROP POLICY IF EXISTS "Allow all access on categories" ON public.categories;
-CREATE POLICY "Allow all access on categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read categories" ON public.categories;
+CREATE POLICY "Public can read categories" ON public.categories FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow all access on statuses" ON public.statuses;
-CREATE POLICY "Allow all access on statuses" ON public.statuses FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read statuses" ON public.statuses;
+CREATE POLICY "Public can read statuses" ON public.statuses FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow backend all access on posts" ON public.posts;
-CREATE POLICY "Allow backend all access on posts" ON public.posts FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read published posts" ON public.posts;
+CREATE POLICY "Public can read published posts" ON public.posts FOR SELECT TO anon, authenticated USING (status_id = 2);
 
 DROP POLICY IF EXISTS "Allow backend all access on comments" ON public.comments;
-CREATE POLICY "Allow backend all access on comments" ON public.comments FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read comments" ON public.comments;
+CREATE POLICY "Public can read comments" ON public.comments FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow backend all access on users" ON public.users;
-CREATE POLICY "Allow backend all access on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
-
+DROP POLICY IF EXISTS "Users can read their profile" ON public.users;
+DROP POLICY IF EXISTS "Users can update their profile" ON public.users;
+CREATE POLICY "Users can read their profile" ON public.users FOR SELECT TO authenticated USING ((select auth.uid()) = id);
+CREATE POLICY "Users can update their profile" ON public.users FOR UPDATE TO authenticated USING ((select auth.uid()) = id) WITH CHECK ((select auth.uid()) = id);

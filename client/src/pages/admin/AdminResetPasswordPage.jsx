@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
 import { useState } from "react";
 import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 
 export default function AdminResetPasswordPage() {
     const navigate = useNavigate();

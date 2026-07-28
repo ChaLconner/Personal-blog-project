@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import NavBar from "@/components/layout/NavBar";
 import Footer from "@/components/layout/Footer";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { X, User, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/common/UserAvatar";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import { toast } from "sonner";
 import { blogApi } from "@/services/api.js";
 

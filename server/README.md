@@ -1,154 +1,102 @@
-# Blog API Server
+# Blog API server
 
-Backend server for the blog application built with Node.js, Express, and Supabase.
+Express API for Personal Blog Project. Supabase provides PostgreSQL,
+authentication, and image storage.
 
-## Features
+For full-project setup and architecture, see the root
+[`README.md`](../README.md).
 
-- RESTful API for blog posts
-- Comments system with create functionality
-- Categories management
-- Search functionality
-- Supabase integration for data persistence
-- CORS enabled for frontend integration
+## Requirements
 
-## Technology Stack
+- Node.js 24
+- npm 10 or 11
+- A configured Supabase project
 
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **Supabase** - Database and backend services
-- **CORS** - Cross-origin resource sharing
-- **dotenv** - Environment variable management
+## Setup
 
-## Quick Start
+From the repository root:
 
-### 1. Install Dependencies
 ```bash
-npm install
+npm ci
+cp server/.env.example server/.env
 ```
 
-### 2. Set Up Supabase
-Follow the detailed setup guide in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+Replace all placeholders in `server/.env`, then run the SQL files in
+`server/migrations` in filename order.
 
-### 3. Configure Environment
+Start only the API:
+
 ```bash
-cp .env.example .env
-# Update .env with your Supabase credentials
+npm run dev:server
 ```
 
-### 4. Set Up Database
-Create tables and sample data in your Supabase dashboard:
-1. Go to your Supabase project dashboard
-2. Navigate to SQL Editor
-3. Create the required tables (users, posts, comments, categories, statuses)
-4. Run the provided SQL schema from SUPABASE_SETUP.md
+Default URL: <http://localhost:5000>
 
-### 5. Start Development Server
-```bash
-npm run dev
+## Environment variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `PORT` | No | Listening port; defaults to `5000` |
+| `NODE_ENV` | No | Enables development-only logging and test routes |
+| `CLIENT_URL` | Production | Allowed browser origin for CORS |
+| `FRONTEND_URL` | Production | Base URL for authentication callback links |
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Yes | Auth and user-scoped Supabase client |
+| `SUPABASE_SERVICE_KEY` | Yes | Server-only service-role client |
+
+Never expose `SUPABASE_SERVICE_KEY` to browser code or commit its value.
+
+## Route groups
+
+Routes are mounted directly; there is no `/api` prefix.
+
+| Base path | Purpose | Access |
+| --- | --- | --- |
+| `/health` | Process and database health | Public |
+| `/auth` | Registration, login, user lookup, profile, password | Mixed |
+| `/blog` | Published posts and categories | Public |
+| `/comments` | Comment listing, creation, deletion | Mixed |
+| `/likes` | Like state and toggling | Authenticated |
+| `/upload` | Profile and article image storage | User/Admin |
+| `/notifications` | User and admin notifications | User/Admin |
+| `/admin` | Content management and statistics | Admin |
+
+Protected routes expect:
+
+```http
+Authorization: Bearer <supabase-access-token>
 ```
 
-The server will start on `http://localhost:5000`
+## Storage uploads
 
-## API Endpoints
+- Buckets: `profile-pictures`, `article-images`
+- Form field: `imageFile`
+- Maximum file size: 5 MB
+- Accepted formats: JPEG, PNG, GIF, WebP
+- Files remain in memory only until uploaded to Supabase Storage
 
-### Blog Posts
-- `GET /api/posts` - Get all blog posts (with optional filters)
-- `GET /api/posts/:id` - Get single blog post by ID
+## Scripts
 
-### Comments
-- `GET /api/comments` - Get all comments (with optional post filter)
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start with nodemon |
+| `npm start` | Start with Node |
+| `npm run build` | Confirm no server compilation is required |
+| `npm test` | Run server regression tests |
 
-### Categories
-- `GET /api/categories` - Get all categories
+## Source layout
 
-### Stats
-- `GET /api/stats` - Get blog statistics
-
-## Query Parameters
-
-### Posts Endpoint
-- `category` - Filter by category
-- `limit` - Limit number of results
-- `search` - Search in title, description, and content
-
-### Comments Endpoint
-- `postId` - Filter comments by post ID
-
-## Setup and Installation
-
-1. Navigate to the server directory:
-   ```bash
-   cd server
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Copy environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Update `.env` file with your configuration
-
-5. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-The server will start on `http://localhost:5000`
-
-## Available Scripts
-
-- `npm start` - Start production server
-- `npm run dev` - Start development server with nodemon  
-- `npm test` - Run tests (not implemented yet)
-
-## Environment Variables
-
-- `PORT` - Server port (default: 5000)
-- `NODE_ENV` - Environment (development/production)
-- `FRONTEND_URL` - Frontend URL for CORS
-- `SUPABASE_URL` - Your Supabase project URL
-- `SUPABASE_SERVICE_KEY` - Your Supabase service role key
-
-## Data Structure
-
-### Blog Post
-```javascript
-{
-  id: number,
-  image: string,
-  category: string,
-  title: string,
-  description: string,
-  author: string,
-  date: string,
-  likes: number,
-  content: string
-}
+```text
+server/
+├── config/database.js
+├── controllers/
+├── middlewares/
+├── migrations/
+├── routes/
+├── utils/
+├── app.js
+└── server.js
 ```
 
-### Comment
-```javascript
-{
-  id: number,
-  postId: number,
-  name: string,
-  date: string,
-  comment: string,
-  image: string
-}
-```
-
-## Future Enhancements
-
-- Database integration (PostgreSQL/MongoDB)
-- User authentication and authorization
-- Post creation/editing endpoints
-- Comment posting functionality
-- File upload for images
-- Rate limiting
-- Input validation and sanitization
+`server.js` loads `server/.env` and starts the listener. `app.js` configures
+middleware, health checks, route mounts, and error handling.

@@ -1,452 +1,170 @@
-# Copilot Instructions for Blog Application
+# Copilot instructions
 
-## Project Overview
+## Project facts
 
-This is a full-stack blog application built with React + Vite frontend and Node.js + Express backend, using Supabase for authentication and data storage. The project follows a true monorepo structure with both client and server in same repository.
+- npm workspace monorepo: `client` and `server`
+- Client: React 19, Vite 8, Tailwind CSS 4, React Router 8
+- Server: Node.js 24, Express 4, ES modules
+- Supabase: PostgreSQL, Auth, Realtime, Storage
+- Development URLs: client `http://localhost:5173`, server
+  `http://localhost:5000`
+- API routes have no `/api` prefix
+- JavaScript code uses `.js`/`.jsx`; legacy `.mjs` paths no longer exist
+
+Read the root `README.md`, relevant source files, and package scripts before
+changing behavior. Preserve existing patterns and avoid unrelated refactors.
+
+## Commands
+
+Run from repository root:
+
+```bash
+npm ci
+npm run dev
+npm run build
+npm --prefix client run lint
+```
+
+No automated test suite is configured. Never report tests as passing when only
+the placeholder `npm test` scripts ran.
+
+Production builds require `VITE_API_URL`, `VITE_SUPABASE_URL`, and
+`VITE_SUPABASE_ANON_KEY`. Both URL values must use non-local HTTPS URLs.
 
 ## Architecture
 
-### Frontend Stack
-- **React 19** with Vite (port 5173)
-- **Tailwind CSS 4.0** with `@tailwindcss/vite` plugin
-- **shadcn/ui** components built on Radix UI primitives  
-- **React Router DOM v7** for routing
-- **Axios** with interceptors and 5-minute caching
-- **Supabase** client-side integration
+```text
+client/src/
+├── components/
+│   ├── auth/
+│   ├── blog/
+│   ├── common/
+│   ├── layout/
+│   └── ui/
+├── contexts/
+│   ├── AuthProvider.jsx
+│   └── authContext.js
+├── lib/supabaseClient.js
+├── pages/
+│   └── admin/
+├── services/
+└── utils/
 
-### Backend Stack
-- **Node.js** with ES modules (`"type": "module"`)
-- **Express.js** (port 3001/5000)
-- **Supabase Auth** for authentication
-- **CORS** enabled for frontend integration
-- **Multer** for file uploads to `/server/uploads/`
-- **Environment**: Uses `--env-file=.env` with native Node.js support
-
-## Development Workflow
-
-### Critical Commands
-```bash
-# Install all dependencies (both client + server)
-npm run install:all
-
-# Start both frontend and backend concurrently  
-npm run dev
-
-# Individual services
-cd client && npm run dev          # Frontend only
-cd server && npm run dev          # Backend only (with nodemon)
+server/
+├── config/database.js
+├── controllers/
+├── middlewares/
+├── migrations/
+├── routes/
+├── utils/
+├── app.js
+└── server.js
 ```
 
-### Project Structure Reality
-```
-my-side-project/
-├── client/                      # React frontend (port 5173)
-│   ├── src/
-│   │   ├── components/ui/       # shadcn/ui components
-│   │   ├── contexts/           # auth.jsx + authContext.js (DUAL pattern)
-│   │   ├── pages/              # Page components
-│   │   ├── services/api.js     # Centralized API with caching
-│   │   └── utils/              # Helper functions
-│   ├── vite.config.js         # "@" alias to ./src
-│   └── package.json
-└── server/                     # Express backend (port 3001)
-    ├── routes/                 # *.mjs files use ES modules
-    ├── middlewares/           # protectUser.mjs, protectAdmin.mjs  
-    ├── config/database.js     # Supabase client config
-    ├── uploads/               # Static file storage
-    └── server.js              # Main entry point
-```
+Client imports may use the `@` alias for `client/src`. Server imports are
+relative and include the `.js` extension.
 
-## Critical Authentication Patterns
+## Client conventions
 
-### Dual Context Architecture (IMPORTANT)
-The project uses a **dual auth context pattern**:
-- `contexts/auth.jsx` - AuthProvider implementation with state management
-- `contexts/authContext.js` - Context creation and useAuth hook (Fast Refresh compatibility)
+- Define page routes in `client/src/App.jsx`.
+- Lazy-load pages with `React.lazy`.
+- Import `AuthProvider` from `client/src/contexts/AuthProvider.jsx`.
+- Import `useAuth` and `AuthContext` from
+  `client/src/contexts/authContext.js`.
+- Wrap authenticated or admin pages with
+  `client/src/components/auth/ProtectedRoute.jsx`.
+- Use `client/src/services/api.js` for HTTP calls.
+- Use `client/src/lib/supabaseClient.js` for realtime subscriptions.
+- Preserve both `token` and `authToken` local-storage compatibility unless a
+  deliberate migration removes it everywhere.
+- Invalidate API cache after successful mutations.
+- Use existing loading, error-boundary, and Sonner patterns.
 
-```jsx
-// In auth.jsx
-import { AuthContext } from './authContext.js';
-export function AuthProvider({ children }) { /* implementation */ }
+The Axios instance has a 10-second default timeout. Individual operations may
+override it. GET responses may use a five-minute in-memory cache. Network-level
+errors and timeouts may be retried by `requestWithRetries`.
 
-// In authContext.js  
-export const AuthContext = createContext();
-export const useAuth = () => { /* hook implementation */ }
-```
+## Server conventions
 
-### Token Management
-Dual token storage for compatibility:
-```javascript
-// Both keys stored for legacy and new code
-localStorage.setItem("token", token);
-localStorage.setItem("authToken", token);
-```
+- Configure middleware and mount routers in `server/app.js`.
+- Keep `server/server.js` limited to environment loading, production validation,
+  listener startup, and process shutdown.
+- Put route declarations in `server/routes`, business handlers in
+  `server/controllers`, and authentication checks in `server/middlewares`.
+- Use `protectUser`, `optionalProtectUser`, or `protectAdmin` according to
+  endpoint access.
+- Use `getSupabase()` for service-role database work and
+  `getSupabaseAuth()` for authentication operations.
+- Validate input and return consistent JSON errors.
+- Do not expose development-only diagnostic routes in production.
 
-### Protected Route Pattern
-```jsx
-import ProtectedRoute from '@/components/ProtectedRoute';
+Route mounts:
 
-// Usage with flexible role checking
-<ProtectedRoute 
-  isLoading={loading}
-  isAuthenticated={isAuthenticated} 
-  userRole={user?.role}
-  requireAdmin={true}  // Backward compatibility
-  requiredRole="admin" // Flexible role checking
->
-  <Component />
-</ProtectedRoute>
+```text
+/auth
+/admin
+/blog
+/upload
+/notifications
+/comments
+/likes
 ```
 
-## API Service Architecture
+## Environment
 
-### Centralized Service (`src/services/api.js`)
-- **Built-in caching**: 5-minute cache for GET requests with cache key per URL+params
-- **Dual token management**: Backward compatible with both `token` and `authToken` keys
-- **Cache invalidation**: Automatic clearing on user actions (create/update/delete)
-- **Smart retries**: Network-level failures retried with exponential backoff
-- **Error normalization**: Consistent error structure with user-friendly messages
-- **Timeout management**: 30-second default with configurable per-request
-- **Environment aware**: Different behaviors for dev/prod with enhanced dev logging
+Canonical templates:
 
-### Critical API Patterns
-```javascript
-// Multi-part file upload
-await blogApi.uploadProfileImage(file);
+- `client/.env.example`
+- `server/.env.example`
 
-// Admin operations with cache clearing
-await blogApi.admin.createPost(data); // Automatically clears cache
+Client:
 
-// Error handling with user-friendly messages
-try {
-  const posts = await blogApi.getPosts({ category: 'tech' });
-} catch (error) {
-  // Returns structured fallback instead of throwing
-}
+```env
+VITE_API_URL=http://localhost:5000
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## Server-Side Patterns
+Server:
 
-### File Extensions Matter
-- `.mjs` files: ES modules for routes (auth.mjs, admin.mjs, upload.mjs)
-- `.js` files: Regular modules (blogRouter.js, posts.js)
-- All use `import/export` syntax due to `"type": "module"`
-
-### Supabase Auth Integration
-```javascript
-// Server auth check pattern
-const { data, error } = await supabase.auth.getUser(token);
-// Then fetch additional user data from users table
-const { data: userData } = await supabase.from('users').select('*').eq('id', data.user.id);
-```
-
-### Notification System Architecture
-- **Real-time subscriptions**: Uses Supabase Postgres change feeds for live notifications
-- **Incremental fetch**: ETag and If-Modified-Since headers for efficient polling
-- **Dual transport**: Realtime for active users, polling for background updates
-- **Batched updates**: Server-side notification grouping
-
-```javascript
-// Client-side realtime subscription
-const channel = supabaseClient
-  .channel(`notifications_user_${userId}`)
-  .on('postgres_changes', { 
-    event: 'INSERT',
-    schema: 'public',
-    table: 'notifications',
-    filter: `user_id=eq.${userId}`,
-  }, payload => {
-    onInsert(payload.new);
-  })
-  .subscribe();
-```
-
-### Error Handling Strategy
-- **API Layer**: Centralized error handling in `api.js`
-- **Retry Logic**: Exponential backoff for transient failures
-- **Cache Fallback**: Returns cached data during API failures
-- **User Messaging**: Structured error responses with friendly messages
-
-```javascript
-// Retry pattern with exponential backoff
-const requestWithRetries = async (fn, { attempts = 3, initialDelay = 500 } = {}) => {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      if (i === attempts - 1) throw err;
-      const delay = initialDelay * Math.pow(2, i);
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
-};
-```
-
-### Middleware Pattern
-```javascript
-import protectUser from '../middlewares/protectUser.mjs';
-
-// Attaches req.user and req.userId
-router.use('/protected-route', protectUser, handlerFunction);
-```
-
-## Environment Configuration
-
-### Client (.env)
-```
-VITE_API_URL=http://localhost:3001
-```
-
-### Server (.env) 
-```
-PORT=3001
+```env
+PORT=5000
+NODE_ENV=development
 CLIENT_URL=http://localhost:5173
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_KEY=your_service_key
+FRONTEND_URL=http://localhost:5173
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 ```
 
-## File Upload System
+Never commit credentials. Never expose `SUPABASE_SERVICE_KEY` through a
+`VITE_` variable or client code.
 
-### Upload Structure
-- **Storage**: `/server/uploads/images/` for profile pictures
-- **Size limit**: 5MB max
-- **Formats**: JPEG, PNG, GIF, WebP
-- **API**: Separate upload then update profile flow
+## Database and uploads
 
-```javascript
-// Two-step process
-const uploadResult = await blogApi.uploadProfileImage(file);
-const updateResult = await blogApi.auth.updateProfile({ imageUrl: uploadResult.imageUrl });
-```
+- Run SQL migrations in `server/migrations` in filename order.
+- Storage buckets: `profile-pictures`, `article-images`.
+- Upload field: `imageFile`.
+- Upload limit: 3 MB.
+- Accepted formats: JPEG, PNG, GIF, WebP.
+- Profile uploads require a user; article image uploads require an admin.
 
-## Development Quirks
+## Validation
 
-### Import Paths
-- **Client**: Uses `@/` alias for `./src`
-- **Server**: Relative imports only, `.mjs` extensions required
-- **Components**: Always export from `ui/` directory
+For client or full-stack changes:
 
-### Port Management  
-- **Frontend**: Always 5173 (Vite default)
-- **Backend**: 3001 (development), 5000 (production fallback)
-- **Concurrency**: Root package.json manages both with `concurrently`
-
-### CSS Framework
-- **Tailwind 4.0**: Uses `@tailwindcss/vite` plugin (not postcss)
-- **Utilities**: `cn()` function from `lib/utils.js` for conditional classes
-- **Components**: All shadcn/ui components pre-configured
-
-## Common Tasks
-
-### Adding New Route
-1. **Server**: Add to appropriate `.mjs` file in `/routes`
-2. **Client**: Add to `blogApi` object in `services/api.js`
-3. **Auth required**: Use `protectUser` or `protectAdmin` middleware
-
-### Creating Protected Page
-```jsx
-function MyPage() {
-  const { user, loading, isAuthenticated } = useAuth();
-  
-  return (
-    <ProtectedRoute
-      isLoading={loading}
-      isAuthenticated={isAuthenticated}
-      userRole={user?.role}
-      requireAdmin={true}
-    >
-      <div>Protected content</div>
-    </ProtectedRoute>
-  );
-}
-```
-
-### File Upload Implementation
-Always use two-step process: upload file first, then update record with URL.
-
----
-
-**Key Development Notes**: 
-- Always run `npm run dev` from root (starts both client and server)
-- File uploads require authentication and use separate endpoints
-- Dual token storage ensures compatibility between old and new code
-- Cache is automatically managed but can be manually cleared with `blogApi.clearCache()`
-
-## Common Tasks & Examples
-
-### Adding New UI Components
-1. Create component in `src/components/ui/`
-2. Follow shadcn/ui patterns with Radix UI
-3. Export all variants and sub-components
-4. Use `cn()` utility for styling
-
-### Creating Protected Pages
-```jsx
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-
-function MyProtectedPage() {
-  return (
-    <ProtectedRoute>
-      <div>Protected content here</div>
-    </ProtectedRoute>
-  );
-}
-```
-
-### Adding API Endpoints
-1. **Server**: Add route handler in appropriate file
-2. **Client**: Add method to `blogApi` object in `services/api.js`
-3. **Authentication**: Use middleware for protected routes
-
-### Form Handling with Authentication
-```jsx
-import { useAuth } from '@/contexts/authContext.js';
-
-function MyForm() {
-  const { login, register, state } = useAuth();
-  
-  const handleSubmit = async (formData) => {
-    const result = await login(formData);
-    if (result.success) {
-      // Handle success
-    } else {
-      // Handle error: result.error
-    }
-  };
-}
-```
-
-### Error Handling Pattern
-- **API Layer**: Consistent error throwing with user-friendly messages
-- **Components**: Use try/catch with loading states
-- **Toast Notifications**: For user feedback (using Sonner)
-
-## Important Implementation Details
-
-### Authentication Context
-- **Dual State Management**: Separate loading states for auth actions and user fetching
-- **Token Storage**: Both `token` and `authToken` keys for compatibility
-- **Auto-refresh**: User data fetched on app initialization
-- **Error Handling**: Invalid tokens automatically removed
-
-### API Service Features
-- **Request Interceptors**: Auto-inject auth tokens
-- **Response Interceptors**: Centralized error handling
-- **Caching**: 5-minute cache for GET requests
-- **Timeout**: 30-second default timeout
-- **Environment Aware**: Different behaviors for dev/prod
-
-### Navigation & Routing
-- **Consistent NavBar**: Always use main `NavBar` component, avoid `WebSection` NavBar
-- **Protected Routes**: Wrap sensitive pages with `ProtectedRoute`
-- **Admin Routes**: Separate admin section with role-based access
-
-### Database Integration
-- **Supabase**: Primary database and auth provider
-- **Row Level Security**: Configured on Supabase side
-- **Real-time**: Available for future features
-
-## Testing & Deployment
-
-### Scripts Available
 ```bash
-# Client
-npm run dev          # Development server
-npm run build        # Production build
-npm run preview      # Preview production build
-npm run lint         # ESLint checking
-
-# Server  
-npm start            # Production server
-npm run dev          # Development with nodemon
+npm --prefix client run lint
+npm run build
 ```
 
-### Build Process
-- **Client**: Vite builds to `dist/` directory
-- **Server**: No build step (ES modules run directly)
-- **Environment**: Use appropriate `.env` files per environment
+Supply non-secret production-safe client variables when running the production
+build gate. Do not weaken validation in `client/vite.config.js`.
 
-## Best Practices
+For documentation-only changes, also run:
 
-### Code Organization
-- Keep components focused and single-purpose
-- Use custom hooks for complex logic
-- Separate business logic from UI components
-- Follow established file naming conventions
+```bash
+git diff --check
+```
 
-### State Management
-- Use React Context for global state (auth, theme)
-- Local state for component-specific data
-- Avoid prop drilling with context providers
-
-### Performance
-- Leverage API caching in service layer
-- Use React.memo for expensive components
-- Optimize bundle size with code splitting
-
-### Security
-- Never expose sensitive data in frontend
-- Always validate data on server-side
-- Use protected routes for sensitive areas
-- Sanitize user inputs
-
-## Troubleshooting Common Issues
-
-### Import/Export Errors
-- Ensure proper file extensions (.js, .jsx, .mjs)
-- Check if components export all required parts
-- Verify import paths use correct aliases (`@/`)
-
-### Authentication Issues
-- Check token storage (both `token` and `authToken`)
-- Verify API endpoints match server routes
-- Ensure Supabase configuration is correct
-
-### Build Issues
-- Ensure all dependencies are installed
-- Check for TypeScript errors if using TS
-- Verify environment variables are set
-
-## Critical Development Patterns
-
-### API Service Patterns
-- Every GET endpoint needs caching configuration in `api.js`
-- Update endpoints must call `clearCache()` after successful changes
-- Network errors are automatically retried, server errors are not
-- Token management is dual-tracked (both `token` and `authToken`)
-
-### Notification System
-- Real-time subscriptions via Supabase for active users
-- Background polling with ETag/If-Modified-Since for efficiency
-- Server batches notifications to reduce load
-- Client maintains subscription state per-user
-
-### Error Handling Layers
-1. API service-level retry and normalization
-2. Component-level try/catch with fallback UI
-3. Toast notifications for user feedback
-4. Error boundary catch-all with reset option
-
-## Development Environment
-
-### VS Code Extensions (Recommended)
-- ES7+ React/Redux/React-Native snippets
-- Tailwind CSS IntelliSense  
-- ESLint
-- Prettier
-- Auto Rename Tag
-
-### Browser Development Tools
-- React Developer Tools
-- Network tab for API debugging
-- Application tab for localStorage inspection
-
----
-
-When working on this project, always consider:
-1. Full-stack cohesion between client and server components
-2. Cache invalidation on write operations
-3. Dual token storage compatibility
-4. Error handling at all levels
-5. Real-time vs polling data patterns
+Report warnings, skipped checks, and missing test coverage explicitly.

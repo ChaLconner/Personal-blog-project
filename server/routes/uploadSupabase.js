@@ -25,36 +25,46 @@ const supabase = new Proxy({}, {
 // Configure multer for memory storage (since we're uploading to Supabase)
 const storage = multer.memoryStorage();
 
-const verifyImageMagicBytes = (buffer) => {
-  if (!buffer || buffer.length < 4) return false;
-  const hex = buffer.toString('hex', 0, 4).toUpperCase();
-  // JPEG: FFD8FF, PNG: 89504E47, GIF: 47494638, WEBP: 52494646 (RIFF)
-  if (hex.startsWith('FFD8FF')) return true;
-  if (hex === '89504E47') return true;
-  if (hex.startsWith('474946')) return true;
-  if (hex === '52494646') return true;
-  return false;
+const IMAGE_EXTENSIONS = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp'
+};
+
+export const MAX_IMAGE_SIZE_MB = 5;
+export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_IMAGE_SIZE_ERROR = `File too large. Maximum size is ${MAX_IMAGE_SIZE_MB}MB`;
+
+export const verifyImageMagicBytes = (buffer, mimetype) => {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return false;
+
+  const signatures = {
+    'image/jpeg': buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+    'image/jpg': buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+    'image/png': buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    'image/gif': ['GIF87a', 'GIF89a'].includes(buffer.toString('ascii', 0, 6)),
+    'image/webp': buffer.toString('ascii', 0, 4) === 'RIFF'
+      && buffer.toString('ascii', 8, 12) === 'WEBP'
+  };
+
+  return signatures[mimetype] === true;
 };
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 3 * 1024 * 1024, // 3MB RAM limit
+    fileSize: MAX_IMAGE_SIZE_BYTES,
     files: 1
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg', 
-      'image/png',
-      'image/gif',
-      'image/webp'
-    ];
-    
-    if (allowedTypes.includes(file.mimetype)) {
+    if (IMAGE_EXTENSIONS[file.mimetype]) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'));
+      const error = new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+      error.status = 400;
+      cb(error);
     }
   }
 });
@@ -69,7 +79,7 @@ router.post('/profile', protectUser, upload.single('imageFile'), async (req, res
       });
     }
 
-    if (!verifyImageMagicBytes(req.file.buffer)) {
+    if (!verifyImageMagicBytes(req.file.buffer, req.file.mimetype)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid file signature. File header does not match valid image format.'
@@ -79,7 +89,7 @@ router.post('/profile', protectUser, upload.single('imageFile'), async (req, res
     const userId = req.userId;
     const file = req.file;
     const timestamp = Date.now();
-    const fileExt = path.extname(file.originalname);
+    const fileExt = IMAGE_EXTENSIONS[file.mimetype];
     const fileName = `${userId}/${timestamp}-profile${fileExt}`;
 
     // Upload to Supabase Storage
@@ -154,7 +164,7 @@ router.post('/profile', protectUser, upload.single('imageFile'), async (req, res
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        error: 'File too large. Maximum size is 5MB'
+        error: MAX_IMAGE_SIZE_ERROR
       });
     }
     
@@ -182,10 +192,18 @@ router.post('/image', protectAdmin, upload.single('imageFile'), async (req, res)
       });
     }
 
+    if (!verifyImageMagicBytes(req.file.buffer, req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file signature. File header does not match valid image format.'
+      });
+    }
+
     const file = req.file;
     const timestamp = Date.now();
-    const fileExt = path.extname(file.originalname);
-    const cleanBaseName = path.basename(file.originalname, fileExt).replace(/[^a-zA-Z0-9.-]/g, '');
+    const originalExt = path.extname(file.originalname);
+    const fileExt = IMAGE_EXTENSIONS[file.mimetype];
+    const cleanBaseName = path.basename(file.originalname, originalExt).replace(/[^a-zA-Z0-9.-]/g, '');
     const fileName = `articles/${timestamp}-${cleanBaseName}${fileExt}`;
 
     // Upload to Supabase Storage
@@ -260,7 +278,7 @@ router.post('/image', protectAdmin, upload.single('imageFile'), async (req, res)
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        error: 'File too large. Maximum size is 5MB'
+        error: MAX_IMAGE_SIZE_ERROR
       });
     }
     

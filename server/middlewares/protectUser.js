@@ -21,7 +21,7 @@ const protectUser = async (req, res, next) => {
     const supabaseUserId = data.user.id;
     const { data: userData } = await supabase
       .from('users')
-      .select('id, name, username, role, profile_img_url')
+      .select('id, name, username, role, profile_pic')
       .eq('id', supabaseUserId)
       .maybeSingle();
 

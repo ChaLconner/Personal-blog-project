@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import NavBar from "@/components/layout/NavBar";
 import Footer from "@/components/layout/Footer";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/common/UserAvatar";
 import { User, Lock, X } from "lucide-react";
@@ -13,7 +13,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import { blogApi } from "@/services/api.js";
 
 export default function ResetPasswordPage() {

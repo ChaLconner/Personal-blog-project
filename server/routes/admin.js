@@ -116,6 +116,7 @@ adminRouter.post('/posts', protectAdmin, async (req, res) => {
         author: author?.trim() || 'Admin', // เพิ่ม author
         category_id: categoryId,
         status_id: statusId,
+        author_id: req.userId,
         likes_count: 0
       }])
       .select(`
@@ -219,9 +220,12 @@ adminRouter.put('/posts/:id', protectAdmin, async (req, res) => {
     // Check if this is changing from draft to published
     const { data: currentPost, error: currentError } = await supabase
       .from('posts')
-      .select('statuses!fk_posts_statuses(status)')
+      .select('author_id, statuses!fk_posts_statuses(status)')
       .eq('id', postId)
       .single();
+
+    if (currentError) throw currentError;
+    if (!currentPost.author_id) updateData.author_id = req.userId;
 
     const wasNotPublished = currentPost && currentPost.statuses?.status !== 'published';
     const isNowPublished = status === 'published';

@@ -102,7 +102,7 @@ export const register = async (req, res) => {
       password,
       options: {
         data: { username, name },
-        emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback`
+        emailRedirectTo: `${process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback`
       }
     });
 
@@ -265,7 +265,7 @@ export const resendVerification = async (req, res) => {
       type: 'signup',
       email: email,
       options: {
-        emailRedirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback`
+        emailRedirectTo: `${process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback`
       }
     });
 
@@ -331,7 +331,7 @@ export const getUser = async (req, res) => {
     const appMeta = data.user.app_metadata || {};
     const fallbackUsername = meta.username || data.user.email?.split('@')[0] || null;
     const fallbackName = meta.name || meta.full_name || fallbackUsername;
-    const role = userData?.role || appMeta.role || meta.role || (data.user.email?.toLowerCase().includes('admin') ? 'admin' : 'user');
+    const role = userData?.role || appMeta.role || 'user';
 
     if (userError) {
       return res.json({

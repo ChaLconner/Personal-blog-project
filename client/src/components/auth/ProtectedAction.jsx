@@ -1,5 +1,5 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/authContext";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
 const ProtectedAction = ({ 

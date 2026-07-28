@@ -190,23 +190,41 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all access on categories" ON public.categories;
-CREATE POLICY "Allow all access on categories" ON public.categories FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read categories" ON public.categories;
+CREATE POLICY "Public can read categories" ON public.categories FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow all access on statuses" ON public.statuses;
-CREATE POLICY "Allow all access on statuses" ON public.statuses FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read statuses" ON public.statuses;
+CREATE POLICY "Public can read statuses" ON public.statuses FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow backend all access on posts" ON public.posts;
-CREATE POLICY "Allow backend all access on posts" ON public.posts FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read published posts" ON public.posts;
+CREATE POLICY "Public can read published posts" ON public.posts FOR SELECT TO anon, authenticated USING (status_id = 2);
 
 DROP POLICY IF EXISTS "Allow backend all access on comments" ON public.comments;
-CREATE POLICY "Allow backend all access on comments" ON public.comments FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read comments" ON public.comments;
+CREATE POLICY "Public can read comments" ON public.comments FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Allow backend all access on post_likes" ON public.post_likes;
-CREATE POLICY "Allow backend all access on post_likes" ON public.post_likes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Public can read likes" ON public.post_likes;
+DROP POLICY IF EXISTS "Users can create their own likes" ON public.post_likes;
+DROP POLICY IF EXISTS "Users can delete their own likes" ON public.post_likes;
+CREATE POLICY "Public can read likes" ON public.post_likes FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Users can create their own likes" ON public.post_likes FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "Users can delete their own likes" ON public.post_likes FOR DELETE TO authenticated USING ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Allow backend all access on notifications" ON public.notifications;
-CREATE POLICY "Allow backend all access on notifications" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can read their notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update their notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can delete their notifications" ON public.notifications;
+CREATE POLICY "Users can read their notifications" ON public.notifications FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY "Users can update their notifications" ON public.notifications FOR UPDATE TO authenticated USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "Users can delete their notifications" ON public.notifications FOR DELETE TO authenticated USING ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Allow backend all access on users" ON public.users;
-CREATE POLICY "Allow backend all access on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
-
+DROP POLICY IF EXISTS "Users can read their profile" ON public.users;
+DROP POLICY IF EXISTS "Users can update their profile" ON public.users;
+CREATE POLICY "Users can read their profile" ON public.users FOR SELECT TO authenticated USING ((select auth.uid()) = id);
+CREATE POLICY "Users can update their profile" ON public.users FOR UPDATE TO authenticated USING ((select auth.uid()) = id) WITH CHECK ((select auth.uid()) = id);
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT UPDATE (username, name, profile_pic, bio) ON public.users TO authenticated;

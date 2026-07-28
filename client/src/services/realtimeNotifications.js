@@ -18,6 +18,14 @@ export const subscribeToNotifications = async (userId, onNotification) => {
     return null;
   }
 
+  const token =
+    localStorage.getItem("authToken") || localStorage.getItem("token");
+  if (!token) {
+    return null;
+  }
+
+  supabaseClient.realtime.setAuth(token);
+
   if (typeof onNotification === "function") {
     if (!notificationListeners.has(userId)) {
       notificationListeners.set(userId, []);

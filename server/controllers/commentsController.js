@@ -39,7 +39,7 @@ const DEFAULT_AVATAR = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/20
 
 export async function createComment(req, res) {
   try {
-    const { post_id, comment_text, name, email, user_id, image } = req.body;
+    const { post_id, comment_text, name, email, image } = req.body;
     
     if (!post_id || !comment_text) {
       return res.status(400).json({
@@ -51,7 +51,7 @@ export async function createComment(req, res) {
     const commentData = {
       post_id: parseInt(post_id),
       comment_text: sanitizeText(comment_text),
-      user_id: req.user?.id || user_id || null,
+      user_id: req.user?.id || null,
       name: sanitizeText((req.user && (req.user.name || req.user.username)) || name || 'Anonymous'),
       email: email || null,
       image: (req.user && req.user.profile_pic) || image || DEFAULT_AVATAR
@@ -92,8 +92,12 @@ export async function deleteComment(req, res) {
       return res.status(400).json({ success: false, error: 'Invalid comment ID' });
     }
 
-    const comment = await dbService.getCommentById ? await dbService.getCommentById(commentId) : null;
-    if (comment && comment.user_id && comment.user_id !== req.userId && req.user?.role !== 'admin') {
+    const comment = await dbService.getCommentById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Comment not found' });
+    }
+
+    if (comment.user_id !== req.userId && req.user?.role !== 'admin') {
       return res.status(403).json({ success: false, error: 'Forbidden: Cannot delete other users comments' });
     }
 

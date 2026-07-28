@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import NavBar from "@/components/layout/NavBar";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import blogApi from "@/services/api.js";
 import { toast } from "sonner";
 
@@ -15,7 +15,7 @@ export default function LoginPage() {
     const [ERROR, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [IS_WAKING_SERVER, setIsWakingServer] = useState(false);
-    const [requiresVerification] = useState(false);
+    const [requiresVerification, setRequiresVerification] = useState(false);
     const passwordCheckTimeoutRef = useRef(null);
     const wakeTimeoutRef = useRef(null);
     const lastWakeRef = useRef(0);
@@ -89,15 +89,27 @@ export default function LoginPage() {
         wakeServer();
 
         setIsLoading(true);
+        setRequiresVerification(false);
 
         try {
             const result = await login({ email: email.trim(), password });
+            setRequiresVerification(Boolean(result?.requiresVerification));
             clearTimeout(wakeTimeoutRef.current);
             setIsWakingServer(false);
 
             if (result.success) {
                 setFieldErrors({ email: false, password: false });
                 toast.success("Login Successful", { description: "Welcome back!", duration: 2000, className: "auth-toast" });
+            } else if (result.requiresVerification) {
+                const verificationMessage = result.message || "Please verify your email before logging in.";
+                setError(verificationMessage);
+                setFieldErrors({ email: false, password: false });
+                toast.dismiss();
+                toast.error("Email Verification Required", {
+                    description: verificationMessage,
+                    duration: 5000,
+                    className: "auth-toast"
+                });
             } else if (result.error) {
                 setError(result.error);
                 setFieldErrors({ email: true, password: true });

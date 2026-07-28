@@ -16,9 +16,11 @@
     "start:server": "cd server && npm start",
     "start": "concurrently \"npm run start:client\" \"npm run start:server\"",
     
-    "build:client": "cd client && npm run build",
-    "build:server": "cd server && npm run build || echo \"No build needed for server\"",
-    "build": "npm run build:client && npm run build:server",
+    "build:client": "node scripts/runWorkspaceTasks.js build:client",
+    "build:server": "node scripts/runWorkspaceTasks.js build:server",
+    "build": "node scripts/runWorkspaceTasks.js build",
+    "lint": "node scripts/runWorkspaceTasks.js lint",
+    "check": "node scripts/runWorkspaceTasks.js check",
     
     "prod:client": "cd client && npm run preview",
     "prod:server": "cd server && NODE_ENV=production npm start",
@@ -31,16 +33,16 @@
     "clean": "node -e \"const fs=require('fs'); ['client/dist','client/node_modules','server/node_modules'].forEach(p=>fs.rmSync(p,{recursive:true,force:true}))\"",
     "clean:logs": "node -e \"const fs=require('fs'),path=require('path'); const walk=d=>fs.readdirSync(d,{withFileTypes:true}).forEach(f=>{const p=path.join(d,f.name); if(f.isDirectory()&&f.name!=='node_modules')walk(p); else if(f.name.endsWith('.log'))fs.unlinkSync(p);}); walk('.');\"",
     
-    "test:client": "cd client && npm test",
-    "test:server": "cd server && npm test",
-    "test": "concurrently \"npm run test:client\" \"npm run test:server\""
+    "test:client": "node scripts/runWorkspaceTasks.js test:client",
+    "test:server": "node scripts/runWorkspaceTasks.js test:server",
+    "test": "node scripts/runWorkspaceTasks.js test"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": "24.x",
+    "npm": ">=10.0.0 <12.0.0"
   },
   "repository": {
     "type": "git",

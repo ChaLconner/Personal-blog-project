@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 const AuthCallback = () => {
@@ -21,17 +21,9 @@ const AuthCallback = () => {
       // Check for access_token in URL hash (Supabase Auth callback)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
 
       if (accessToken) {
         toast.success('ยืนยันอีเมลสำเร็จ! คุณสามารถเข้าสู่ระบบได้แล้ว', { className: "auth-toast" });
-        
-        // Store tokens if needed (optional, Supabase client handles this)
-        localStorage.setItem('supabase.auth.token', accessToken);
-        if (refreshToken) {
-          localStorage.setItem('supabase.auth.refresh_token', refreshToken);
-        }
-        
         navigate('/login', { state: { verified: true } });
       } else {
         toast.success('ยืนยันอีเมลสำเร็จ! กรุณาเข้าสู่ระบบ', { className: "auth-toast" });

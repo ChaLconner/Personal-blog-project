@@ -1,7 +1,8 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes } from "react-router";
 import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthProvider";
+import { useAuth } from "@/contexts/authContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AuthenticationRoute from "@/components/auth/AuthenticationRoute";
 import ErrorBoundary from "@/components/common/ErrorBoundary";

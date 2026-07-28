@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { blogApi } from '@/services/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/authContext';
 import { formatShortDate, formatRelativeDate } from '@/utils/dateFormatter';
 import { AdminSidebar } from '@/components/blog/AdminWebSection';
 import { Button } from '@/components/ui/button';

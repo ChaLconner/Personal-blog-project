@@ -1,80 +1,120 @@
-# Deployment Guide
+# Deployment guide
 
-## 🎯 **Architecture**
-- **Frontend (Client)**: Deployed on Vercel
-- **Backend (Server)**: Deployed on Render
-- **Database**: Supabase (already configured)
+Production architecture:
 
-## 🚀 **Vercel Deployment (Frontend)**
+- `client`: Vercel
+- `server`: Render
+- Database, Auth, Realtime, and Storage: Supabase Free initially
 
-### **Automatic Deployment:**
-1. Vercel is already connected to your GitHub repository
-2. Every push to `main` branch triggers automatic deployment
-3. Frontend will be available at: `https://personal-blog-project-six.vercel.app`
+Deployments use Node.js 24 as pinned by `.node-version`.
 
-### **Environment Variables (Vercel):**
-- `VITE_API_URL`: `https://personal-blog-project-server.onrender.com`
+Do not commit production credentials. Configure them in each provider's
+environment-variable settings.
 
-## 🖥️ **Render Deployment (Backend)**
+## Before deployment
 
-### **Manual Setup:**
-1. Go to [Render.com](https://render.com) and sign in with GitHub
-2. Click **"New +"** → **"Web Service"**
-3. Connect your `Personal-blog-project` repository
-4. Configure:
-   - **Name**: `personal-blog-project`
-   - **Runtime**: `Node`
-   - **Build Command**: `cd server && npm install`
-   - **Start Command**: `cd server && npm start`
-   - **Plan**: `Free`
+1. Run every SQL file in `server/migrations` in the order documented in
+   [`README.md`](README.md).
+2. Confirm the intended Supabase plan. The initial deployment supports Free.
+   Leaked-password protection is unavailable until Pro, so keep that upgrade
+   recorded as deferred. Review recommended Postgres upgrades separately and
+   schedule them during a maintenance window.
+3. Create the public Supabase Storage buckets `profile-pictures` and
+   `article-images`.
+4. Confirm local checks. The production build requires non-local HTTPS values
+   for `VITE_API_URL` and `VITE_SUPABASE_URL`:
 
-### **Environment Variables (Render):**
-```
-NODE_ENV=production
-PORT=10000
-SUPABASE_URL=your_supabase_project_url
+   ```bash
+   npm --prefix client run lint
+   npm run build
+   ```
+
+5. Commit and push the intended revision.
+
+## Deploy the API to Render
+
+The root [`render.yaml`](render.yaml) defines the Node web service with
+`server` as its root directory.
+
+Create or update a Render Blueprint from this repository. Supply all variables
+marked `sync: false` when Render prompts:
+
+```env
+CLIENT_URL=https://your-frontend.example.com
+FRONTEND_URL=https://your-frontend.example.com
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-CLIENT_URL=https://personal-blog-project-six.vercel.app
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 ```
 
-### **Advanced Settings:**
-- **Health Check Path**: `/health`
-- **Auto-Deploy**: `Yes` (from main branch)
+Render supplies `PORT`; the application reads it at runtime. Do not expose
+`SUPABASE_SERVICE_KEY` outside the server service.
 
-## 🔄 **Deployment Flow**
+For an existing Blueprint, verify `sync: false` values in the Render dashboard;
+Blueprint updates do not overwrite them.
 
-1. **Push to GitHub** → Triggers both deployments
-2. **Vercel** builds and deploys frontend automatically
-3. **Render** builds and deploys backend automatically
-4. **Frontend** connects to backend via `VITE_API_URL`
+After deployment, verify:
 
-## 🎯 **URLs After Deployment**
-- **Frontend**: `https://personal-blog-project-six.vercel.app`
-- **Backend API**: `https://personal-blog-project-server.onrender.com`
-- **Health Check**: `https://personal-blog-project-server.onrender.com/health`
+```text
+https://your-api.example.com/health
+```
 
-## ✅ **Verification Steps**
+Expected result: HTTP `200` with `status` equal to `OK`. HTTP `503` with
+`DEGRADED` means the process is running but its Supabase database check failed.
 
-1. **Frontend**: Visit your Vercel URL and check if it loads
-2. **Backend**: Visit `https://personal-blog-project-server.onrender.com/health`
-3. **Integration**: Test login/signup from frontend to ensure API connection
-4. **Blog Posts**: Check if articles load properly
+## Deploy the client to Vercel
 
-## 🔧 **Troubleshooting**
+The root [`vercel.json`](vercel.json) installs and builds the `client`
+workspace, publishes `client/dist`, and rewrites SPA routes to `index.html`.
 
-### **CORS Issues:**
-Server is configured to accept requests from your Vercel domains.
+Configure these Vercel variables for Production and Preview as appropriate:
 
-### **Environment Variables:**
-Make sure all required environment variables are set in both Vercel and Render dashboards.
+```env
+VITE_API_URL=https://your-api.example.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-### **Build Errors:**
-- Vercel: Check build logs in Vercel dashboard
-- Render: Check deploy logs in Render dashboard
+Vite embeds `VITE_*` values at build time. Redeploy after changing them.
 
-## 📊 **Monitoring**
+After the first frontend deployment:
 
-- **Vercel**: Built-in analytics and logs
-- **Render**: Service metrics and logs in dashboard
-- **Supabase**: Database monitoring in Supabase dashboard
+1. Set `CLIENT_URL` and `FRONTEND_URL` on Render to the final Vercel/custom
+   domain.
+2. Redeploy the API if Render requires it.
+3. Add the frontend callback URL ending in `/auth/callback` to Supabase Auth
+   redirect URLs.
+
+## Verification checklist
+
+- Frontend root and a deep route load without `404`
+- `/health` responds
+- Public posts and categories load
+- Sign-up, email callback, login, and logout work
+- Profile image upload works
+- Admin authentication and protected routes work
+- Article image upload and article CRUD work
+- Comments, likes, and realtime notifications work
+- Browser console has no CORS or mixed-content errors
+
+## Troubleshooting
+
+### CORS rejection
+
+Ensure Render's `CLIENT_URL` exactly matches the frontend origin, including
+scheme and without an unexpected trailing path.
+
+### Authentication callback uses localhost
+
+Set `FRONTEND_URL` on Render, add the production callback URL in Supabase, then
+redeploy the API.
+
+### Client still calls an old API
+
+Update `VITE_API_URL` on Vercel and redeploy. Runtime changes alone cannot alter
+values already embedded in a Vite build.
+
+### Health check reports `DEGRADED`
+
+Verify `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, database
+schema, and network access from Render.

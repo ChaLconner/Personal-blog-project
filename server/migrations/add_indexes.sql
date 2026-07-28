@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, create
 CREATE INDEX IF NOT EXISTS idx_post_likes_post_user ON post_likes(post_id, user_id);
 
 -- 3. Index on notifications user_id and read status
-CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read, created_at DESC);
 
 -- 4. Index on users email and username
 CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));

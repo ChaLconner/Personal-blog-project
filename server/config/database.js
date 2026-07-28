@@ -155,6 +155,7 @@ export const dbService = {
       let query = getSupabase()
         .from("posts")
         .select("id, title, description, image, date, content, likes_count, category_id, status_id, author_id")
+        .eq("status_id", 2)
         .order("date", { ascending: false });
 
       // Apply category filter
@@ -194,6 +195,7 @@ export const dbService = {
         let fallbackQuery = getSupabase()
           .from("posts")
           .select("id, title, description, image, date, content, likes_count, category_id, status_id")
+          .eq("status_id", 2)
           .order("date", { ascending: false });
 
         if (filters.category && filters.category !== 'Highlight') {
@@ -283,6 +285,7 @@ export const dbService = {
         .from("posts")
         .select("id, title, description, image, date, content, likes_count, category_id, status_id, author_id")
         .eq("id", id)
+        .eq("status_id", 2)
         .single();
 
       if (error && error.message?.includes("author_id")) {
@@ -290,6 +293,7 @@ export const dbService = {
           .from("posts")
           .select("id, title, description, image, date, content, likes_count, category_id, status_id")
           .eq("id", id)
+          .eq("status_id", 2)
           .single();
         data = fallbackRes.data;
         error = fallbackRes.error;
@@ -550,6 +554,24 @@ export const dbService = {
       console.error("Database error in getAllComments:", error);
       throw error;
     }
+  },
+
+  async getCommentById(id) {
+    if (!id || isNaN(id) || id <= 0) {
+      throw new Error("Invalid comment ID provided");
+    }
+
+    const { data, error } = await getSupabase()
+      .from("comments")
+      .select("id, user_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Error fetching comment: ${error.message}`);
+    }
+
+    return data;
   },
 
   async createComment(commentData) {

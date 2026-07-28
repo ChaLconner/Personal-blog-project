@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 function LinkedinIcon({ className = "w-[24px] h-[24px]" }) {
     return (

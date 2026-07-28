@@ -54,6 +54,10 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (axios.isCancel(error) || error?.code === "ERR_CANCELED") {
+      return Promise.reject(error);
+    }
+
     // Ignore extension-related errors
     if (
       error.message?.includes("message channel closed") ||
@@ -125,6 +129,10 @@ const requestWithRetries = async (
       return res;
     } catch (err) {
       lastError = err;
+      if (axios.isCancel(err) || err?.code === "ERR_CANCELED") {
+        throw err;
+      }
+
       // If last attempt, rethrow after logging
       if (i === attempts - 1) break;
 
@@ -322,6 +330,8 @@ const fetchNotificationsIncremental = async (userId) => {
           timeout: 30000,
           headers,
           params: lastCheckedLocal ? { since: lastCheckedLocal } : {},
+          validateStatus: (status) =>
+            (status >= 200 && status < 300) || status === 304,
         }),
       { attempts: 3, initialDelay: 400 }
     );
@@ -381,7 +391,7 @@ export const blogApi = {
 
 
   // Get all blog posts with optional filters (with caching)
-  getPosts: async (params = {}) => {
+  getPosts: async (params = {}, requestConfig = {}) => {
     try {
       // Clean up empty params
       const cleanParams = Object.fromEntries(
@@ -404,7 +414,11 @@ export const blogApi = {
 
       // Use requestWithRetries for transient network/timeouts and a slightly reduced per-request timeout
       const response = await requestWithRetries(
-        () => api.get("/blog/posts", { params: cleanParams, timeout: 15000 }),
+        () => api.get("/blog/posts", {
+          params: cleanParams,
+          timeout: requestConfig.timeout ?? 15000,
+          ...(requestConfig.signal ? { signal: requestConfig.signal } : {}),
+        }),
         { attempts: 3, initialDelay: 400 }
       );
 
@@ -429,6 +443,10 @@ export const blogApi = {
 
       return response.data;
     } catch (error) {
+      if (axios.isCancel(error) || error?.code === "ERR_CANCELED") {
+        throw error;
+      }
+
       console.error("❌ Error fetching posts:", error.message);
 
       // Return fallback data structure instead of throwing

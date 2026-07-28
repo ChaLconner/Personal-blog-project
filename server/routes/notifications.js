@@ -11,61 +11,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Test endpoint
-router.get('/test', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Notifications API is working',
-    timestamp: new Date().toISOString()
+// Development-only connectivity probe
+if (process.env.NODE_ENV === 'development') {
+  router.get('/test', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Notifications API is working',
+      timestamp: new Date().toISOString()
+    });
   });
-});
-
-// Create a test notification (development only)
-router.post('/create-test/:userId', protectUser, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    // Create a simple test notification
-    const testNotification = {
-      user_id: userId,
-      trigger_user_id: req.userId,
-      type: 'system',
-      title: 'Test Notification',
-      message: `This is a test notification created at ${new Date().toLocaleTimeString()}`,
-      post_id: null,
-      read: false,
-      created_at: new Date().toISOString()
-    };
-
-    const { data, error: insertError } = await supabase
-      .from('notifications')
-      .insert([testNotification])
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('❌ Error creating test notification:', insertError);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to create test notification',
-        details: insertError.message 
-      });
-    }
-
-    res.json({ 
-      success: true, 
-      data,
-      message: 'Test notification created successfully' 
-    });
-  } catch (err) {
-    console.error('❌ Unexpected error creating test notification:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error',
-      details: err.message 
-    });
-  }
-});
+}
 
 // Get notifications for a user
 router.get('/:userId', protectUser, async (req, res) => {
@@ -272,9 +227,9 @@ router.put('/user/:userId/read-all', protectUser, async (req, res) => {
 });
 
 // Create notification
-router.post('/', protectUser, async (req, res) => {
+router.post('/', protectAdmin, async (req, res) => {
   try {
-    const { user_id, trigger_user_id, type, title, message, post_id } = req.body;
+    const { user_id, type, title, message, post_id } = req.body;
 
     // Validate required fields
     if (!user_id || !type || !title || !message) {
@@ -285,7 +240,7 @@ router.post('/', protectUser, async (req, res) => {
     }
 
     // Validate notification type
-    const validTypes = ['comment', 'like', 'reply', 'mention', 'follow', 'system'];
+    const validTypes = ['comment', 'like', 'reply', 'mention', 'follow', 'system', 'new_article', 'new_comment'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ 
         success: false, 
@@ -307,7 +262,7 @@ router.post('/', protectUser, async (req, res) => {
         .from('notifications')
         .select('id')
         .eq('user_id', user_id)
-        .eq('trigger_user_id', trigger_user_id || req.userId)
+        .eq('trigger_user_id', req.userId)
         .eq('type', type)
         .eq('post_id', post_id)
         .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Within last 5 minutes
@@ -325,7 +280,7 @@ router.post('/', protectUser, async (req, res) => {
       .from('notifications')
       .insert([{
         user_id,
-        trigger_user_id: trigger_user_id || req.userId,
+        trigger_user_id: req.userId,
         type,
         title: title.trim(),
         message: message.trim(),
@@ -480,6 +435,10 @@ if (process.env.NODE_ENV === 'development') {
       const { userId } = req.params;
       const { type = 'system', title = 'Test Notification', message = 'This is a test notification' } = req.body;
 
+      if (userId !== req.userId && req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
       const testNotification = {
         user_id: userId,
         trigger_user_id: req.userId,
@@ -615,10 +574,11 @@ router.get('/admin/stats', protectAdmin, async (req, res) => {
       .eq('read', false);
 
     // Get notifications by type
-    const { data: typeStats } = await supabase
+    const { data: typeStats, error: typeStatsError } = await supabase
       .from('notifications')
-      .select('type')
-      .group('type');
+      .select('type, count:id.count()');
+
+    if (typeStatsError) throw typeStatsError;
 
     // Get recent notifications (last 24 hours)
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

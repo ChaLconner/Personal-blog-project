@@ -18,13 +18,13 @@ import {
     MessageCircle,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { blogApi, API_BASE_URL } from "@/services/api";
 import { formatDateTimeAt } from "@/utils/dateFormatter";
 import ProtectedAction from "@/components/auth/ProtectedAction";
 import { PageLoadingSpinner } from "@/components/common/LoadingSpinner";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
 
 // Lazy load ReactMarkdown (heavy dependency)
@@ -113,7 +113,7 @@ export default function ViewPost() {
             setIsLoading(false);
         } catch {
             setIsLoading(false);
-            navigate("*");
+            navigate("/404", { replace: true });
         }
     };
 
@@ -707,7 +707,7 @@ function AuthorBio({ author = { name: "Admin", image: null, id: 1, username: "ad
 function CreateAccountModal({ dialogState, setDialogState }) {
     const navigate = useNavigate();
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (dialogState && document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }

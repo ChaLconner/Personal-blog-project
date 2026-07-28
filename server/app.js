@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import blogRouter from './routes/blogRouter.js';
-import uploadRouter from './routes/uploadSupabase.js';
+import uploadRouter, { MAX_IMAGE_SIZE_MB } from './routes/uploadSupabase.js';
 import notificationsRouter from './routes/notifications.js';
 import commentsRouter from './routes/comments.js';
 import likesRouter from './routes/likes.js';
@@ -20,21 +20,26 @@ import { getSupabase } from './config/database.js';
 
 const app = express();
 
-const allowedOrigins = [
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+const developmentOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5000',
-  'http://127.0.0.1:5000',
-  'https://personal-blog-project-six.vercel.app',
-  process.env.CLIENT_URL
+  'http://127.0.0.1:5000'
+];
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  ...(process.env.NODE_ENV === 'development' ? developmentOrigins : [])
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (
-      allowedOrigins.includes(origin) ||
-      (process.env.NODE_ENV === 'development' && (origin.includes('localhost') || origin.includes('127.0.0.1')))
+      allowedOrigins.includes(origin)
     ) {
       return callback(null, true);
     }
@@ -45,8 +50,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'If-Modified-Since', 'If-None-Match', 'Cache-Control', 'Pragma'],
   exposedHeaders: ['ETag', 'Last-Modified']
 }));
-
-app.options('*', cors());
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -73,16 +76,7 @@ app.use('/auth/login', authLimiter);
 app.use('/auth/register', authLimiter);
 app.use('/auth/check-email', authLimiter);
 
-app.use(express.json({
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    try {
-      JSON.parse(buf);
-    } catch (e) {
-      throw new Error('Invalid JSON in request body');
-    }
-  }
-}));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use((req, res, next) => {
@@ -114,7 +108,7 @@ app.get('/health', async (req, res) => {
     dbStatus = 'UNHEALTHY';
   }
 
-  res.json({
+  res.status(dbStatus === 'HEALTHY' ? 200 : 503).json({
     status: dbStatus === 'HEALTHY' ? 'OK' : 'DEGRADED',
     database: dbStatus,
     timestamp: new Date().toISOString(),
@@ -140,14 +134,33 @@ app.use('*', (req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
-  if (req.headers.origin) {
+  console.error('Global error handler:', {
+    message: error.message,
+    type: error.type,
+    code: error.code,
+    status: error.status || error.statusCode
+  });
+  if (req.headers.origin && allowedOrigins.includes(req.headers.origin)) {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
-  
-  res.status(error.status || 500).json({
-    error: error.message || 'Internal Server Error',
+
+  const isMalformedJson = error.type === 'entity.parse.failed';
+  const isUploadValidationError = ['LIMIT_FILE_SIZE', 'LIMIT_UNEXPECTED_FILE'].includes(error.code);
+  const status = isMalformedJson || isUploadValidationError
+    ? 400
+    : error.status || (error.message === 'Not allowed by CORS' ? 403 : 500);
+  const validationMessage = error.code === 'LIMIT_FILE_SIZE'
+    ? `File too large. Maximum size is ${MAX_IMAGE_SIZE_MB}MB`
+    : error.code === 'LIMIT_UNEXPECTED_FILE'
+      ? 'Unexpected upload field'
+      : null;
+  const message = process.env.NODE_ENV === 'production' && status >= 500
+    ? 'Internal Server Error'
+    : validationMessage || error.message || 'Internal Server Error';
+
+  res.status(status).json({
+    error: message,
     timestamp: new Date().toISOString(),
     path: req.path
   });

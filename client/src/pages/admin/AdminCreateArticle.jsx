@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminSidebar } from "@/components/blog/AdminWebSection";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/authContext";
 
 export default function AdminCreateArticlePage() {
     const { user } = useAuth();

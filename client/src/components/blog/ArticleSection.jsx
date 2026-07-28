@@ -10,7 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { blogApi } from "@/services/api";
 import { formatShortDate } from "@/utils/dateFormatter";
 import useDebounce from '@/hooks/useDebounce';
@@ -95,24 +95,6 @@ export default function ArticleSection() {
         };
     }, []);
 
-    // Utility function to retry API calls
-    const retryApiCall = async (apiCall, maxRetries = 3, delay = 1000) => {
-        for (let i = 0; i < maxRetries; i++) {
-            try {
-                return await apiCall();
-            } catch (error) {
-                console.warn(`❌ API attempt ${i + 1} failed:`, error.message);
-                
-                if (i === maxRetries - 1) {
-                    throw error; // Throw on last attempt
-                }
-                
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-            }
-        }
-    };
-
     // Utility function to remove duplicate posts by ID, title, and content
     const removeDuplicatePosts = (posts) => {
         const seen = new Map(); // Use Map to track by multiple criteria
@@ -151,14 +133,13 @@ export default function ArticleSection() {
                 }
 
                 // Use a shorter timeout for first load
-                const response = await retryApiCall(async () => {
-                    return await blogApi.getPosts({
-                        category: categoryParam,
-                        limit: requestLimit,
-                        offset: (page - 1) * 6,
-                        timeout: page === 1 ? 8000 : 15000,
-                        signal: controller.signal,
-                    });
+                const response = await blogApi.getPosts({
+                    category: categoryParam,
+                    limit: requestLimit,
+                    offset: (page - 1) * 6,
+                }, {
+                    timeout: page === 1 ? 8000 : 15000,
+                    signal: controller.signal,
                 });
 
                 const postsData = (response && response.success && Array.isArray(response.posts))
@@ -192,7 +173,7 @@ export default function ArticleSection() {
                     setHasMore(postsData.length === 6);
                 }
             } catch (error) {
-                if (error.name === 'AbortError') return;
+                if (error.name === 'AbortError' || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') return;
                 setError(error.message);
                 if (page === 1) {
                     setPosts([]);
@@ -211,7 +192,10 @@ export default function ArticleSection() {
         if (firstLoadRef.current) {
             firstLoadRef.current = false;
             setTimeout(() => {
-                blogApi.getPosts({ category: null, limit: 12, offset: 0, timeout: 6000 });
+                blogApi.getPosts(
+                    { category: null, limit: 12, offset: 0 },
+                    { timeout: 6000 }
+                );
             }, 0);
         }
         return () => controller.abort();

@@ -6,8 +6,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuItem
 } from "@/components/ui/dropdown-menu";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router";
+import { useAuth } from "@/contexts/authContext";
 import { useState, useEffect } from "react";
 import { blogApi } from "@/services/api.js";
 import { UserAvatar } from "@/components/common/UserAvatar";

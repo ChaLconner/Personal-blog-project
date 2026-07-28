@@ -1,26 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import blogApi, { API_BASE_URL } from "../services/api.js";
-
-const defaultState = {
-  state: { loading: false, getUserLoading: false, error: null, user: null },
-  login: async () => ({ error: "AuthNotReady" }),
-  logout: async () => ({ success: false }),
-  register: async () => ({ error: "AuthNotReady" }),
-  isAuthenticated: false,
-  fetchUser: async () => {},
-  resendVerification: async () => {},
-  user: null,
-  loading: false,
-  error: null
-};
-
-export const AuthContext = createContext(defaultState);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  return context || defaultState;
-};
+import { AuthContext } from "./authContext.js";
 
 export function AuthProvider({ children }) {
   const [state, setState] = useState({

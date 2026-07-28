@@ -1,15 +1,24 @@
-version: "1"
 services:
   - type: web
     name: personal-blog-project-server
     runtime: node
     plan: free
-    rootDir: ./server
-    buildCommand: npm install
+    rootDir: server
+    buildCommand: npm ci --omit=dev --workspaces=false
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
-    healthCheckPath: /health
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: CLIENT_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
