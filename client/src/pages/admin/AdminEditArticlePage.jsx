@@ -15,6 +15,7 @@ import { useNavigate, useParams } from "react-router";
 import { blogApi, API_BASE_URL } from "@/services/api";
 import { toast } from "sonner";
 import { DeleteArticleModal } from "@/components/common/DeleteArticleModal";
+import { getSafeImageUrl } from "@/utils/imageUrl";
 
 export default function AdminEditArticlePage() {
     const navigate = useNavigate();
@@ -58,8 +59,9 @@ export default function AdminEditArticlePage() {
                 });
                 
                 if (post.image) {
-                    const baseUrl = API_BASE_URL;
-                    setImagePreview(post.image.startsWith('http') ? post.image : `${baseUrl}${post.image}`);
+                    setImagePreview(getSafeImageUrl(post.image, {
+                        uploadsBaseUrl: API_BASE_URL,
+                    }));
                 }
                 
             } else {
@@ -143,8 +145,9 @@ export default function AdminEditArticlePage() {
         } catch (error) {
             console.error('Upload error:', error);
             toast.error('Failed to upload image');
-            const baseUrl = API_BASE_URL;
-            setImagePreview(formData.image ? (formData.image.startsWith('http') ? formData.image : `${baseUrl}${formData.image}`) : null);
+            setImagePreview(getSafeImageUrl(formData.image, {
+                uploadsBaseUrl: API_BASE_URL,
+            }));
             setImageFile(null);
         } finally {
             setUploading(false);

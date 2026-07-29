@@ -1,6 +1,7 @@
 import express from 'express';
 import { getSupabase, clearCategoriesCache } from '../config/database.js';
 import { createNewArticleNotification } from '../utils/notificationHelpers.js';
+import { isSafePublicImageUrl } from '../utils/imageUrl.js';
 import protectAdmin from '../middlewares/protectAdmin.js';
 
 const supabase = new Proxy({}, {
@@ -80,6 +81,12 @@ adminRouter.post('/posts', protectAdmin, async (req, res) => {
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    if (image && !isSafePublicImageUrl(image)) {
+      return res.status(400).json({
+        error: "Article image URL must use HTTPS and cannot target a local or private network",
+      });
     }
 
     // Find category ID if category name is provided
@@ -176,6 +183,12 @@ adminRouter.put('/posts/:id', protectAdmin, async (req, res) => {
 
     if (!title || !content) {
       return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    if (image && !isSafePublicImageUrl(image)) {
+      return res.status(400).json({
+        error: "Article image URL must use HTTPS and cannot target a local or private network",
+      });
     }
 
     // Find category ID if category name is provided

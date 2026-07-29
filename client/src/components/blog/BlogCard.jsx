@@ -3,6 +3,9 @@ import { useNavigate } from "react-router";
 import { formatShortDate } from "@/utils/dateFormatter";
 import UserAvatar from "@/components/common/UserAvatar";
 import { API_BASE_URL } from "@/services/api";
+import { getSafeImageUrl } from "@/utils/imageUrl";
+
+const DEFAULT_POST_IMAGE = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60";
 
 function BlogCard({ id, image, category, title, description, author, date }) {
   const navigate = useNavigate();
@@ -10,18 +13,13 @@ function BlogCard({ id, image, category, title, description, author, date }) {
   // Memoize computed image URL to avoid recalculation on re-renders
   const imageUrl = useMemo(() => {
     if (!image || (typeof image === 'string' && image.trim() === '')) {
-      return 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
+      return DEFAULT_POST_IMAGE;
     }
 
-    if (typeof image === 'string' && image.startsWith('http')) {
-      return image;
-    }
-
-    if (typeof image === 'string' && image.startsWith('/uploads/')) {
-      return `${API_BASE_URL}${image}`;
-    }
-
-    return image;
+    return getSafeImageUrl(image, {
+      uploadsBaseUrl: API_BASE_URL,
+      fallback: DEFAULT_POST_IMAGE,
+    });
   }, [image]);
 
   const handleNavigate = useCallback(() => navigate(`/post/${id}`), [navigate, id]);
@@ -46,7 +44,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
           alt={title}
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60';
+            e.target.src = DEFAULT_POST_IMAGE;
           }}
         />
         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />

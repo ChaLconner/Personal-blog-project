@@ -26,9 +26,12 @@ import ProtectedAction from "@/components/auth/ProtectedAction";
 import { PageLoadingSpinner } from "@/components/common/LoadingSpinner";
 import { useAuth } from "@/contexts/authContext";
 import { UserAvatar } from "@/components/common/UserAvatar";
+import { getSafeImageUrl } from "@/utils/imageUrl";
 
 // Lazy load ReactMarkdown (heavy dependency)
 const ReactMarkdown = lazy(() => import("react-markdown"));
+const DEFAULT_POST_IMAGE = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60";
+const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60";
 
 export default function ViewPost() {
     const [img, setImg] = useState("");
@@ -75,13 +78,12 @@ export default function ViewPost() {
             const response = await blogApi.getPost(param.id);
             const post = response.data || response.post || response;
 
-            // Handle image URL properly
-            let imageUrl = post.image;
-            if (imageUrl && !imageUrl.startsWith('http') && imageUrl.startsWith('/uploads/')) {
-                imageUrl = `${API_BASE_URL}${imageUrl}`;
-            }
+            const imageUrl = getSafeImageUrl(post.image, {
+                uploadsBaseUrl: API_BASE_URL,
+                fallback: DEFAULT_POST_IMAGE,
+            });
 
-            setImg(imageUrl || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60');
+            setImg(imageUrl);
             setTitle(post.title || 'Untitled');
             setDate(post.date || new Date().toISOString());
             setDescription(post.description || 'No description available');
@@ -125,7 +127,7 @@ export default function ViewPost() {
         <div className="max-w-7xl mx-auto space-y-8 container md:px-8 pb-20 md:pb-28 md:pt-8 lg:pt-16">
             <div className="space-y-4 md:px-4">
                 <img
-                    src={(img && img.trim()) || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=800&h=600&fit=crop&auto=format&q=60'}
+                    src={(img && img.trim()) || DEFAULT_POST_IMAGE}
                     alt={title}
                     className="md:rounded-lg object-cover w-full h-[260px] sm:h-[340px] md:h-[587px]"
                     onLoad={() => {
@@ -257,7 +259,7 @@ export default function ViewPost() {
                                         img: ({ src, alt }) => (
                                             <div className="my-8">
                                                 <img
-                                                    src={src}
+                                                    src={getSafeImageUrl(src, { uploadsBaseUrl: API_BASE_URL }) || undefined}
                                                     alt={alt}
                                                     className="w-full rounded-lg shadow-lg border border-gray-200 max-w-full h-auto"
                                                     onError={(e) => {
@@ -542,17 +544,11 @@ function Comment({ postId, setDialogState, postComments, addComment }) {
     const [comment, setComment] = useState("");
     const [isError, setIsError] = useState(false);
 
-    // Ensure avatar URLs are absolute when coming from server uploads
     const resolveImageUrl = (url) => {
-        const fallback = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face&auto=format&q=60';
-        if (!url || typeof url !== 'string') return fallback;
-        const trimmed = url.trim();
-        if (!trimmed) return fallback;
-        if (trimmed.startsWith('http')) return trimmed;
-        if (trimmed.startsWith('/uploads/')) {
-            return `${API_BASE_URL}${trimmed}`;
-        }
-        return trimmed;
+        return getSafeImageUrl(url, {
+            uploadsBaseUrl: API_BASE_URL,
+            fallback: DEFAULT_AVATAR,
+        });
     };
 
     const handleSendComment = async (e) => {

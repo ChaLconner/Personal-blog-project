@@ -1,4 +1,5 @@
 import { getSupabase, getSupabaseAuth } from '../config/database.js';
+import { isSafePublicImageUrl } from '../utils/imageUrl.js';
 
 const getSupabaseProxy = () => new Proxy({}, {
   get: (_, prop) => {
@@ -382,7 +383,14 @@ export const updateProfile = async (req, res) => {
     if (name) updateData.name = name.trim();
     if (username) updateData.username = username.trim();
     const pic = imageUrl || profile_pic;
-    if (pic) updateData.profile_pic = pic;
+    if (pic) {
+      if (!isSafePublicImageUrl(pic)) {
+        return res.status(400).json({
+          error: "Profile image URL must use HTTPS and cannot target a local or private network",
+        });
+      }
+      updateData.profile_pic = pic.trim();
+    }
     if (typeof bio === 'string') updateData.bio = bio.trim();
 
     if (updateData.username) {

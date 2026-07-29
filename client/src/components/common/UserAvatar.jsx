@@ -1,5 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/services/api";
+import { getSafeImageUrl } from "@/utils/imageUrl";
 
 /**
  * Consistent UserAvatar component that can be used across the application
@@ -63,6 +65,7 @@ export function UserAvatar({
 
   const avatarSize = sizeClasses[size] || sizeClasses.md;
   const textSize = textSizes[size] || textSizes.md;
+  const safeSrc = getSafeImageUrl(src, { uploadsBaseUrl: API_BASE_URL });
 
   return (
     <Avatar
@@ -73,7 +76,7 @@ export function UserAvatar({
       )}
     >
       <AvatarImage
-        src={src}
+        src={safeSrc || undefined}
         alt={alt}
         className="object-cover"
       />

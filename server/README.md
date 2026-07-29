@@ -73,6 +73,10 @@ Authorization: Bearer <supabase-access-token>
 - Form field: `imageFile`
 - Maximum file size: 5 MB
 - Accepted formats: JPEG, PNG, GIF, WebP
+- JPEG, PNG, and WebP uploads are auto-oriented, stripped of metadata, resized
+  without enlargement, and stored as WebP (`512x512` profile, `1920x1920`
+  article bounds)
+- GIF uploads remain GIF to preserve animation
 - Files remain in memory only until uploaded to Supabase Storage
 
 ## Scripts

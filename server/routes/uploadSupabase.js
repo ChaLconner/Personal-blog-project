@@ -1,17 +1,12 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs/promises';
 import { getSupabase } from '../config/database.js';
 import protectUser from '../middlewares/protectUser.js';
 import protectAdmin from '../middlewares/protectAdmin.js';
+import { prepareImageForStorage } from '../utils/imageProcessing.js';
 
 const router = Router();
-
-// Get current directory for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Initialize Supabase client lazily
 const supabase = new Proxy({}, {
@@ -69,6 +64,19 @@ const upload = multer({
   }
 });
 
+const sendStorageUploadError = (res, bucket, error) => {
+  console.error(`❌ Supabase ${bucket} upload failed:`, {
+    message: error?.message,
+    name: error?.name,
+    statusCode: error?.statusCode,
+  });
+
+  return res.status(502).json({
+    success: false,
+    error: 'Image storage upload failed. Please try again.',
+  });
+};
+
 // Profile picture upload to Supabase Storage
 router.post('/profile', protectUser, upload.single('imageFile'), async (req, res) => {
   try {
@@ -88,62 +96,24 @@ router.post('/profile', protectUser, upload.single('imageFile'), async (req, res
 
     const userId = req.userId;
     const file = req.file;
+    const preparedImage = await prepareImageForStorage(
+      file.buffer,
+      file.mimetype,
+      'profile',
+    );
     const timestamp = Date.now();
-    const fileExt = IMAGE_EXTENSIONS[file.mimetype];
-    const fileName = `${userId}/${timestamp}-profile${fileExt}`;
+    const fileName = `${userId}/${timestamp}-profile${preparedImage.extension}`;
 
     // Upload to Supabase Storage
-    let { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('profile-pictures')
-      .upload(fileName, file.buffer, {
-        contentType: file.mimetype,
-        upsert: true
+      .upload(fileName, preparedImage.buffer, {
+        contentType: preparedImage.contentType,
+        upsert: false
       });
 
     if (error) {
-      console.warn('⚠️ Supabase upload error (profile-pictures), trying bucket creation...', error.message || error);
-      try {
-        await supabase.storage.createBucket('profile-pictures', { public: true });
-        const retry = await supabase.storage
-          .from('profile-pictures')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-            upsert: true
-          });
-        data = retry.data;
-        error = retry.error;
-      } catch (bErr) {
-        console.warn('Failed to create profile-pictures bucket:', bErr.message);
-      }
-    }
-
-    if (error) {
-      console.error('❌ Supabase profile image upload failed:', error);
-      // Local fallback
-      try {
-        const userUploadsDir = path.join(__dirname, `../uploads/profiles/${userId}`);
-        await fs.mkdir(userUploadsDir, { recursive: true });
-        const localFileName = `${timestamp}-profile${fileExt}`;
-        const localFilePath = path.join(userUploadsDir, localFileName);
-        await fs.writeFile(localFilePath, file.buffer);
-
-        const host = req.get('host') || 'localhost:5000';
-        const protocol = req.protocol || 'http';
-        const localUrl = `${protocol}://${host}/uploads/profiles/${userId}/${localFileName}`;
-
-        return res.json({
-          success: true,
-          url: localUrl,
-          path: `profiles/${userId}/${localFileName}`,
-          message: 'Profile image uploaded locally (fallback)'
-        });
-      } catch (localErr) {
-        console.error('❌ Local fallback upload failed:', localErr);
-        return res.status(500).json({
-          success: false,
-          error: `Upload failed: ${error.message || 'Storage error'}`
-        });
-      }
+      return sendStorageUploadError(res, 'profile-pictures', error);
     }
 
     // Get public URL
@@ -168,7 +138,7 @@ router.post('/profile', protectUser, upload.single('imageFile'), async (req, res
       });
     }
     
-    if (error.message && error.message.includes('Invalid file type')) {
+    if (error.status === 400) {
       return res.status(400).json({
         success: false,
         error: error.message
@@ -200,64 +170,26 @@ router.post('/image', protectAdmin, upload.single('imageFile'), async (req, res)
     }
 
     const file = req.file;
+    const preparedImage = await prepareImageForStorage(
+      file.buffer,
+      file.mimetype,
+      'article',
+    );
     const timestamp = Date.now();
     const originalExt = path.extname(file.originalname);
-    const fileExt = IMAGE_EXTENSIONS[file.mimetype];
     const cleanBaseName = path.basename(file.originalname, originalExt).replace(/[^a-zA-Z0-9.-]/g, '');
-    const fileName = `articles/${timestamp}-${cleanBaseName}${fileExt}`;
+    const fileName = `articles/${timestamp}-${cleanBaseName}${preparedImage.extension}`;
 
     // Upload to Supabase Storage
-    let { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('article-images')
-      .upload(fileName, file.buffer, {
-        contentType: file.mimetype,
-        upsert: true
+      .upload(fileName, preparedImage.buffer, {
+        contentType: preparedImage.contentType,
+        upsert: false
       });
 
     if (error) {
-      console.warn('⚠️ Supabase upload error (article-images), trying bucket creation...', error.message || error);
-      try {
-        await supabase.storage.createBucket('article-images', { public: true });
-        const retry = await supabase.storage
-          .from('article-images')
-          .upload(fileName, file.buffer, {
-            contentType: file.mimetype,
-            upsert: true
-          });
-        data = retry.data;
-        error = retry.error;
-      } catch (bErr) {
-        console.warn('Failed to create article-images bucket:', bErr.message);
-      }
-    }
-
-    if (error) {
-      console.error('❌ Supabase article image upload failed:', error);
-      // Local fallback
-      try {
-        const uploadsDir = path.join(__dirname, '../uploads/articles');
-        await fs.mkdir(uploadsDir, { recursive: true });
-        const localFileName = `${timestamp}-${cleanBaseName}${fileExt}`;
-        const localFilePath = path.join(uploadsDir, localFileName);
-        await fs.writeFile(localFilePath, file.buffer);
-
-        const host = req.get('host') || 'localhost:5000';
-        const protocol = req.protocol || 'http';
-        const localUrl = `${protocol}://${host}/uploads/articles/${localFileName}`;
-
-        return res.json({
-          success: true,
-          url: localUrl,
-          path: `articles/${localFileName}`,
-          message: 'Article image uploaded locally (fallback)'
-        });
-      } catch (localErr) {
-        console.error('❌ Local fallback upload failed:', localErr);
-        return res.status(500).json({
-          success: false,
-          error: `Upload failed: ${error.message || 'Storage error'}`
-        });
-      }
+      return sendStorageUploadError(res, 'article-images', error);
     }
 
     // Get public URL
@@ -282,7 +214,7 @@ router.post('/image', protectAdmin, upload.single('imageFile'), async (req, res)
       });
     }
     
-    if (error.message && error.message.includes('Invalid file type')) {
+    if (error.status === 400) {
       return res.status(400).json({
         success: false,
         error: error.message

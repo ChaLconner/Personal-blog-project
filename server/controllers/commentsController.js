@@ -1,5 +1,6 @@
 import { dbService } from '../config/database.js';
 import { createCommentNotification } from '../utils/notificationHelpers.js';
+import { isSafePublicImageUrl } from '../utils/imageUrl.js';
 
 export async function getComments(req, res) {
   try {
@@ -47,6 +48,18 @@ export async function createComment(req, res) {
         error: "Missing required fields: post_id and comment_text"
       });
     }
+
+    if (image && !isSafePublicImageUrl(image)) {
+      return res.status(400).json({
+        success: false,
+        error: "Comment image URL must use HTTPS and cannot target a local or private network",
+      });
+    }
+
+    const authenticatedImage = req.user?.profile_pic;
+    const safeAuthenticatedImage = isSafePublicImageUrl(authenticatedImage)
+      ? authenticatedImage
+      : null;
     
     const commentData = {
       post_id: parseInt(post_id),
@@ -54,7 +67,7 @@ export async function createComment(req, res) {
       user_id: req.user?.id || null,
       name: sanitizeText((req.user && (req.user.name || req.user.username)) || name || 'Anonymous'),
       email: email || null,
-      image: (req.user && req.user.profile_pic) || image || DEFAULT_AVATAR
+      image: safeAuthenticatedImage || image || DEFAULT_AVATAR
     };
     
     const newComment = await dbService.createComment(commentData);
