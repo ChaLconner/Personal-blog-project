@@ -57,10 +57,26 @@ After deployment, verify:
 
 ```text
 https://your-api.example.com/health
+https://your-api.example.com/ready
 ```
 
-Expected result: HTTP `200` with `status` equal to `OK`. HTTP `503` with
-`DEGRADED` means the process is running but its Supabase database check failed.
+`/health` is a lightweight process liveness check. `/ready` verifies Supabase
+with a bounded timeout. Expected result for both is HTTP `200` with `status`
+equal to `OK`; `/ready` returns HTTP `503` with `DEGRADED` when the process is
+running but its database check failed.
+
+### Render Free cold starts
+
+Render Free web services spin down after an idle period. The scheduled
+`.github/workflows/keep-render-awake.yml` workflow calls `/ready` every ten
+minutes to keep the API and database path warm. GitHub schedule execution can
+be delayed, and Render can restart Free instances, so the client also uses a
+90-second readiness loop and displays persisted public article data during
+wake-up.
+
+The scheduled workflow consumes Free instance hours. One continuously warm
+service uses nearly the full monthly allowance; review workspace usage before
+adding another Free service.
 
 ## Deploy the client to Vercel
 
@@ -89,6 +105,7 @@ After the first frontend deployment:
 
 - Frontend root and a deep route load without `404`
 - `/health` responds
+- `/ready` responds with `database` equal to `HEALTHY`
 - Public posts and categories load
 - Sign-up, email callback, login, and logout work
 - Profile image upload works

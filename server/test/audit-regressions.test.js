@@ -155,3 +155,37 @@ test("malformed JSON returns HTTP 400 at runtime", async (t) => {
 
   assert.equal(response.status, 400);
 });
+
+test("liveness health check does not depend on Supabase", async (t) => {
+  const { default: app } = await import("../app.js");
+  const server = await new Promise((resolve) => {
+    const listeningServer = app.listen(0, "127.0.0.1", () => resolve(listeningServer));
+  });
+  t.after(() => new Promise((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  }));
+
+  const { port } = server.address();
+  const response = await fetch(`http://127.0.0.1:${port}/health`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.status, "OK");
+  assert.equal(body.database, "NOT_CHECKED");
+});
+
+test("readiness check has a bounded Supabase query", async () => {
+  const source = await readSource("../app.js");
+
+  assert.match(source, /app\.get\(['"]\/ready['"]/);
+  assert.match(source, /\.abortSignal\(controller\.signal\)/);
+  assert.match(source, /READINESS_TIMEOUT_MS/);
+});
+
+test("production request logs include request id and duration", async () => {
+  const source = await readSource("../app.js");
+
+  assert.match(source, /X-Request-ID/);
+  assert.match(source, /requestId/);
+  assert.match(source, /durationMs/);
+});

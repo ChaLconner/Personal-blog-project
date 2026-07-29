@@ -30,6 +30,23 @@ test("post list timeout and abort signal are request options, not query params",
   assert.match(source, /blogApi\.getPosts\(\s*\{[\s\S]*?\}\s*,\s*\{/);
 });
 
+test("article initial load does not issue a duplicate posts prefetch", async () => {
+  const source = await readSource(
+    "../src/components/blog/ArticleSection.jsx",
+  );
+  assert.doesNotMatch(source, /Prefetch on first load|firstLoadRef/);
+});
+
+test("API instance does not force JSON content type on GET requests", async () => {
+  const source = await readSource("../src/services/api.js");
+  const instanceConfig = source.match(
+    /axios\.create\(\{([\s\S]*?)\}\);/,
+  )?.[1];
+
+  assert.ok(instanceConfig);
+  assert.doesNotMatch(instanceConfig, /Content-Type/);
+});
+
 test("missing posts navigate to a stable 404 URL", async () => {
   const source = await readSource("../src/components/blog/ViewPost.jsx");
   assert.doesNotMatch(source, /navigate\(\s*["']\*["']\s*\)/);

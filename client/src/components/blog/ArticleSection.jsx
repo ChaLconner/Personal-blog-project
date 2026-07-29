@@ -23,13 +23,15 @@ export default function ArticleSection() {
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [showSkeleton, setShowSkeleton] = useState(false);
-    const firstLoadRef = useRef(true);
     const [isCategoryChanging, setIsCategoryChanging] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState("");
     const debouncedSearch = useDebounce(searchKeyword, 300);
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [error, setError] = useState(null);
+    const [apiStatus, setApiStatus] = useState("checking");
+    const [hasCachedPosts, setHasCachedPosts] = useState(false);
+    const [connectionAttempt, setConnectionAttempt] = useState(0);
 
     // Drag-to-scroll for categories bar using Pointer Events
     const categoryScrollRef = useRef(null);
@@ -69,31 +71,84 @@ export default function ArticleSection() {
         }
     };
 
-    // Fetch categories dynamically from backend API
+    // Wake the free Render service once, then let data requests share its ready state.
     useEffect(() => {
-        let isMounted = true;
+        const controller = new AbortController();
+        const staleCategories = blogApi.getStaleCategories();
+        const stalePosts = blogApi.getStalePosts({
+            category: null,
+            limit: 12,
+            offset: 0,
+        });
+
+        const categoryList = staleCategories?.categories || staleCategories?.data || [];
+        const categoryNames = categoryList
+            .map((item) => (typeof item === "string" ? item : item?.name))
+            .filter(Boolean);
+        if (categoryNames.length > 0) {
+            setCategories(Array.from(new Set(["Highlight", ...categoryNames])));
+        }
+
+        if (Array.isArray(stalePosts?.posts) && stalePosts.posts.length > 0) {
+            setPosts(stalePosts.posts.slice(0, 6));
+            setHasCachedPosts(true);
+        }
+
+        setApiStatus("checking");
+        setError(null);
+        blogApi.waitUntilReady({
+            signal: controller.signal,
+            onStatus: setApiStatus,
+        }).catch((wakeError) => {
+            if (
+                wakeError?.name === "AbortError" ||
+                wakeError?.name === "CanceledError" ||
+                wakeError?.code === "ERR_CANCELED"
+            ) {
+                return;
+            }
+            setApiStatus("failed");
+            setError(wakeError.message);
+        });
+
+        return () => controller.abort();
+    }, [connectionAttempt]);
+
+    // Fetch categories dynamically after the API and database are ready.
+    useEffect(() => {
+        if (apiStatus !== "ready") return undefined;
+
+        const controller = new AbortController();
         const fetchCategories = async () => {
             try {
-                const response = await blogApi.getCategories();
+                const response = await blogApi.getCategories({
+                    signal: controller.signal,
+                });
                 const categoryList = response?.categories || response?.data || [];
                 const names = categoryList
                     .map((c) => (typeof c === 'string' ? c : c?.name))
                     .filter(Boolean);
 
-                if (isMounted && names.length > 0) {
+                if (names.length > 0) {
                     const uniqueCategories = Array.from(new Set(["Highlight", ...names]));
                     setCategories(uniqueCategories);
                 }
             } catch (err) {
+                if (
+                    err?.name === "AbortError" ||
+                    err?.name === "CanceledError" ||
+                    err?.code === "ERR_CANCELED"
+                ) {
+                    return;
+                }
                 console.error("❌ Failed to fetch categories in ArticleSection:", err);
+                setError(err.message);
             }
         };
 
         fetchCategories();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+        return () => controller.abort();
+    }, [apiStatus]);
 
     // Utility function to remove duplicate posts by ID, title, and content
     const removeDuplicatePosts = (posts) => {
@@ -114,6 +169,8 @@ export default function ArticleSection() {
     };
 
     useEffect(() => {
+        if (apiStatus !== "ready") return undefined;
+
         const controller = new AbortController();
         const fetchPosts = async () => {
             if (page === 1) {
@@ -132,19 +189,20 @@ export default function ArticleSection() {
                     categoryParam = category;
                 }
 
-                // Use a shorter timeout for first load
                 const response = await blogApi.getPosts({
                     category: categoryParam,
                     limit: requestLimit,
                     offset: (page - 1) * 6,
                 }, {
-                    timeout: page === 1 ? 8000 : 15000,
                     signal: controller.signal,
                 });
 
-                const postsData = (response && response.success && Array.isArray(response.posts))
-                    ? response.posts
-                    : [];
+                if (!response?.success || !Array.isArray(response.posts)) {
+                    throw new Error(response?.error || "Invalid posts response");
+                }
+                const postsData = response.posts;
+                setError(null);
+                setHasCachedPosts(false);
 
                 setPosts((prevPosts) => {
                     if (page === 1) {
@@ -175,11 +233,7 @@ export default function ArticleSection() {
             } catch (error) {
                 if (error.name === 'AbortError' || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') return;
                 setError(error.message);
-                if (page === 1) {
-                    setPosts([]);
-                }
                 setHasMore(false);
-                setTimeout(() => setError(null), 5000);
             } finally {
                 setIsLoading(false);
                 setIsCategoryChanging(false);
@@ -188,21 +242,11 @@ export default function ArticleSection() {
         };
 
         fetchPosts();
-        // Prefetch on first load only
-        if (firstLoadRef.current) {
-            firstLoadRef.current = false;
-            setTimeout(() => {
-                blogApi.getPosts(
-                    { category: null, limit: 12, offset: 0 },
-                    { timeout: 6000 }
-                );
-            }, 0);
-        }
         return () => controller.abort();
-    }, [page, category]);
+    }, [page, category, apiStatus]);
 
     useEffect(() => {
-        if (debouncedSearch.length > 0) {
+        if (debouncedSearch.length > 0 && apiStatus === "ready") {
             setIsLoading(true);
                     const fetchSuggestions = async () => {
                     try {
@@ -227,8 +271,9 @@ export default function ArticleSection() {
             fetchSuggestions();
         } else {
             setSuggestions([]); // Clear suggestions if keyword is empty
+            setIsLoading(false);
         }
-    }, [debouncedSearch]);
+    }, [debouncedSearch, apiStatus]);
 
     const handleCategoryChange = useCallback((newCategory) => {
         if (newCategory !== category) {
@@ -239,6 +284,7 @@ export default function ArticleSection() {
             setPage(1);
             setHasMore(true);
             setPosts([]); // Clear posts immediately เพื่อป้องกัน confusion
+            setHasCachedPosts(false);
 
             // Clear any relevant cache for immediate refresh
             if (typeof blogApi.clearCache === 'function') {
@@ -248,8 +294,13 @@ export default function ArticleSection() {
     }, [category]);
 
     const handleLoadMore = useCallback(() => setPage((prevPage) => prevPage + 1), []);
+    const retryConnection = useCallback(() => {
+        setError(null);
+        setConnectionAttempt((attempt) => attempt + 1);
+    }, []);
 
     const navigate = useNavigate();
+    const isWakingServer = apiStatus === "checking" || apiStatus === "waking";
 
     return (
         <section className="w-full max-w-[1200px] mx-auto flex flex-col gap-12">
@@ -350,6 +401,21 @@ export default function ArticleSection() {
                     </div>
                 </div>
 
+                {isWakingServer && (
+                    <div className="px-4 pt-2" role="status" aria-live="polite">
+                        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-4">
+                            <p className="text-sm font-medium">
+                                Server is waking up. This can take up to one minute on the free plan.
+                            </p>
+                            {hasCachedPosts && (
+                                <p className="text-xs mt-1">
+                                    Showing saved articles while fresh data loads.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Error Message */}
                 {error && (
                     <div className="px-4 pt-2">
@@ -358,8 +424,15 @@ export default function ArticleSection() {
                                 <strong>Connection Error:</strong> {error}
                             </p>
                             <p className="text-xs mt-1">
-                                Please check if the server is running or try refreshing the page.
+                                Saved articles remain visible when available.
                             </p>
+                            <button
+                                type="button"
+                                onClick={retryConnection}
+                                className="text-sm font-medium underline mt-2"
+                            >
+                                Try again
+                            </button>
                         </div>
                     </div>
                 )}
@@ -369,10 +442,12 @@ export default function ArticleSection() {
                     {/* Blog Cards */}
                     <div className="grid grid-cols-1 gap-x-5 gap-y-12 sm:grid-cols-2 w-full">
                         {/* Show loading when loading/changing category and no posts */}
-                        {(isLoading || isCategoryChanging) && posts.length === 0 && !showSkeleton && (
+                        {(isLoading || isCategoryChanging || isWakingServer) && posts.length === 0 && !showSkeleton && (
                             <div className="col-span-full flex flex-col items-center justify-center min-h-[400px] py-12">
                                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
-                                <p className="text-muted-foreground text-lg">Loading {category} posts...</p>
+                                <p className="text-muted-foreground text-lg">
+                                    {isWakingServer ? "Waking server..." : `Loading ${category} posts...`}
+                                </p>
                             </div>
                         )}
                         {/* Show posts */}
@@ -391,7 +466,7 @@ export default function ArticleSection() {
                             />
                         ))}
                         {/* Show "No posts found" when not loading and no posts */}
-                        {!isCategoryChanging && !isLoading && posts.length === 0 && !showSkeleton && (
+                        {apiStatus === "ready" && !error && !isCategoryChanging && !isLoading && posts.length === 0 && !showSkeleton && (
                             <div className="col-span-full flex flex-col items-center justify-center min-h-[400px] py-12">
                                 <p className="text-muted-foreground text-lg">No posts found for {category} category.</p>
                             </div>
@@ -399,7 +474,7 @@ export default function ArticleSection() {
                     </div>
 
                     {/* View More */}
-                    {hasMore && !isCategoryChanging && (
+                    {hasMore && apiStatus === "ready" && !isCategoryChanging && (
                         <div className="w-full flex justify-center">
                             <button
                                 onClick={handleLoadMore}

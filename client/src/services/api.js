@@ -1,4 +1,9 @@
 import axios from "axios";
+import {
+  createPersistentCache,
+  createRequestCoordinator,
+  waitForServiceReady,
+} from "./requestResilience.js";
 
 // Resolve API base URL: prefer VITE_API_URL, then localhost:5000 in dev, else relative / origin
 export const API_BASE_URL =
@@ -10,7 +15,19 @@ export const API_BASE_URL =
 // Simple cache for storing API responses
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const PERSISTENT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const SERVICE_READY_DURATION = 10 * 60 * 1000; // Recheck before Render's idle window
+const SERVICE_WAKE_TIMEOUT = 90 * 1000;
+const SERVICE_CHECK_TIMEOUT = 12 * 1000;
+const PUBLIC_REQUEST_TIMEOUT = 15 * 1000;
 const ENABLE_CACHE_LOGGING = false; // Set to true for debugging
+const publicRequests = createRequestCoordinator();
+const persistentCache = createPersistentCache({
+  storage: window.localStorage,
+  prefix: "blog_public_cache:",
+  maxAgeMs: PERSISTENT_CACHE_DURATION,
+});
+let serviceReadyUntil = 0;
 
 // Token management
 let authToken =
@@ -19,9 +36,6 @@ let authToken =
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
   timeout: 10000, // 10 second default timeout
 });
 
@@ -70,9 +84,11 @@ api.interceptors.response.use(
       error?.code === "ECONNABORTED" ||
       /timeout of \d+ms exceeded/.test(error?.message || "");
     const isNetworkLevel = !error?.response;
+    const isExpectedReadinessRetry =
+      error?.config?.url === "/ready" && error?.response?.status === 503;
 
     // Don't spam console for expected network/timeouts that will be retried
-    if (!(isTimeout || isNetworkLevel)) {
+    if (!(isTimeout || isNetworkLevel || isExpectedReadinessRetry)) {
       console.error("API Error:", error.response?.data || error.message);
     }
 
@@ -274,6 +290,79 @@ const clearCache = () => {
   cache.clear();
 };
 
+const waitUntilReady = async ({
+  signal,
+  onStatus,
+  force = false,
+} = {}) => {
+  if (!force && Date.now() < serviceReadyUntil) {
+    onStatus?.("ready");
+    return { status: "OK", database: "HEALTHY" };
+  }
+
+  onStatus?.("waking");
+  try {
+    const result = await publicRequests.run(
+      "service:ready",
+      () =>
+        waitForServiceReady(
+          async ({ timeoutMs }) => {
+            const response = await api.get("/ready", { timeout: timeoutMs });
+            return response.data;
+          },
+          {
+            timeoutMs: SERVICE_WAKE_TIMEOUT,
+            checkTimeoutMs: SERVICE_CHECK_TIMEOUT,
+            intervalMs: 1500,
+            isReady: (value) =>
+              value?.status === "OK" && value?.database === "HEALTHY",
+          },
+        ),
+      { signal },
+    );
+
+    serviceReadyUntil = Date.now() + SERVICE_READY_DURATION;
+    onStatus?.("ready");
+    return result;
+  } catch (error) {
+    if (
+      error?.name === "AbortError" ||
+      error?.name === "CanceledError" ||
+      error?.code === "ERR_CANCELED"
+    ) {
+      throw error;
+    }
+
+    onStatus?.("failed");
+    throw error;
+  }
+};
+
+const normalizePostParams = (params = {}) => {
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(
+      ([, value]) => value !== null && value !== undefined && value !== ""
+    )
+  );
+
+  if (!Object.prototype.hasOwnProperty.call(cleanParams, "limit")) {
+    cleanParams.limit = 12;
+  }
+
+  return cleanParams;
+};
+
+const createPostSummaryResponse = (data) => ({
+  ...data,
+  posts: Array.isArray(data?.posts)
+    ? data.posts.map((post) => {
+        const summary = { ...post };
+        delete summary.content;
+        return summary;
+      })
+    : [],
+});
+
 // Per-user persisted metadata for incremental notification fetches
 const NOTIF_META_PREFIX = "notif_meta_";
 
@@ -393,17 +482,7 @@ export const blogApi = {
   // Get all blog posts with optional filters (with caching)
   getPosts: async (params = {}, requestConfig = {}) => {
     try {
-      // Clean up empty params
-      const cleanParams = Object.fromEntries(
-        Object.entries(params).filter(
-          ([, value]) => value !== null && value !== undefined && value !== ""
-        )
-      );
-
-      // Provide a safe default limit to avoid fetching extremely large result sets
-      if (!Object.prototype.hasOwnProperty.call(cleanParams, "limit")) {
-        cleanParams.limit = 12; // default page size for lists
-      }
+      const cleanParams = normalizePostParams(params);
 
       // Check cache first
       const cacheKey = getCacheKey("/blog/posts", cleanParams);
@@ -412,14 +491,19 @@ export const blogApi = {
         return cachedData;
       }
 
-      // Use requestWithRetries for transient network/timeouts and a slightly reduced per-request timeout
-      const response = await requestWithRetries(
-        () => api.get("/blog/posts", {
-          params: cleanParams,
-          timeout: requestConfig.timeout ?? 15000,
-          ...(requestConfig.signal ? { signal: requestConfig.signal } : {}),
-        }),
-        { attempts: 3, initialDelay: 400 }
+      await waitUntilReady({
+        signal: requestConfig.signal,
+        onStatus: requestConfig.onStatus,
+      });
+
+      const response = await publicRequests.run(
+        `data:${cacheKey}`,
+        () =>
+          api.get("/blog/posts", {
+            params: cleanParams,
+            timeout: requestConfig.timeout ?? PUBLIC_REQUEST_TIMEOUT,
+          }),
+        { signal: requestConfig.signal },
       );
 
       // Validate response structure
@@ -439,6 +523,7 @@ export const blogApi = {
       // Cache the response only if it's successful
       if (response.data.success) {
         setCachedData(cacheKey, response.data);
+        persistentCache.write(cacheKey, createPostSummaryResponse(response.data));
       }
 
       return response.data;
@@ -447,16 +532,15 @@ export const blogApi = {
         throw error;
       }
 
+      serviceReadyUntil = 0;
       console.error("❌ Error fetching posts:", error.message);
-
-      // Return fallback data structure instead of throwing
-      return {
-        success: false,
-        posts: [],
-        meta: { category: "all", limit: 0, offset: 0, count: 0 },
-        error: error.message,
-      };
+      throw error;
     }
+  },
+
+  getStalePosts: (params = {}) => {
+    const cleanParams = normalizePostParams(params);
+    return persistentCache.read(getCacheKey("/blog/posts", cleanParams));
   },
 
   // Get single blog post by ID
@@ -560,7 +644,7 @@ export const blogApi = {
   },
 
   // Get all categories (with caching)
-  getCategories: async () => {
+  getCategories: async (requestConfig = {}) => {
     try {
       // Check cache first
       const cacheKey = getCacheKey("/blog/categories");
@@ -569,26 +653,46 @@ export const blogApi = {
         return cachedData;
       }
 
-      const response = await api.get("/blog/categories");
+      await waitUntilReady({
+        signal: requestConfig.signal,
+        onStatus: requestConfig.onStatus,
+      });
+
+      const response = await publicRequests.run(
+        `data:${cacheKey}`,
+        () =>
+          api.get("/blog/categories", {
+            timeout: requestConfig.timeout ?? PUBLIC_REQUEST_TIMEOUT,
+          }),
+        { signal: requestConfig.signal },
+      );
 
       // Cache the response
       setCachedData(cacheKey, response.data);
+      persistentCache.write(cacheKey, response.data);
 
       return response.data;
     } catch (error) {
+      if (axios.isCancel(error) || error?.code === "ERR_CANCELED") {
+        throw error;
+      }
+
+      serviceReadyUntil = 0;
       console.error("Error fetching categories:", error);
       throw error;
     }
   },
 
+  getStaleCategories: () =>
+    persistentCache.read(getCacheKey("/blog/categories")),
 
+  waitUntilReady,
 
   // Health check
-  healthCheck: async () => {
+  healthCheck: async (requestConfig = {}) => {
     try {
-      const response = await api.get("/health", { timeout: 5000 });
-
-      return { success: true, data: response.data };
+      const data = await waitUntilReady(requestConfig);
+      return { success: true, data };
     } catch (error) {
       console.error("❌ Health check failed:", error.message);
       return { success: false, error: error.message };

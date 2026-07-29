@@ -5,6 +5,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,10 +20,42 @@ import likesRouter from './routes/likes.js';
 import { getSupabase } from './config/database.js';
 
 const app = express();
+const READINESS_TIMEOUT_MS = 4000;
 
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
+
+app.use((req, res, next) => {
+  const requestId = randomUUID();
+  const startedAt = process.hrtime.bigint();
+  req.requestId = requestId;
+  res.setHeader('X-Request-ID', requestId);
+
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      requestId,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Number(durationMs.toFixed(2)),
+    };
+
+    if (process.env.NODE_ENV === 'production') {
+      if (req.path !== '/health' || res.statusCode >= 400) {
+        console.log(JSON.stringify(logEntry));
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log(
+        `${logEntry.method} ${logEntry.path} - ${logEntry.status} - ${logEntry.durationMs}ms - ${requestId}`,
+      );
+    }
+  });
+
+  next();
+});
 
 const developmentOrigins = [
   'http://localhost:5173',
@@ -48,7 +81,7 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'If-Modified-Since', 'If-None-Match', 'Cache-Control', 'Pragma'],
-  exposedHeaders: ['ETag', 'Last-Modified']
+  exposedHeaders: ['ETag', 'Last-Modified', 'X-Request-ID']
 }));
 
 app.use(helmet({
@@ -79,18 +112,6 @@ app.use('/auth/check-email', authLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use((req, res, next) => {
-  const start = process.hrtime();
-  res.on('finish', () => {
-    const diff = process.hrtime(start);
-    const ms = (diff[0] * 1e3 + diff[1] / 1e6).toFixed(2);
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${ms}ms`);
-    }
-  });
-  next();
-});
-
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -98,23 +119,48 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-app.get('/health', async (req, res) => {
-  let dbStatus = 'HEALTHY';
-  try {
-    const supabase = getSupabase();
-    const { error } = await supabase.from('users').select('id').limit(1);
-    if (error) dbStatus = 'UNHEALTHY';
-  } catch (err) {
-    dbStatus = 'UNHEALTHY';
-  }
-
-  res.status(dbStatus === 'HEALTHY' ? 200 : 503).json({
-    status: dbStatus === 'HEALTHY' ? 'OK' : 'DEGRADED',
-    database: dbStatus,
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    database: 'NOT_CHECKED',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+app.get('/ready', async (req, res) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), READINESS_TIMEOUT_MS);
+
+  try {
+    const { error } = await getSupabase()
+      .from('users')
+      .select('id')
+      .limit(1)
+      .abortSignal(controller.signal);
+
+    if (error) throw error;
+
+    res.json({
+      status: 'OK',
+      database: 'HEALTHY',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch {
+    res.status(503).json({
+      status: 'DEGRADED',
+      database: 'UNHEALTHY',
+      reason: controller.signal.aborted ? 'TIMEOUT' : 'QUERY_FAILED',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 });
 
 app.use('/auth', authRouter);
@@ -135,6 +181,7 @@ app.use('*', (req, res) => {
 
 app.use((error, req, res, next) => {
   console.error('Global error handler:', {
+    requestId: req.requestId,
     message: error.message,
     type: error.type,
     code: error.code,
